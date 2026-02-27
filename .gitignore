@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# production
+build/
+
+# env files - NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production
+
+# service account - contains private keys
+service-account.json
+
+# debug scripts
+check_listing.ts
+debug_g10213.ts
+get_headers.ts
+output.txt
+leased_grep.txt
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+tsconfig.tsbuildinfo
+.vercel

@@ -1,0 +1,74 @@
+export interface Listing {
+  id: string;
+  region: string;
+  province: string;
+  city: string;
+  barangay: string;
+  area: string;
+  building: string;
+  residential: boolean;
+  commercial: boolean;
+  industrial: boolean;
+  agricultural: boolean;
+  lotArea: string;
+  floorArea: string;
+  status: "Available" | "Sold" | "Leased" | "";
+  type: PropertyType | "";
+  salePrice: string;
+  salePricePerSqm: string;
+  leasePrice: string;
+  leasePricePerSqm: string;
+  lat: string;
+  long: string;
+  bedrooms: string;
+  toilets: string;
+  garage: string;
+  amenities: string;
+  corner: boolean;
+  compound: boolean;
+  photos: string;
+  mapLink: string;
+  rawListing: string;
+  // New fields
+  withIncome: boolean;
+  directOrCobroker: "Direct" | "Cobroker" | "";
+  ownerBroker: string;
+  howManyAway: string;
+  listingOwnership: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const DIRECT_COBROKER_OPTIONS = ["Direct", "Cobroker"] as const;
+
+export type PropertyType =
+  | "TOWNHOUSE"
+  | "WAREHOUSE"
+  | "VACANT LOT"
+  | "HOUSE AND LOT"
+  | "CONDO"
+  | "OFFICE/COMMERCIAL"
+  | "BUILDING"
+  | "CLUB SHARE/BUSINESS";
+
+export const PROPERTY_TYPES: PropertyType[] = [
+  "TOWNHOUSE",
+  "WAREHOUSE",
+  "VACANT LOT",
+  "HOUSE AND LOT",
+  "CONDO",
+  "OFFICE/COMMERCIAL",
+  "BUILDING",
+  "CLUB SHARE/BUSINESS",
+];
+
+export const STATUS_OPTIONS = ["Available", "Sold", "Leased"] as const;
+
+export interface ParsedListing extends Partial<Listing> {
+  confidence?: number;
+}
+
+export interface SheetRow {
+  rowIndex: number;
+  values: string[];
+}
