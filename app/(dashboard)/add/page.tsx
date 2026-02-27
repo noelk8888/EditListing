@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SupabaseListing } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
@@ -118,6 +118,18 @@ export default function AddListingPage() {
   const [suggestedGeoId, setSuggestedGeoId] = useState("");
   const [newGeoId, setNewGeoId] = useState("");
   const [geoIdConfirmed, setGeoIdConfirmed] = useState(false);
+
+  // === BATCH MODE STATE ===
+  type BatchRow = { rowNumber: number; colA: string; colAC: string };
+  const [batchMode, setBatchMode]                 = useState(false);      // setup panel open
+  const [batchStartRow, setBatchStartRow]         = useState("2");
+  const [batchEndRow, setBatchEndRow]             = useState("50");
+  const [batchRows, setBatchRows]                 = useState<BatchRow[]>([]);
+  const [batchIndex, setBatchIndex]               = useState(0);
+  const [batchLoading, setBatchLoading]           = useState(false);
+  const [batchActive, setBatchActive]             = useState(false);      // processing in progress
+  const [batchSkips, setBatchSkips]               = useState<number[]>([]);
+  const [batchExtractReady, setBatchExtractReady] = useState(false);
 
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "paste", label: "Paste Listing", number: 1 },
@@ -423,6 +435,54 @@ export default function AddListingPage() {
     }
   }, [step, searchPerformed, photosLink, listingId, previewLines, handleSearch]);
 
+  // BATCH Effect A: load next row when batchIndex changes
+  useEffect(() => {
+    if (!batchActive || batchRows.length === 0) return;
+
+    // Skip empty colA rows
+    let idx = batchIndex;
+    const newSkips: number[] = [];
+    while (idx < batchRows.length && !batchRows[idx].colA.trim()) {
+      newSkips.push(batchRows[idx].rowNumber);
+      idx++;
+    }
+    if (newSkips.length > 0) {
+      setBatchSkips(prev => [...prev, ...newSkips]);
+      if (idx !== batchIndex) { setBatchIndex(idx); return; }
+    }
+
+    if (idx >= batchRows.length) {
+      alert(`Batch complete! Processed rows. Skipped ${batchSkips.length + newSkips.length} empty rows.`);
+      setBatchActive(false);
+      return;
+    }
+
+    const row = batchRows[idx];
+    setBatchExtractReady(false);
+    setRawText(row.colA);
+    goToStep("check");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchActive, batchIndex, batchRows]);
+
+  // BATCH Effect B: when search finishes, signal extraction ready
+  useEffect(() => {
+    if (!batchActive) return;
+    if (step !== "check") return;
+    if (searching) return;
+    if (!searchPerformed) return;
+    if (batchExtractReady) return;
+    setBatchExtractReady(true);
+  }, [batchActive, step, searching, searchPerformed, batchExtractReady]);
+
+  // BATCH Effect C: consume extract-ready signal → auto-trigger extraction
+  useEffect(() => {
+    if (!batchActive) return;
+    if (!batchExtractReady) return;
+    setBatchExtractReady(false);
+    handleExtractData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [batchActive, batchExtractReady]);
+
   // Auto-fill fields from search result
   useEffect(() => {
     if (searchResult) {
@@ -623,9 +683,14 @@ export default function AddListingPage() {
         console.warn("Update warning:", result.warning);
       }
 
-      // Success - redirect
-      alert(`✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`);
-      router.push("/");
+      // Success
+      if (batchActive) {
+        setError(null);
+        setBatchIndex(prev => prev + 1);
+      } else {
+        alert(`✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`);
+        router.push("/");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update listing");
     } finally {
@@ -692,14 +757,55 @@ export default function AddListingPage() {
         throw new Error(data.error || "Failed to add listing");
       }
 
-      // Success - go to main page
-      alert(`New listing created: ${data.geoId}`);
-      router.push("/");
+      // Success
+      if (batchActive) {
+        setError(null);
+        setBatchIndex(prev => prev + 1);
+      } else {
+        alert(`New listing created: ${data.geoId}`);
+        router.push("/");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add listing");
     } finally {
       setAdding(false);
     }
+  };
+
+  const handleStartBatch = async () => {
+    const start = parseInt(batchStartRow, 10);
+    const end   = parseInt(batchEndRow, 10);
+    if (isNaN(start) || isNaN(end) || start < 2 || end < start) {
+      setError("Start row must be ≥ 2 and end row must be ≥ start row");
+      return;
+    }
+    setBatchLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/batch-rows?startRow=${start}&endRow=${end}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to fetch rows");
+      setBatchRows(data.rows);
+      setBatchIndex(0);
+      setBatchSkips([]);
+      setBatchActive(true);
+      setBatchMode(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start batch");
+    } finally {
+      setBatchLoading(false);
+    }
+  };
+
+  const handleExitBatch = () => {
+    setBatchActive(false);
+    setBatchRows([]);
+    setBatchIndex(0);
+    setBatchSkips([]);
+    setBatchExtractReady(false);
+    setRawText("");
+    setStep("paste");
+    setError(null);
   };
 
   const handleDone = () => {
@@ -781,14 +887,114 @@ export default function AddListingPage() {
 
   return (
     <div className="space-y-6">
+      {/* Batch Progress Banner */}
+      {batchActive && (
+        <div className="sticky top-0 z-50 bg-slate-900 text-white p-3 rounded-md shadow-lg space-y-1.5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold tracking-widest text-slate-300">BATCH</span>
+              <div className="w-32 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-400 transition-all duration-300"
+                  style={{ width: `${batchRows.length ? ((batchIndex) / batchRows.length) * 100 : 0}%` }}
+                />
+              </div>
+              <span className="text-sm">
+                Row {batchIndex + 1} of {batchRows.length}
+              </span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-slate-300 hover:text-white hover:bg-slate-700 h-7 px-2"
+              onClick={handleExitBatch}
+            >
+              <X className="h-3.5 w-3.5 mr-1" />
+              Exit Batch
+            </Button>
+          </div>
+          {batchRows[batchIndex] && (
+            <div className="text-xs text-slate-400">
+              GEO ID: <span className="font-mono font-bold text-white">{batchRows[batchIndex].colAC || "(new)"}</span>
+              {" · "}Sheet row <span className="font-mono text-slate-200">#{batchRows[batchIndex].rowNumber}</span>
+            </div>
+          )}
+          {batchSkips.length > 0 && (
+            <div className="text-xs text-yellow-400">
+              ⚠ Skipped (empty col A): rows {batchSkips.join(", ")}
+            </div>
+          )}
+        </div>
+      )}
+
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Add New Listing {APP_VERSION}</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">Add New Listing {APP_VERSION}</h1>
+          {!batchActive && (
+            <button
+              onClick={() => setBatchMode(v => !v)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Batch Review Mode"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <p className="text-muted-foreground">
           {step === "paste" && "Paste your raw listing text"}
           {step === "check" && "Verify listing and enter additional info"}
           {step === "review" && "Review and edit the extracted data before saving"}
         </p>
       </div>
+
+      {/* Batch Setup Panel */}
+      {batchMode && !batchActive && (
+        <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold tracking-wide">BATCH REVIEW MODE</span>
+            <button onClick={() => setBatchMode(false)} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Fetches col A text from a GSheet row range. Auto-pastes, searches, and extracts each row — you only press Update Listing.
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0">Start Row</Label>
+              <Input
+                type="number"
+                min={2}
+                value={batchStartRow}
+                onChange={e => setBatchStartRow(e.target.value)}
+                className="h-8 w-24 text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0">End Row</Label>
+              <Input
+                type="number"
+                min={2}
+                value={batchEndRow}
+                onChange={e => setBatchEndRow(e.target.value)}
+                className="h-8 w-24 text-sm"
+              />
+            </div>
+            <Button
+              size="sm"
+              onClick={handleStartBatch}
+              disabled={batchLoading}
+              className="h-8"
+            >
+              {batchLoading ? (
+                <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />Loading...</>
+              ) : (
+                <>Start Batch ({Math.max(0, parseInt(batchEndRow || "0") - parseInt(batchStartRow || "0") + 1)} rows)</>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Progress Steps */}
       <div className="flex items-center gap-2">
@@ -2061,8 +2267,23 @@ Photos: https://photos.app.goo.gl/example`}
           </Card>
 
           {error && (
-            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-              {error}
+            <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md flex items-center justify-between gap-3">
+              <span>{error}</span>
+              {batchActive && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 h-7 text-xs"
+                  onClick={() => {
+                    const current = batchRows[batchIndex];
+                    if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
+                    setError(null);
+                    setBatchIndex(prev => prev + 1);
+                  }}
+                >
+                  Skip This Row
+                </Button>
+              )}
             </div>
           )}
 

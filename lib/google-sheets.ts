@@ -73,6 +73,13 @@ export const GSHEET_COLUMNS = {
   BO_COMPOUND: 66,          // BO - compound
 };
 
+// Interface for batch row data (col A + col AC)
+export interface BatchRowData {
+  rowNumber: number;  // 1-indexed sheet row
+  colA: string;       // BLASTED FORMAT (raw listing text)
+  colAC: string;      // GEO ID (lookup key)
+}
+
 // Interface for display columns A-P data
 export interface GSheetDisplayData {
   blastedFormat: string;      // A
@@ -1129,6 +1136,38 @@ export async function updateListing(id: string, listing: Listing): Promise<Listi
   });
 
   return { ...listing, id };
+}
+
+export async function getRowRange(startRow: number, endRow: number): Promise<BatchRowData[]> {
+  if (startRow < 2) throw new Error("startRow must be >= 2 (row 1 is the header)");
+  if (endRow < startRow) throw new Error("endRow must be >= startRow");
+  if (endRow - startRow > 499) throw new Error("Range too large (max 500 rows)");
+
+  const sheets = getSheets();
+  const spreadsheetId = process.env.SPREADSHEET_ID;
+  if (!spreadsheetId) throw new Error("SPREADSHEET_ID not configured");
+
+  const batchResponse = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId,
+    ranges: [
+      `${SHEET_NAME}!A${startRow}:A${endRow}`,
+      `${SHEET_NAME}!AC${startRow}:AC${endRow}`,
+    ],
+  });
+
+  const colAValues  = batchResponse.data.valueRanges?.[0]?.values || [];
+  const colACValues = batchResponse.data.valueRanges?.[1]?.values || [];
+  const count = endRow - startRow + 1;
+
+  const results: BatchRowData[] = [];
+  for (let i = 0; i < count; i++) {
+    results.push({
+      rowNumber: startRow + i,
+      colA:  colAValues[i]?.[0]  || "",
+      colAC: colACValues[i]?.[0] || "",
+    });
+  }
+  return results;
 }
 
 export async function deleteListing(id: string): Promise<boolean> {
