@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { updateDisplayColumns, updateSyncColumns, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { sendTelegramNotification } from "@/lib/telegram";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
       sponsor_start,
       sponsor_end,
       photo_link,
+      telegram_post_message,
     } = body;
 
     if (!id) {
@@ -178,14 +180,15 @@ export async function POST(request: Request) {
       console.log(`✅ Supabase updated ${data.length} row(s) for GEO ID:`, id);
     }
 
+    // Build BLASTED FORMAT (A) - MAIN without GEO ID first line
+    let blastedFormat = summary || "";
+    if (blastedFormat.startsWith(id)) {
+      const lines = blastedFormat.split('\n');
+      blastedFormat = lines.slice(1).join('\n');
+    }
+
     // Update GSheet columns A-P
     try {
-      // Build BLASTED FORMAT (A) - MAIN without GEO ID first line
-      let blastedFormat = summary || "";
-      if (blastedFormat.startsWith(id)) {
-        const lines = blastedFormat.split('\n');
-        blastedFormat = lines.slice(1).join('\n');
-      }
 
       // Build type (B) from residential/commercial/industrial/agricultural
       const typeValues = [
@@ -298,6 +301,14 @@ export async function POST(request: Request) {
         { error: `GSheet update failed: ${msg}` },
         { status: 500 }
       );
+    }
+
+    // Send Telegram notification with col A (BLASTED FORMAT)
+    await sendTelegramNotification(blastedFormat);
+
+    // Send optional custom Telegram post (from modal)
+    if (telegram_post_message) {
+      await sendTelegramNotification(telegram_post_message);
     }
 
     const supabaseUpdated = data && data.length > 0;

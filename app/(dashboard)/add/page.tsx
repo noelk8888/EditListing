@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SupabaseListing } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
@@ -120,7 +120,7 @@ export default function AddListingPage() {
   const [geoIdConfirmed, setGeoIdConfirmed] = useState(false);
 
   // === BATCH MODE STATE ===
-  type BatchRow = { rowNumber: number; colA: string; colAC: string };
+  type BatchRow = { rowNumber: number; colA: string; colAC: string; colJ: string; colK: string; colL: string };
   const [batchMode, setBatchMode]                 = useState(false);      // setup panel open
   const [batchStartRow, setBatchStartRow]         = useState("2");
   const [batchEndRow, setBatchEndRow]             = useState("50");
@@ -129,7 +129,14 @@ export default function AddListingPage() {
   const [batchLoading, setBatchLoading]           = useState(false);
   const [batchActive, setBatchActive]             = useState(false);      // processing in progress
   const [batchSkips, setBatchSkips]               = useState<number[]>([]);
-  const [batchExtractReady, setBatchExtractReady] = useState(false);
+  const batchCurrentRowRef                        = useRef<BatchRow | null>(null); // GSheet data for current row
+
+  // === TELEGRAM POST STATE ===
+  const [telegramPostEnabled, setTelegramPostEnabled] = useState(false);
+  const [showTelegramModal, setShowTelegramModal]     = useState(false);
+  const [telegramLine1, setTelegramLine1]             = useState("");
+  const [telegramLine2, setTelegramLine2]             = useState("");
+  const [telegramLine3, setTelegramLine3]             = useState("");
 
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "paste", label: "Paste Listing", number: 1 },
@@ -201,11 +208,18 @@ export default function AddListingPage() {
       if (data.compound) setCompound("Yes");
       if (data.withIncome === true) setWithIncome("With Income");
       else if (data.withIncome === false) setWithIncome("NO");
-      overrideIfFound(data.salePricePerSqm, setSalePricePerSqm, salePricePerSqm);
-      overrideIfFound(data.leasePricePerSqm, setLeasePricePerSqm, leasePricePerSqm);
-      overrideIfFound(data.lat, setLat, lat);
-      overrideIfFound(data.long, setLong, long);
-      overrideIfFound(data.mapLink, setMapLink, mapLink);
+      if (data.directOrCobroker === "Direct to Owner" || data.directOrCobroker === "With Cobroker") {
+        setDirectOrCobroker(prev => prev || data.directOrCobroker as "Direct to Owner" | "With Cobroker");
+      }
+      // Use functional setters for fields that may not appear in raw text —
+      // preserves Supabase/GSheet values even when called with a stale closure.
+      setOwnerBroker(prev => data.ownerBroker || prev);
+      setHowManyAway(prev => data.howManyAway || prev);
+      setSalePricePerSqm(prev => data.salePricePerSqm || prev);
+      setLeasePricePerSqm(prev => data.leasePricePerSqm || prev);
+      setLat(prev => data.lat || prev);
+      setLong(prev => data.long || prev);
+      setMapLink(prev => data.mapLink || prev);
 
       // Set property type checkboxes from parsed data (only enable, never disable existing)
       if (data.residential) setResidential(true);
@@ -230,15 +244,16 @@ export default function AddListingPage() {
     }
   };
 
-  const extractPhotosAndPreview = () => {
+  const extractPhotosAndPreview = (sourceText?: string) => {
+    const text = sourceText ?? rawText;
     // Try to find photos link (prefer URLs with photos/photo/goo.gl in them)
-    const photosUrlMatch = rawText.match(/https?:\/\/[^\s]*(?:photos|photo|goo\.gl)[^\s]*/i);
-    const anyUrlMatch = rawText.match(/https?:\/\/[^\s]+/i);
+    const photosUrlMatch = text.match(/https?:\/\/[^\s]*(?:photos|photo|goo\.gl)[^\s]*/i);
+    const anyUrlMatch = text.match(/https?:\/\/[^\s]+/i);
     const foundLink = photosUrlMatch ? photosUrlMatch[0] : (anyUrlMatch ? anyUrlMatch[0] : "");
     setPhotosLink(foundLink);
 
     // Try to extract listing ID (pattern like G09893, L12345, etc.)
-    const idMatch = rawText.match(/^([A-Z]\d{4,6})\b/m);
+    const idMatch = text.match(/^([A-Z]\d{4,6})\b/m);
     if (idMatch) {
       setListingId(idMatch[1]);
     } else {
@@ -246,16 +261,16 @@ export default function AddListingPage() {
     }
 
     // Extract Sale/Lease from raw text (look for *FOR SALE*, *FOR LEASE*, etc.)
-    if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(rawText)) {
+    if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(text)) {
       setSaleOrLease("Sale/Lease");
-    } else if (/\*?FOR\s+LEASE\*?/i.test(rawText)) {
+    } else if (/\*?FOR\s+LEASE\*?/i.test(text)) {
       setSaleOrLease("Lease");
-    } else if (/\*?FOR\s+SALE\*?/i.test(rawText)) {
+    } else if (/\*?FOR\s+SALE\*?/i.test(text)) {
       setSaleOrLease("Sale");
     }
 
     // Get first 10 non-empty lines for search (prioritizes 5th, 4th, 3rd lines)
-    const lines = rawText.split('\n').filter(line => line.trim()).slice(0, 10);
+    const lines = text.split('\n').filter(line => line.trim()).slice(0, 10);
     setPreviewLines(lines.join('\n'));
   };
 
@@ -308,9 +323,9 @@ export default function AddListingPage() {
     setSponsorEnd("");
   };
 
-  const goToStep = (targetStep: Step) => {
+  const goToStep = (targetStep: Step, overrideText?: string) => {
     if (targetStep === "check") {
-      extractPhotosAndPreview();
+      extractPhotosAndPreview(overrideText);
       setSearchResult(null);
       setSearchPerformed(false);
       setMatchedBy(null);
@@ -458,30 +473,11 @@ export default function AddListingPage() {
     }
 
     const row = batchRows[idx];
-    setBatchExtractReady(false);
+    batchCurrentRowRef.current = row;     // store GSheet data for fallback
     setRawText(row.colA);
-    goToStep("check");
+    goToStep("check", row.colA);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchActive, batchIndex, batchRows]);
-
-  // BATCH Effect B: when search finishes, signal extraction ready
-  useEffect(() => {
-    if (!batchActive) return;
-    if (step !== "check") return;
-    if (searching) return;
-    if (!searchPerformed) return;
-    if (batchExtractReady) return;
-    setBatchExtractReady(true);
-  }, [batchActive, step, searching, searchPerformed, batchExtractReady]);
-
-  // BATCH Effect C: consume extract-ready signal → auto-trigger extraction
-  useEffect(() => {
-    if (!batchActive) return;
-    if (!batchExtractReady) return;
-    setBatchExtractReady(false);
-    handleExtractData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [batchActive, batchExtractReady]);
 
   // Auto-fill fields from search result
   useEffect(() => {
@@ -548,9 +544,17 @@ export default function AddListingPage() {
         setDirectOrCobroker('');
       }
 
-      setOwnerBroker(searchResult.owner_broker || '');
-      setHowManyAway(searchResult.how_many_away || '');
+      // Apply GSheet display columns as fallbacks when Supabase fields are empty (batch mode)
+      const gsheet = batchCurrentRowRef.current;
+      setOwnerBroker(searchResult.owner_broker || gsheet?.colK || '');
+      setHowManyAway(searchResult.how_many_away || gsheet?.colL || '');
       setListingOwnership(searchResult.listing_ownership || '');
+      // Apply GSheet direct_or_broker fallback if Supabase field is empty
+      if (!searchResult.direct_or_broker && gsheet?.colJ) {
+        const val = gsheet.colJ.toLowerCase();
+        if (val.includes('direct')) setDirectOrCobroker('Direct to Owner');
+        else if (val.includes('cobroker') || val.includes('broker')) setDirectOrCobroker('With Cobroker');
+      }
       setDateReceived(searchResult.date_received || '');
       const originalDate = searchResult.date_updated || new Date().toISOString().split('T')[0];
       setDateUpdated(originalDate);
@@ -610,11 +614,29 @@ export default function AddListingPage() {
   // Directly perform the update without confirmation
   const handleUpdateExisting = () => {
     if (!searchResult) return;
-    confirmUpdate();
+    if (telegramPostEnabled) {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, "0");
+      const month = now.toLocaleDateString("en-US", { month: "short" });
+      const year = now.getFullYear();
+      const today = `${day}-${month}-${year}`;
+      setTelegramLine1(`*LISTING UPDATE - ${today}*`);
+      setTelegramLine2("");
+      setTelegramLine3(ownerBroker);
+      setShowTelegramModal(true);
+    } else {
+      confirmUpdate();
+    }
+  };
+
+  const handleTelegramConfirm = () => {
+    setShowTelegramModal(false);
+    const msg = [telegramLine1, telegramLine2, telegramLine3].filter(Boolean).join("\n");
+    confirmUpdate(msg);
   };
 
   // Actually perform the update after confirmation
-  const confirmUpdate = async () => {
+  const confirmUpdate = async (telegramMsg?: string) => {
     if (!searchResult) return;
 
     setUpdating(true);
@@ -670,6 +692,7 @@ export default function AddListingPage() {
           sponsor_start: sponsorStart,
           sponsor_end: sponsorEnd,
           photo_link: photosLink,
+          telegram_post_message: telegramMsg || undefined,
         }),
       });
 
@@ -802,7 +825,6 @@ export default function AddListingPage() {
     setBatchRows([]);
     setBatchIndex(0);
     setBatchSkips([]);
-    setBatchExtractReady(false);
     setRawText("");
     setStep("paste");
     setError(null);
@@ -1228,6 +1250,26 @@ Photos: https://photos.app.goo.gl/example`}
                       {renderDiffText(rawText, editSummary)}
                     </div>
                   )}
+                </div>
+                <div className="flex items-center gap-3 pt-1 flex-wrap">
+                  <Button
+                    onClick={handleUpdateExisting}
+                    disabled={updating}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {updating ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+                    ) : (
+                      <><Save className="mr-2 h-4 w-4" />Update Existing</>
+                    )}
+                  </Button>
+                  <Button onClick={handleExtractData} disabled={loading} variant="default">
+                    {loading ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
+                    ) : (
+                      <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -2292,9 +2334,21 @@ Photos: https://photos.app.goo.gl/example`}
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Check & Info
             </Button>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
+              {searchResult && (
+                <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={telegramPostEnabled}
+                    onChange={() => setTelegramPostEnabled(v => !v)}
+                    className="h-4 w-4 accent-blue-600 cursor-pointer"
+                  />
+                  <Send className="h-3.5 w-3.5 text-blue-600" />
+                  TELEGRAM POST
+                </label>
+              )}
               <Button
-                onClick={() => { searchResult ? confirmUpdate() : confirmAddNew(); }}
+                onClick={() => { searchResult ? handleUpdateExisting() : confirmAddNew(); }}
                 disabled={updating || adding}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
@@ -2309,6 +2363,53 @@ Photos: https://photos.app.goo.gl/example`}
                     Update Listing
                   </>
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Telegram Post Modal */}
+      {showTelegramModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg p-6 w-full max-w-md shadow-xl space-y-4">
+            <h3 className="font-semibold text-lg flex items-center gap-2">
+              <Send className="h-5 w-5 text-blue-600" />
+              Telegram Post
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 1 (Header)</Label>
+                <Input
+                  value={telegramLine1}
+                  onChange={e => setTelegramLine1(e.target.value)}
+                  className="font-mono text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 2 (Notes)</Label>
+                <Textarea
+                  value={telegramLine2}
+                  onChange={e => setTelegramLine2(e.target.value)}
+                  className="min-h-20 text-sm"
+                  placeholder="Type your notes here..."
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 3 (Broker / Col K)</Label>
+                <Input
+                  value={telegramLine3}
+                  onChange={e => setTelegramLine3(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowTelegramModal(false)}>
+                <X className="mr-2 h-4 w-4" />Cancel
+              </Button>
+              <Button onClick={handleTelegramConfirm} className="bg-green-600 hover:bg-green-700 text-white">
+                <Save className="mr-2 h-4 w-4" />Send & Update
               </Button>
             </div>
           </div>

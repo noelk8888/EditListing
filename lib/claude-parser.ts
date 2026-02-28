@@ -15,7 +15,9 @@ IMPORTANT RULES:
 5. Calculate price per sqm if you have both price and lot area
 6. Determine property categories (can be multiple): RESIDENTIAL, COMMERCIAL, INDUSTRIAL, AGRICULTURAL
 7. Determine property type: TOWNHOUSE, WAREHOUSE, VACANT LOT, HOUSE AND LOT, CONDO, OFFICE/COMMERCIAL, BUILDING, CLUB SHARE/BUSINESS
-8. Status should be: Available, Sold, or Leased (default to Available if not specified)
+8. Status should be: Available, Sold, Leased, On Hold, or Off Market (default to Available if not specified).
+   CRITICAL: "FOR LEASE" or "FOR RENT" in the listing means the property IS AVAILABLE to be leased — set status to "Available". Do NOT confuse "FOR LEASE" with "LEASED OUT".
+   Only set status to "Leased" if the listing explicitly says "LEASED OUT", "already leased", "currently leased", "tenant occupied and not available", or similar meaning the property is no longer available.
 9. Extract photo URLs if present (lines with "Photos:", "Photo Link:", etc.)
 9b. Extract Google Map / map link URLs if present (lines with "Google Map:", "Map Link:", "MAP LINK:", etc.)
 10. For areas, extract numeric values with unit (e.g., "15430" for "15,430 sqm")
@@ -25,6 +27,12 @@ IMPORTANT RULES:
 14. IMPORTANT: "Rental Income" and "Lease Price" are DIFFERENT things:
     - leasePrice = the price someone pays TO LEASE/RENT this property (only set for FOR LEASE listings)
     - Rental income (e.g. "Rental Income: P300,000/month") is income the OWNER earns from existing tenants — this sets withIncome=true but does NOT set leasePrice. Leave leasePrice empty for FOR SALE listings even if rental income is mentioned.
+15. Determine directOrCobroker:
+    - "Direct to Owner" if the listing says "direct", "direct to owner", "direct to seller", "direct listing", or the poster IS the owner/seller
+    - "With Cobroker" if listing mentions "co-broke", "cobroke", "cobroker", "co-broker", "with co", "CB", or states it is N away from owner (e.g. "1 away", "2 away")
+    - "" if cannot be determined
+16. Extract ownerBroker: the name of the listing broker or agent. Look for lines like "Agent:", "Broker:", "Contact:", "Inq:", or a person's name near a phone number. Extract the name only (not the phone number). If multiple names, take the primary contact.
+17. Extract howManyAway: the cobroker chain distance. Only set if the listing explicitly mentions "X away from owner/seller" — extract just the number (e.g. "1", "2"). Leave empty for direct listings or if not stated.
 
 Return a JSON object with these fields (use empty string "" for unknown values, use false for unknown boolean values):
 {
@@ -54,7 +62,10 @@ Return a JSON object with these fields (use empty string "" for unknown values, 
   "compound": boolean,
   "withIncome": boolean,
   "photos": "string (photo album URL if found)",
-  "mapLink": "string (Google Map / map URL if found)"
+  "mapLink": "string (Google Map / map URL if found)",
+  "directOrCobroker": "Direct to Owner" | "With Cobroker" | "",
+  "ownerBroker": "string (broker/agent name only, no phone number)",
+  "howManyAway": "string (number only, e.g. '1', '2', or '' if direct/unknown)"
 }
 
 LISTING TEXT:
@@ -130,6 +141,11 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
       withIncome: Boolean(parsed.withIncome),
       photos: parsed.photos || "",
       mapLink: parsed.mapLink || "",
+      directOrCobroker: (parsed.directOrCobroker === "Direct to Owner" || parsed.directOrCobroker === "With Cobroker")
+        ? parsed.directOrCobroker
+        : "",
+      ownerBroker: parsed.ownerBroker || "",
+      howManyAway: String(parsed.howManyAway || "").replace(/[^0-9]/g, ""),
       rawListing: text,
     };
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { addNewGSheetRow, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { sendTelegramNotification } from "@/lib/telegram";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -212,6 +213,9 @@ export async function POST(request: Request) {
     }
 
     console.log("✅ Supabase row added for GEO ID:", newGeoId);
+
+    // Send Telegram notification with GEO ID + col A (BLASTED FORMAT)
+    await sendTelegramNotification(`🆕 New Listing: ${newGeoId}\n\n${summary || ""}`);
 
     return NextResponse.json({
       success: true,

@@ -73,11 +73,14 @@ export const GSHEET_COLUMNS = {
   BO_COMPOUND: 66,          // BO - compound
 };
 
-// Interface for batch row data (col A + col AC)
+// Interface for batch row data (col A + col AC + key display cols)
 export interface BatchRowData {
   rowNumber: number;  // 1-indexed sheet row
   colA: string;       // BLASTED FORMAT (raw listing text)
   colAC: string;      // GEO ID (lookup key)
+  colJ: string;       // Direct or with Cobroker
+  colK: string;       // Owner/Broker name
+  colL: string;       // How many broker away
 }
 
 // Interface for display columns A-P data
@@ -1152,11 +1155,17 @@ export async function getRowRange(startRow: number, endRow: number): Promise<Bat
     ranges: [
       `${SHEET_NAME}!A${startRow}:A${endRow}`,
       `${SHEET_NAME}!AC${startRow}:AC${endRow}`,
+      `${SHEET_NAME}!J${startRow}:J${endRow}`,
+      `${SHEET_NAME}!K${startRow}:K${endRow}`,
+      `${SHEET_NAME}!L${startRow}:L${endRow}`,
     ],
   });
 
   const colAValues  = batchResponse.data.valueRanges?.[0]?.values || [];
   const colACValues = batchResponse.data.valueRanges?.[1]?.values || [];
+  const colJValues  = batchResponse.data.valueRanges?.[2]?.values || [];
+  const colKValues  = batchResponse.data.valueRanges?.[3]?.values || [];
+  const colLValues  = batchResponse.data.valueRanges?.[4]?.values || [];
   const count = endRow - startRow + 1;
 
   const results: BatchRowData[] = [];
@@ -1165,6 +1174,9 @@ export async function getRowRange(startRow: number, endRow: number): Promise<Bat
       rowNumber: startRow + i,
       colA:  colAValues[i]?.[0]  || "",
       colAC: colACValues[i]?.[0] || "",
+      colJ:  colJValues[i]?.[0]  || "",
+      colK:  colKValues[i]?.[0]  || "",
+      colL:  colLValues[i]?.[0]  || "",
     });
   }
   return results;
