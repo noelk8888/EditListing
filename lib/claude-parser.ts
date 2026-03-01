@@ -33,6 +33,7 @@ IMPORTANT RULES:
     - "" if cannot be determined
 16. Extract ownerBroker: the name of the listing broker or agent. Look for lines like "Agent:", "Broker:", "Contact:", "Inq:", or a person's name near a phone number. Extract the name only (not the phone number). If multiple names, take the primary contact.
 17. Extract howManyAway: the cobroker chain distance. Only set if the listing explicitly mentions "X away from owner/seller" — extract just the number (e.g. "1", "2"). Leave empty for direct listings or if not stated.
+18. Produce a geocodableAddress: the most specific, Google Maps-ready address string you can construct from the listing. Use the format: "[Street Number + Street Name], [Building/Project], [Subdivision/Area], [Barangay], [City], [Province], Philippines". Always include the street number and street name if present in the listing — this is the most important part for accurate geocoding. Include only the parts you are confident about. Examples: "2 Young Street corner Luna Street, Corinthian Gardens, Ugong Norte, Quezon City, Metro Manila, Philippines" or "Rockwell Center, Makati City, Metro Manila, Philippines".
 
 Return a JSON object with these fields (use empty string "" for unknown values, use false for unknown boolean values):
 {
@@ -65,7 +66,8 @@ Return a JSON object with these fields (use empty string "" for unknown values, 
   "mapLink": "string (Google Map / map URL if found)",
   "directOrCobroker": "Direct to Owner" | "With Cobroker" | "",
   "ownerBroker": "string (broker/agent name only, no phone number)",
-  "howManyAway": "string (number only, e.g. '1', '2', or '' if direct/unknown)"
+  "howManyAway": "string (number only, e.g. '1', '2', or '' if direct/unknown)",
+  "geocodableAddress": "string (best Google Maps-ready address, e.g. 'Ayala Alabang Village, Muntinlupa City, Metro Manila, Philippines')"
 }
 
 LISTING TEXT:
@@ -91,7 +93,7 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
       const result = await model.generateContent(EXTRACTION_PROMPT + text);
       const responseText = result.response.text();
 
@@ -146,6 +148,7 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
         : "",
       ownerBroker: parsed.ownerBroker || "",
       howManyAway: String(parsed.howManyAway || "").replace(/[^0-9]/g, ""),
+      geocodableAddress: parsed.geocodableAddress || "",
       rawListing: text,
     };
 

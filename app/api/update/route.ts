@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       sponsor_start,
       sponsor_end,
       photo_link,
+      send_telegram,
       telegram_post_message,
     } = body;
 
@@ -187,6 +188,9 @@ export async function POST(request: Request) {
       blastedFormat = lines.slice(1).join('\n');
     }
 
+    // Build COL AA (MAIN with GEO ID as first line)
+    const mainWithId = summary ? (summary.startsWith(id) ? summary : `${id}\n${summary}`) : id;
+
     // Update GSheet columns A-P
     try {
 
@@ -244,9 +248,6 @@ export async function POST(request: Request) {
       // Build lat/long combined for BE column
       const latLongCombined = lat && long ? `${lat}, ${long}` : "";
 
-      // Build MAIN with GEO ID as first line
-      const mainWithId = summary ? (summary.startsWith(id) ? summary : `${id}\n${summary}`) : id;
-
       const syncData: GSheetSyncData = {
         fbLink: fb_link || "",
         main: mainWithId,
@@ -303,12 +304,12 @@ export async function POST(request: Request) {
       );
     }
 
-    // Send Telegram notification with col A (BLASTED FORMAT)
-    await sendTelegramNotification(blastedFormat);
-
-    // Send optional custom Telegram post (from modal)
-    if (telegram_post_message) {
-      await sendTelegramNotification(telegram_post_message);
+    // Send Telegram notifications only when checkbox is checked
+    if (send_telegram) {
+      await sendTelegramNotification(mainWithId);
+      if (telegram_post_message) {
+        await sendTelegramNotification(telegram_post_message);
+      }
     }
 
     const supabaseUpdated = data && data.length > 0;

@@ -619,8 +619,8 @@ export default function AddListingPage() {
       const day = String(now.getDate()).padStart(2, "0");
       const month = now.toLocaleDateString("en-US", { month: "short" });
       const year = now.getFullYear();
-      const today = `${day}-${month}-${year}`;
-      setTelegramLine1(`*LISTING UPDATE - ${today}*`);
+      const today = `${month} ${day}, ${year}`;
+      setTelegramLine1(`* Update ${today} *`);
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
       setShowTelegramModal(true);
@@ -692,6 +692,7 @@ export default function AddListingPage() {
           sponsor_start: sponsorStart,
           sponsor_end: sponsorEnd,
           photo_link: photosLink,
+          send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
         }),
       });

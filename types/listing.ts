@@ -66,6 +66,7 @@ export const STATUS_OPTIONS = ["Available", "Sold", "Leased"] as const;
 
 export interface ParsedListing extends Partial<Listing> {
   confidence?: number;
+  geocodableAddress?: string;
 }
 
 export interface SheetRow {

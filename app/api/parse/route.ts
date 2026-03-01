@@ -20,9 +20,9 @@ export async function POST(request: NextRequest) {
 
     const parsed = await parseListingText(text);
 
-    // Try to geocode the address
-    if (parsed.city || parsed.barangay || parsed.area) {
-      const address = [
+    // Try to geocode — prefer AI-generated geocodableAddress for accuracy
+    if (parsed.geocodableAddress || parsed.city || parsed.barangay || parsed.area) {
+      const address = parsed.geocodableAddress || [
         parsed.building,
         parsed.area,
         parsed.barangay,
