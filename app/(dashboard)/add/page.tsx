@@ -620,7 +620,7 @@ export default function AddListingPage() {
       const month = now.toLocaleDateString("en-US", { month: "short" });
       const year = now.getFullYear();
       const today = `${month} ${day}, ${year}`;
-      setTelegramLine1(`* Update ${today} *`);
+      setTelegramLine1(`*Update ${today}*`);
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
       setShowTelegramModal(true);
