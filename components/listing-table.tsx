@@ -35,9 +35,19 @@ import {
 
 interface ListingTableProps {
   listings: Listing[];
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canViewPricing?: boolean;
+  canViewPhotos?: boolean;
 }
 
-export function ListingTable({ listings: initialListings }: ListingTableProps) {
+export function ListingTable({
+  listings: initialListings,
+  canEdit = true,
+  canDelete = true,
+  canViewPricing = true,
+  canViewPhotos = true,
+}: ListingTableProps) {
   const router = useRouter();
   const [listings, setListings] = useState(initialListings);
   const [search, setSearch] = useState("");
@@ -195,15 +205,19 @@ export function ListingTable({ listings: initialListings }: ListingTableProps) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      {listing.salePrice && (
-                        <p>Sale: {formatPrice(listing.salePrice)}</p>
-                      )}
-                      {listing.leasePrice && (
-                        <p>Lease: {formatPrice(listing.leasePrice)}/mo</p>
-                      )}
-                      {!listing.salePrice && !listing.leasePrice && "—"}
-                    </div>
+                    {canViewPricing ? (
+                      <div>
+                        {listing.salePrice && (
+                          <p>Sale: {formatPrice(listing.salePrice)}</p>
+                        )}
+                        {listing.leasePrice && (
+                          <p>Lease: {formatPrice(listing.leasePrice)}/mo</p>
+                        )}
+                        {!listing.salePrice && !listing.leasePrice && "—"}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Hidden</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     <span
@@ -222,7 +236,7 @@ export function ListingTable({ listings: initialListings }: ListingTableProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      {listing.photos && (
+                      {canViewPhotos && listing.photos && (
                         <Button variant="ghost" size="icon" asChild>
                           <a
                             href={listing.photos}
@@ -233,18 +247,22 @@ export function ListingTable({ listings: initialListings }: ListingTableProps) {
                           </a>
                         </Button>
                       )}
-                      <Button variant="ghost" size="icon" asChild>
-                        <Link href={`/edit/${listing.id}`}>
-                          <Edit className="h-4 w-4" />
-                        </Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteId(listing.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {canEdit && (
+                        <Button variant="ghost" size="icon" asChild>
+                          <Link href={`/edit/${listing.id}`}>
+                            <Edit className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(listing.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

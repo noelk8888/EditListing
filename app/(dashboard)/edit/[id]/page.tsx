@@ -1,6 +1,8 @@
 import { getListingById } from "@/lib/google-sheets";
+import { auth } from "@/lib/auth";
+import { getUserPermissions } from "@/lib/permissions";
 import { ListingForm } from "@/components/listing-form";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +11,15 @@ interface EditPageProps {
 }
 
 export default async function EditListingPage({ params }: EditPageProps) {
+  const session = await auth();
+  const permissions = session?.user
+    ? await getUserPermissions(session.user.email!, session.user.role)
+    : null;
+
+  if (!permissions?.edit_listing) {
+    redirect("/listings");
+  }
+
   const { id } = await params;
 
   let listing = null;

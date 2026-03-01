@@ -1,4 +1,6 @@
 import { getAllListings } from "@/lib/google-sheets";
+import { auth } from "@/lib/auth";
+import { getUserPermissions } from "@/lib/permissions";
 import { ListingTable } from "@/components/listing-table";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -8,6 +10,11 @@ import { Listing } from "@/types/listing";
 export const dynamic = "force-dynamic";
 
 export default async function ListingsPage() {
+  const session = await auth();
+  const permissions = session?.user
+    ? await getUserPermissions(session.user.email!, session.user.role)
+    : null;
+
   let listings: Listing[] = [];
   let error: string | null = null;
 
@@ -26,12 +33,14 @@ export default async function ListingsPage() {
             Browse, search, and manage all property listings
           </p>
         </div>
-        <Link href="/add">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Listing
-          </Button>
-        </Link>
+        {permissions?.add_listing && (
+          <Link href="/add">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Listing
+            </Button>
+          </Link>
+        )}
       </div>
 
       {error ? (
@@ -44,7 +53,13 @@ export default async function ListingsPage() {
           </p>
         </div>
       ) : (
-        <ListingTable listings={listings} />
+        <ListingTable
+          listings={listings}
+          canEdit={permissions?.edit_listing ?? true}
+          canDelete={permissions?.delete_listing ?? true}
+          canViewPricing={permissions?.view_pricing ?? true}
+          canViewPhotos={permissions?.view_photos ?? true}
+        />
       )}
     </div>
   );

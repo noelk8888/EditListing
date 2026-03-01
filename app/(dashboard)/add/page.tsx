@@ -140,6 +140,17 @@ export default function AddListingPage() {
   const [telegramLine3, setTelegramLine3]             = useState("");
   const [telegramGroups, setTelegramGroups]           = useState<string[]>(["RESIDENTIAL"]);
 
+  // === PERMISSIONS ===
+  const [permissions, setPermissions] = useState<Record<string, boolean>>({});
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/my-permissions")
+      .then((r) => r.json())
+      .then((d) => { setPermissions(d.permissions || {}); setPermissionsLoaded(true); })
+      .catch(() => setPermissionsLoaded(true));
+  }, []);
+
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "paste", label: "Paste Listing", number: 1 },
     { key: "check", label: "Check & Info", number: 2 },
@@ -928,6 +939,15 @@ export default function AddListingPage() {
     });
   };
 
+  if (permissionsLoaded && permissions.add_listing === false) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[40vh] space-y-4">
+        <p className="text-xl font-semibold text-muted-foreground">Access Restricted</p>
+        <p className="text-sm text-muted-foreground">You do not have permission to add listings.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Batch Progress Banner */}
@@ -973,7 +993,7 @@ export default function AddListingPage() {
       <div>
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Add New Listing {APP_VERSION}</h1>
-          {!batchActive && (
+          {!batchActive && permissions.batch_review !== false && (
             <button
               onClick={() => setBatchMode(v => !v)}
               className="text-muted-foreground hover:text-foreground transition-colors"
@@ -1288,16 +1308,18 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   )}
                 </div>
                 <div className="flex items-center gap-3 pt-1 flex-wrap justify-end">
-                  <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
-                    <input
-                      type="checkbox"
-                      checked={telegramPostEnabled}
-                      onChange={() => setTelegramPostEnabled(v => !v)}
-                      className="h-4 w-4 accent-blue-600 cursor-pointer"
-                    />
-                    <Send className="h-3.5 w-3.5 text-blue-600" />
-                    TELEGRAM POST
-                  </label>
+                  {permissions.telegram_send !== false && (
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
+                      <input
+                        type="checkbox"
+                        checked={telegramPostEnabled}
+                        onChange={() => setTelegramPostEnabled(v => !v)}
+                        className="h-4 w-4 accent-blue-600 cursor-pointer"
+                      />
+                      <Send className="h-3.5 w-3.5 text-blue-600" />
+                      TELEGRAM POST
+                    </label>
+                  )}
                   <Button
                     onClick={handleUpdateExisting}
                     disabled={updating}
@@ -1309,13 +1331,15 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       <><Save className="mr-2 h-4 w-4" />Update Existing</>
                     )}
                   </Button>
-                  <Button onClick={handleExtractData} disabled={loading} variant="default">
-                    {loading ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
-                    ) : (
-                      <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
-                    )}
-                  </Button>
+                  {permissions.ai_extract !== false && (
+                    <Button onClick={handleExtractData} disabled={loading} variant="default">
+                      {loading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
+                      ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -1923,7 +1947,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               </Button>
             </div>
             <div className="flex gap-2 items-center">
-              {searchResult && (
+              {searchResult && permissions.telegram_send !== false && (
                 <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
                   <input
                     type="checkbox"
@@ -1987,19 +2011,21 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   </div>
                 </div>
               )}
-              <Button onClick={handleExtractData} disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Extracting...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Extract & Review
-                  </>
-                )}
-              </Button>
+              {permissions.ai_extract !== false && (
+                <Button onClick={handleExtractData} disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Extract & Review
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -2393,7 +2419,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               Back to Check & Info
             </Button>
             <div className="flex items-center gap-3 flex-wrap justify-end">
-              {searchResult && (
+              {searchResult && permissions.telegram_send !== false && (
                 <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium">
                   <input
                     type="checkbox"
