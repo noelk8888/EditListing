@@ -137,6 +137,7 @@ export default function AddListingPage() {
   const [telegramLine1, setTelegramLine1]             = useState("");
   const [telegramLine2, setTelegramLine2]             = useState("");
   const [telegramLine3, setTelegramLine3]             = useState("");
+  const [telegramGroup, setTelegramGroup]             = useState("RESIDENTIAL");
 
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "paste", label: "Paste Listing", number: 1 },
@@ -623,6 +624,12 @@ export default function AddListingPage() {
       setTelegramLine1(`*Update ${today}*`);
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
+      setTelegramGroup(
+        commercial ? "COMMERCIAL" :
+        industrial ? "INDUSTRIAL" :
+        agricultural ? "AGRICULTURAL" :
+        "RESIDENTIAL"
+      );
       setShowTelegramModal(true);
     } else {
       confirmUpdate();
@@ -660,7 +667,7 @@ export default function AddListingPage() {
           floor_area: editFloorArea ? parseFloat(editFloorArea) : null,
           price: editPrice ? parseFloat(editPrice) : null,
           lease_price: editLeasePrice ? parseFloat(editLeasePrice) : null,
-          summary: useExistingMain ? editSummary : (rawText || editSummary),
+          summary: rawText || editSummary,
           residential: residential ? "RESIDENTIAL" : "",
           commercial: commercial ? "COMMERCIAL" : "",
           industrial: industrial ? "INDUSTRIAL" : "",
@@ -1059,12 +1066,16 @@ export default function AddListingPage() {
           <CardContent className="space-y-4">
             <div className="relative">
               <Textarea
-                placeholder={`G04339
-*FOR SALE*
-1421 M. Hizon St., Sta. Cruz, Manila
-Four Storey Building with an Ongoing Dormitory Business
-Price: Php39,000,000
-Photos: https://photos.app.goo.gl/example`}
+                placeholder={`*FOR SALE/LEASE*
+Unit 0907 SMDC Blue Residences, Katipunan Ave., Brgy. Loyola Heights, Quezon City
+Semi Furnished Studio Unit
+Floor Area: 23.12 sqm
+Corner Unit, No parking slot
+Lease Price: 19,500/month
+Price: P4,500,000 gross negotiable
+CASH BUYER ONLY
+Direct to owner
+Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 rows={12}
@@ -2379,6 +2390,24 @@ Photos: https://photos.app.goo.gl/example`}
               Telegram Post
             </h3>
             <div className="space-y-3">
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
+                <div className="flex gap-3 flex-wrap">
+                  {["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "UPDATE LISTING"].map(g => (
+                    <label key={g} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <input
+                        type="radio"
+                        name="telegramGroup"
+                        value={g}
+                        checked={telegramGroup === g}
+                        onChange={() => setTelegramGroup(g)}
+                        className="accent-blue-600"
+                      />
+                      {g}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Line 1 (Header)</Label>
                 <Input
