@@ -137,7 +137,7 @@ export default function AddListingPage() {
   const [telegramLine1, setTelegramLine1]             = useState("");
   const [telegramLine2, setTelegramLine2]             = useState("");
   const [telegramLine3, setTelegramLine3]             = useState("");
-  const [telegramGroup, setTelegramGroup]             = useState("RESIDENTIAL");
+  const [telegramGroups, setTelegramGroups]           = useState<string[]>(["RESIDENTIAL"]);
 
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "paste", label: "Paste Listing", number: 1 },
@@ -624,11 +624,19 @@ export default function AddListingPage() {
       setTelegramLine1(`*Update ${today}*`);
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
-      setTelegramGroup(
-        commercial ? "COMMERCIAL" :
-        industrial ? "INDUSTRIAL" :
-        agricultural ? "AGRICULTURAL" :
-        "RESIDENTIAL"
+      setTelegramGroups([
+        ...(residential ? ["RESIDENTIAL"] : []),
+        ...(commercial  ? ["COMMERCIAL"]  : []),
+        ...(industrial  ? ["INDUSTRIAL"]  : []),
+        ...(agricultural ? ["AGRICULTURAL"] : []),
+      ].filter(Boolean).length > 0
+        ? [
+            ...(residential ? ["RESIDENTIAL"] : []),
+            ...(commercial  ? ["COMMERCIAL"]  : []),
+            ...(industrial  ? ["INDUSTRIAL"]  : []),
+            ...(agricultural ? ["AGRICULTURAL"] : []),
+          ]
+        : ["RESIDENTIAL"]
       );
       setShowTelegramModal(true);
     } else {
@@ -1263,7 +1271,17 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3 pt-1 flex-wrap">
+                <div className="flex items-center gap-3 pt-1 flex-wrap justify-end">
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
+                    <input
+                      type="checkbox"
+                      checked={telegramPostEnabled}
+                      onChange={() => setTelegramPostEnabled(v => !v)}
+                      className="h-4 w-4 accent-blue-600 cursor-pointer"
+                    />
+                    <Send className="h-3.5 w-3.5 text-blue-600" />
+                    TELEGRAM POST
+                  </label>
                   <Button
                     onClick={handleUpdateExisting}
                     disabled={updating}
@@ -1888,7 +1906,19 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 Done
               </Button>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              {searchResult && (
+                <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
+                  <input
+                    type="checkbox"
+                    checked={telegramPostEnabled}
+                    onChange={() => setTelegramPostEnabled(v => !v)}
+                    className="h-4 w-4 accent-blue-600 cursor-pointer"
+                  />
+                  <Send className="h-3.5 w-3.5 text-blue-600" />
+                  TELEGRAM POST
+                </label>
+              )}
               {searchResult && (
                 <Button
                   onClick={handleUpdateExisting}
@@ -2396,11 +2426,12 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   {["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "UPDATE LISTING"].map(g => (
                     <label key={g} className="flex items-center gap-1.5 cursor-pointer text-sm">
                       <input
-                        type="radio"
-                        name="telegramGroup"
+                        type="checkbox"
                         value={g}
-                        checked={telegramGroup === g}
-                        onChange={() => setTelegramGroup(g)}
+                        checked={telegramGroups.includes(g)}
+                        onChange={() => setTelegramGroups(prev =>
+                          prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]
+                        )}
                         className="accent-blue-600"
                       />
                       {g}
