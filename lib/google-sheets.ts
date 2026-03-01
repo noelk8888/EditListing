@@ -485,6 +485,7 @@ export async function findRowByColAText(previewText: string): Promise<GSheetFull
 
 // Interface for Supabase sync columns Z-BO
 export interface GSheetSyncData {
+  blastedFormat?: string;   // A  (MAIN without GEO ID — written alongside Z-BO)
   fbLink: string;           // Z
   main: string;             // AA (GEO ID + MAIN text)
   photo: string;            // AB
@@ -596,16 +597,37 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     data.compound,         // BO (41)
   ];
 
-  await sheets.spreadsheets.values.update({
+  // Derive blastedFormat: main text without the GEO ID first line
+  const blastedFormatToWrite = data.blastedFormat !== undefined
+    ? data.blastedFormat
+    : (() => {
+        if (!data.main) return "";
+        const lines = data.main.split('\n');
+        if (lines.length > 0 && /^[A-Z]\d{4,6}$/.test(lines[0].trim())) {
+          return lines.slice(1).join('\n');
+        }
+        return data.main;
+      })();
+
+  // Batch write: COL A (blastedFormat) + COL Z-BO (sync data) in one API call
+  await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,
-    range: `${SHEET_NAME}!Z${rowNumber}:BO${rowNumber}`,
-    valueInputOption: "USER_ENTERED",
     requestBody: {
-      values: [rowData],
+      valueInputOption: "USER_ENTERED",
+      data: [
+        {
+          range: `${SHEET_NAME}!A${rowNumber}`,
+          values: [[blastedFormatToWrite]],
+        },
+        {
+          range: `${SHEET_NAME}!Z${rowNumber}:BO${rowNumber}`,
+          values: [rowData],
+        },
+      ],
     },
   });
 
-  console.log(`✅ Updated GSheet columns Z-BO for ${geoId} (row ${rowNumber})`);
+  console.log(`✅ Updated GSheet columns A + Z-BO for ${geoId} (row ${rowNumber})`);
   return true;
 }
 

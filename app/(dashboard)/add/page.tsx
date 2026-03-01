@@ -90,6 +90,7 @@ export default function AddListingPage() {
 
   // Editable listing fields (from search result)
   const [editSummary, setEditSummary] = useState("");
+  const [originalEditSummary, setOriginalEditSummary] = useState(""); // snapshot of DB text for toggle-off revert
   const [useExistingMain, setUseExistingMain] = useState(false);
   const [editArea, setEditArea] = useState("");
   const [editBarangay, setEditBarangay] = useState("");
@@ -157,7 +158,10 @@ export default function AddListingPage() {
   };
 
   const handleExtractData = async () => {
-    if (!rawText.trim()) {
+    // When USE THIS LISTING is active, extract from the editable MAIN textarea (editSummary).
+    // Otherwise extract from the newly pasted text (rawText).
+    const textToExtract = useExistingMain ? editSummary : rawText;
+    if (!textToExtract.trim()) {
       setError("Please enter a listing to parse");
       return;
     }
@@ -169,7 +173,7 @@ export default function AddListingPage() {
       const response = await fetch("/api/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: rawText }),
+        body: JSON.stringify({ text: textToExtract }),
       });
 
       const data = await response.json();
@@ -485,6 +489,7 @@ export default function AddListingPage() {
     if (searchResult) {
       // Populate editable listing fields
       setEditSummary(searchResult.summary || "");
+      setOriginalEditSummary(searchResult.summary || ""); // snapshot for toggle-off revert
       setUseExistingMain(false);
       setEditArea(searchResult.area || "");
       setEditBarangay(searchResult.barangay || "");
@@ -675,7 +680,7 @@ export default function AddListingPage() {
           floor_area: editFloorArea ? parseFloat(editFloorArea) : null,
           price: editPrice ? parseFloat(editPrice) : null,
           lease_price: editLeasePrice ? parseFloat(editLeasePrice) : null,
-          summary: rawText || editSummary,
+          summary: useExistingMain ? editSummary : (rawText || editSummary),
           residential: residential ? "RESIDENTIAL" : "",
           commercial: commercial ? "COMMERCIAL" : "",
           industrial: industrial ? "INDUSTRIAL" : "",
@@ -1223,7 +1228,18 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       type="radio"
                       name="mainSource"
                       checked={useExistingMain}
-                      onChange={() => setUseExistingMain(true)}
+                      onChange={() => {}} // controlled by onClick below
+                      onClick={() => {
+                        if (useExistingMain) {
+                          // Toggle OFF: revert to original DB text
+                          setUseExistingMain(false);
+                          setEditSummary(originalEditSummary);
+                        } else {
+                          // Toggle ON: show existing DB text in editable textarea
+                          setUseExistingMain(true);
+                          // editSummary already = DB text (originalEditSummary), no change needed
+                        }
+                      }}
                       className="h-4 w-4 accent-green-600 cursor-pointer"
                     />
                     <span className="text-sm font-semibold text-green-700">USE THIS LISTING</span>

@@ -238,17 +238,11 @@ export async function POST(request: Request) {
         listingOwnership: listing_ownership || "",
       };
 
-      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "");
-      if (gsheetUpdated) {
-        console.log("✅ GSheet columns A-P updated successfully");
-      } else {
-        console.warn("⚠️ GSheet update skipped - listing not found in GSheet");
-      }
-
       // Build lat/long combined for BE column
       const latLongCombined = lat && long ? `${lat}, ${long}` : "";
 
       const syncData: GSheetSyncData = {
+        blastedFormat,              // COL A — written alongside Z-BO to guarantee update
         fbLink: fb_link || "",
         main: mainWithId,
         photo: photo_link || "",
@@ -293,8 +287,16 @@ export async function POST(request: Request) {
         compound: compound || "",
       };
 
+      // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
       await updateSyncColumns(id, syncData, summary || "");
-      console.log("✅ GSheet columns Z-BO updated successfully");
+      console.log("✅ GSheet columns A + Z-BO updated successfully");
+
+      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "");
+      if (gsheetUpdated) {
+        console.log("✅ GSheet columns B-P updated successfully");
+      } else {
+        console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
+      }
     } catch (gsheetError) {
       const msg = gsheetError instanceof Error ? gsheetError.message : String(gsheetError);
       console.error("GSheet update error:", gsheetError);
