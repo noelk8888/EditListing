@@ -1,4 +1,3 @@
-import Link from "next/link";
 
 export default function UnauthorizedPage() {
   return (
@@ -12,12 +11,14 @@ export default function UnauthorizedPage() {
           Contact an administrator to request access.
         </p>
       </div>
-      <Link
-        href="/api/auth/signout"
-        className="text-sm underline text-muted-foreground hover:text-foreground"
-      >
-        Sign out
-      </Link>
+      <form action="/api/auth/signout" method="POST">
+        <button
+          type="submit"
+          className="text-sm underline text-muted-foreground hover:text-foreground"
+        >
+          Sign out
+        </button>
+      </form>
     </div>
   );
 }

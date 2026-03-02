@@ -243,13 +243,12 @@ export default function AddListingPage() {
       if (data.industrial) setIndustrial(true);
       if (data.agricultural) setAgricultural(true);
 
-      // Re-detect Sale/Lease from raw text if still empty (handleSearch resets it)
+      // Detect Sale/Lease from the extracted text (always overrides — uses textToExtract for USE THIS LISTING support)
       setSaleOrLease(prev => {
-        if (prev) return prev;
-        if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(rawText)) return "Sale/Lease";
-        if (/\*?FOR\s+LEASE\*?/i.test(rawText)) return "Lease";
-        if (/\*?FOR\s+SALE\*?/i.test(rawText)) return "Sale";
-        return "";
+        if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(textToExtract)) return "Sale/Lease";
+        if (/\*?FOR\s+LEASE\*?/i.test(textToExtract)) return "Lease";
+        if (/\*?FOR\s+SALE\*?/i.test(textToExtract)) return "Sale";
+        return prev;
       });
 
       setStep("review");

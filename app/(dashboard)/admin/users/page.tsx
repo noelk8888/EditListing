@@ -72,10 +72,9 @@ export default function UsersPage() {
   }
 
   async function handleSave() {
-    if (!form.email || !form.name || !form.role) {
-      setError("All fields are required");
-      return;
-    }
+    if (!form.name.trim()) { setError("Name is required"); return; }
+    if (!form.email.trim()) { setError("Email is required"); return; }
+    if (!form.role) { setError("Role is required"); return; }
     setSaving(true);
     setError("");
     try {
@@ -112,10 +111,12 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
           <p className="text-muted-foreground">Add, edit, or remove user accounts</p>
         </div>
-        <Button onClick={openAdd}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Add User
-        </Button>
+        {!showForm && (
+          <Button onClick={openAdd}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Add User
+          </Button>
+        )}
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
