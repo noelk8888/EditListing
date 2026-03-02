@@ -20,8 +20,10 @@ const STATUS_MAP: Record<string, string> = {
   "sold": "SOLD",
   "leased": "LEASED OUT",
   "leased out": "LEASED OUT",
-  "on hold": "ON HOLD",
   "off market": "OFF MARKET",
+  "on hold": "ON HOLD",
+  "under nego": "UNDER NEGO",
+  "under negotiation": "UNDER NEGO",
 };
 const normalizeStatus = (raw: string): string =>
   STATUS_MAP[raw.toLowerCase().trim()] ?? raw.toUpperCase();
@@ -1488,7 +1490,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     <span className="text-xs min-w-[100px] font-medium">
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "LEASED OUT", "SOLD", "ON HOLD", "OFF MARKET"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -1762,7 +1764,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     <span className="text-xs min-w-[100px] font-medium">
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "LEASED OUT", "SOLD", "ON HOLD", "OFF MARKET"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -2219,7 +2221,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   <span className="text-xs min-w-[100px] font-medium">
                     {editStatus || "—"}
                   </span>
-                  {["AVAILABLE", "LEASED OUT", "SOLD", "ON HOLD", "OFF MARKET"].map((status) => (
+                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO"].map((status) => (
                     <div key={status} className="flex items-center gap-1">
                       <input
                         type="radio"
