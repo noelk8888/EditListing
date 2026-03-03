@@ -19,12 +19,11 @@ type AppUser = {
 
 type FormState = { email: string; name: string; role: string };
 
-const EMPTY_FORM: FormState = { email: "", name: "", role: "BROKER" };
+const EMPTY_FORM: FormState = { email: "", name: "", role: "EDITOR" };
 const ROLE_BADGE: Record<string, string> = {
   SUPERADMIN: "bg-red-100 text-red-700",
   ADMIN:      "bg-purple-100 text-purple-700",
-  BROKER:     "bg-blue-100 text-blue-700",
-  VIEWER:     "bg-gray-100 text-gray-700",
+  EDITOR:     "bg-green-100 text-green-700",
 };
 
 export default function UsersPage() {
@@ -102,7 +101,7 @@ export default function UsersPage() {
     fetchUsers();
   }
 
-  const assignableRoles = ["ADMIN", "BROKER", "VIEWER"];
+  const assignableRoles = ["ADMIN", "EDITOR"];
 
   return (
     <div className="space-y-6">

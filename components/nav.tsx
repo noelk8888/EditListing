@@ -18,8 +18,7 @@ interface NavProps {
 
 const ROLE_BADGE: Record<string, { label: string; className: string }> = {
   ADMIN:  { label: "AD", className: "bg-purple-100 text-purple-700" },
-  BROKER: { label: "BR", className: "bg-blue-100 text-blue-700" },
-  VIEWER: { label: "V",  className: "bg-gray-100 text-gray-600" },
+  EDITOR: { label: "ED", className: "bg-green-100 text-green-700" },
 };
 
 export function Nav({ user }: NavProps) {

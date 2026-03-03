@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS app_users (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   email       text NOT NULL UNIQUE,
   name        text NOT NULL DEFAULT '',
-  role        text NOT NULL CHECK (role IN ('ADMIN', 'BROKER', 'VIEWER')),
+  role        text NOT NULL CHECK (role IN ('ADMIN', 'EDITOR')),
   created_by  text NOT NULL DEFAULT '',
   created_at  timestamptz NOT NULL DEFAULT now()
 );
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS app_users (
 --    If no row exists, code defaults apply (see lib/permissions.ts ROLE_DEFAULTS).
 CREATE TABLE IF NOT EXISTS role_permissions (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  role        text NOT NULL CHECK (role IN ('ADMIN', 'BROKER', 'VIEWER')),
+  role        text NOT NULL CHECK (role IN ('ADMIN', 'EDITOR')),
   feature     text NOT NULL,
   enabled     boolean NOT NULL,
   updated_by  text NOT NULL DEFAULT '',

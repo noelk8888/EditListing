@@ -40,7 +40,7 @@ export default function PermissionsPage() {
   function getValue(role: string, feature: Feature): boolean {
     const dbRow = permissions.find((p) => p.role === role && p.feature === feature);
     if (dbRow) return dbRow.enabled;
-    const defaults = ROLE_DEFAULTS[role as "ADMIN" | "BROKER" | "VIEWER"];
+    const defaults = ROLE_DEFAULTS[role as "ADMIN" | "EDITOR"];
     return defaults?.[feature] ?? false;
   }
 
@@ -81,8 +81,8 @@ export default function PermissionsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Permissions</h1>
         <p className="text-muted-foreground">
           {myRole === "SUPERADMIN"
-            ? "Configure feature access for ADMIN, BROKER, and VIEWER roles."
-            : "Configure feature access for BROKER and VIEWER roles."}
+            ? "Configure feature access for ADMIN and EDITOR roles."
+            : "Configure feature access for EDITOR role."}
         </p>
       </div>
 

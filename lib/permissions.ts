@@ -72,7 +72,7 @@ export const FEATURE_GROUPS: { label: string; features: Feature[] }[] = [
 ];
 
 // ── Role defaults (used when no DB override exists) ───────────────────────────
-export const ROLE_DEFAULTS: Record<"ADMIN" | "BROKER" | "VIEWER", Record<Feature, boolean>> = {
+export const ROLE_DEFAULTS: Record<"ADMIN" | "EDITOR", Record<Feature, boolean>> = {
   ADMIN: {
     add_listing:    true,
     edit_listing:   true,
@@ -88,22 +88,7 @@ export const ROLE_DEFAULTS: Record<"ADMIN" | "BROKER" | "VIEWER", Record<Feature
     export_data:    true,
     manage_users:   true,
   },
-  BROKER: {
-    add_listing:    true,
-    edit_listing:   true,
-    delete_listing: false,
-    telegram_send:  false,
-    batch_review:   false,
-    ai_extract:     true,
-    geocoding:      true,
-    view_pricing:   true,
-    view_contact:   true,
-    view_geo_id:    true,
-    view_photos:    true,
-    export_data:    false,
-    manage_users:   false,
-  },
-  VIEWER: {
+  EDITOR: {
     add_listing:    false,
     edit_listing:   false,
     delete_listing: false,
@@ -143,12 +128,12 @@ export async function getUserPermissions(
   }
 
   // UNAUTHORIZED / unknown role → deny everything
-  if (!["ADMIN", "BROKER", "VIEWER"].includes(role)) {
+  if (!["ADMIN", "EDITOR"].includes(role)) {
     return Object.fromEntries(ALL_FEATURES.map((f) => [f, false])) as Record<Feature, boolean>;
   }
 
   const supabase = getSupabase();
-  const typedRole = role as "ADMIN" | "BROKER" | "VIEWER";
+  const typedRole = role as "ADMIN" | "EDITOR";
 
   // Start with code defaults for this role
   const perms: Record<Feature, boolean> = { ...ROLE_DEFAULTS[typedRole] };

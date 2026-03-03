@@ -7,13 +7,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const MANAGEABLE_ROLES = ["ADMIN", "BROKER", "VIEWER"];
+const MANAGEABLE_ROLES = ["ADMIN", "EDITOR"];
 
 function canManageUsers(role: string) {
   return role === "SUPERADMIN" || role === "ADMIN";
 }
 
-// SA and AD can assign ADMIN/BROKER/VIEWER (neither can assign SUPERADMIN via UI)
+// SA and AD can assign ADMIN/EDITOR (neither can assign SUPERADMIN via UI)
 function canAssignRole(managerRole: string, targetRole: string): boolean {
   if (!MANAGEABLE_ROLES.includes(targetRole)) return false;
   return canManageUsers(managerRole);

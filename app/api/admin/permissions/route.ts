@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
   // Role-level permissions
   // SA can see/edit AD+BR+V; AD can only see/edit BR+V
   const roles = session.user.role === "SUPERADMIN"
-    ? ["ADMIN", "BROKER", "VIEWER"]
-    : ["BROKER", "VIEWER"];
+    ? ["ADMIN", "EDITOR"]
+    : ["EDITOR"];
 
   const { data, error } = await supabase
     .from("role_permissions")
@@ -68,8 +68,8 @@ export async function PUT(request: NextRequest) {
         .select("role")
         .eq("email", userEmail.toLowerCase())
         .single();
-      if (!targetUser || !["BROKER", "VIEWER"].includes(targetUser.role)) {
-        return NextResponse.json({ error: "AD can only override BR/V user permissions" }, { status: 403 });
+      if (!targetUser || !["BROKER", "EDITOR"].includes(targetUser.role)) {
+        return NextResponse.json({ error: "AD can only override BR/ED user permissions" }, { status: 403 });
       }
     }
 
