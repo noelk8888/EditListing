@@ -73,6 +73,9 @@ export const GSHEET_COLUMNS = {
   BO_COMPOUND: 66,          // BO - compound
 };
 
+// Which cells to annotate with an "Updated by" note, and by whom
+export type NoteConfig = { updatedBy: string; cols: Set<number> };
+
 // Interface for batch row data (col A + col AC + key display cols)
 export interface BatchRowData {
   rowNumber: number;  // 1-indexed sheet row
@@ -533,7 +536,7 @@ export interface GSheetSyncData {
 /**
  * Update Supabase sync columns Z-BO for a listing by GEO ID
  */
-export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, updatedBy?: string): Promise<boolean> {
+export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
 
@@ -627,8 +630,8 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     },
   });
 
-  // Insert notes on AQ (status), BE, BF, BG (lat/long) with the user who made the update
-  if (updatedBy) {
+  // Insert notes only on columns that actually changed
+  if (noteConfig && noteConfig.cols.size > 0) {
     try {
       const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
       const sheet = spreadsheet.data.sheets?.find(
@@ -641,30 +644,19 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
           year: "numeric", month: "2-digit", day: "2-digit",
           hour: "2-digit", minute: "2-digit", hour12: true,
         });
-        const noteText = `Updated by: ${updatedBy}\n${now}`;
-        await sheets.spreadsheets.batchUpdate({
-          spreadsheetId,
-          requestBody: {
-            requests: [
-              // Col AQ (index 42) — STATUS
-              {
-                updateCells: {
-                  range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 42, endColumnIndex: 43 },
-                  rows: [{ values: [{ note: noteText }] }],
-                  fields: "note",
-                },
-              },
-              // Cols BE/BF/BG (indices 56–58) — LAT LONG / LAT / LONG (adjacent, one request)
-              {
-                updateCells: {
-                  range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 56, endColumnIndex: 59 },
-                  rows: [{ values: [{ note: noteText }, { note: noteText }, { note: noteText }] }],
-                  fields: "note",
-                },
-              },
-            ],
-          },
-        });
+        const noteText = `Updated by: ${noteConfig.updatedBy}\n${now}`;
+        const requests: object[] = [];
+        // Col AQ (42) — STATUS
+        if (noteConfig.cols.has(42)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 42, endColumnIndex: 43 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
+        // Col BE (56) — LAT LONG
+        if (noteConfig.cols.has(56)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 56, endColumnIndex: 57 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
+        // Col BF (57) — LAT
+        if (noteConfig.cols.has(57)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 57, endColumnIndex: 58 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
+        // Col BG (58) — LONG
+        if (noteConfig.cols.has(58)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 58, endColumnIndex: 59 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
+        if (requests.length > 0) {
+          await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+        }
       }
     } catch (noteError) {
       console.warn("⚠️ Could not insert cell notes:", noteError);
@@ -678,7 +670,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
 /**
  * Update display columns A-P for a listing by GEO ID
  */
-export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, updatedBy?: string): Promise<boolean> {
+export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, noteConfig?: NoteConfig): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
 
@@ -760,28 +752,18 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
         },
       ];
 
-      // Insert note on columns N (Date Updated) and O (Status) with the user who made the update
-      if (updatedBy) {
+      // Insert notes only on columns that actually changed
+      if (noteConfig && noteConfig.cols.size > 0) {
         const now = new Date().toLocaleString("en-PH", {
           timeZone: "Asia/Manila",
           year: "numeric", month: "2-digit", day: "2-digit",
           hour: "2-digit", minute: "2-digit", hour12: true,
         });
-        const noteText = `Updated by: ${updatedBy}\n${now}`;
-        // Cols N+O are adjacent (indices 13–14) — set both in one request
-        requests.push({
-          updateCells: {
-            range: {
-              sheetId,
-              startRowIndex: rowNumber - 1,
-              endRowIndex: rowNumber,
-              startColumnIndex: 13, // N
-              endColumnIndex: 15,   // up to (not including) P
-            },
-            rows: [{ values: [{ note: noteText }, { note: noteText }] }],
-            fields: "note",
-          },
-        });
+        const noteText = `Updated by: ${noteConfig.updatedBy}\n${now}`;
+        // Col N (13) — Date Updated
+        if (noteConfig.cols.has(13)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 13, endColumnIndex: 14 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
+        // Col O (14) — Status
+        if (noteConfig.cols.has(14)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 14, endColumnIndex: 15 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
       }
 
       await sheets.spreadsheets.batchUpdate({

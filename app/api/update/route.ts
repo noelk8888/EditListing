@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { updateDisplayColumns, updateSyncColumns, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { updateDisplayColumns, updateSyncColumns, GSheetDisplayData, GSheetSyncData, NoteConfig } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -67,6 +67,29 @@ export async function POST(request: Request) {
     if (!id) {
       return NextResponse.json({ error: "Listing ID is required" }, { status: 400 });
     }
+
+    // Fetch current values to detect which tracked columns actually changed
+    const { data: current } = await supabase
+      .from(TABLE_NAME)
+      .select("*")
+      .eq('"GEO ID"', id)
+      .maybeSingle();
+
+    const diff = (a: unknown, b: unknown) =>
+      String(a ?? "").trim() !== String(b ?? "").trim();
+
+    const noteCols = new Set<number>();
+    if (updatedBy && current) {
+      if (diff(date_updated, current["DATE UPDATED"])) noteCols.add(13); // N
+      if (diff(status, current["STATUS"])) { noteCols.add(14); noteCols.add(42); } // O, AQ
+      const latChanged = diff(lat, current["LAT"]);
+      const longChanged = diff(long, current["LONG"]);
+      if (latChanged || longChanged) noteCols.add(56); // BE
+      if (latChanged) noteCols.add(57); // BF
+      if (longChanged) noteCols.add(58); // BG
+    }
+    const noteConfig: NoteConfig | undefined =
+      updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;
 
     // Always derive MAP LINK from lat/long when available; otherwise keep existing map_link
     const derivedMapLink =
@@ -292,10 +315,10 @@ export async function POST(request: Request) {
       };
 
       // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-      await updateSyncColumns(id, syncData, summary || "", updatedBy);
+      await updateSyncColumns(id, syncData, summary || "", noteConfig);
       console.log("✅ GSheet columns A + Z-BO updated successfully");
 
-      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", updatedBy);
+      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig);
       if (gsheetUpdated) {
         console.log("✅ GSheet columns B-P updated successfully");
       } else {

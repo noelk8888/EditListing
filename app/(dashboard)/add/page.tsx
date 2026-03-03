@@ -73,7 +73,6 @@ export default function AddListingPage() {
   const [todayToggle, setTodayToggle] = useState(false);
 
   // MORE INFO fields (Supabase only)
-  const [fbLink, setFbLink] = useState("");
   const [mapLink, setMapLink] = useState("");
   const [salePricePerSqm, setSalePricePerSqm] = useState("");
   const [leasePricePerSqm, setLeasePricePerSqm] = useState("");
@@ -322,7 +321,6 @@ export default function AddListingPage() {
     setAvailable("");
     setTodayToggle(false);
     // MORE INFO fields
-    setFbLink("");
     setMapLink("");
     setSalePricePerSqm("");
     setLeasePricePerSqm("");
@@ -397,7 +395,6 @@ export default function AddListingPage() {
     setAvailable("");
     setTodayToggle(false);
     // MORE INFO fields
-    setFbLink("");
     setMapLink("");
     setSalePricePerSqm("");
     setLeasePricePerSqm("");
@@ -580,7 +577,6 @@ export default function AddListingPage() {
       setAvailable(searchResult.available || "");
 
       // MORE INFO fields
-      setFbLink(searchResult.fb_link || "");
       const loadedLat = searchResult.lat || "";
       const loadedLong = searchResult.long || "";
       setLat(loadedLat);
@@ -707,7 +703,6 @@ export default function AddListingPage() {
           date_updated: dateUpdated,
           available: available,
           // MORE INFO fields
-          fb_link: fbLink,
           map_link: mapLink,
           sale_price_per_sqm: salePricePerSqm ? parseFloat(salePricePerSqm) : null,
           lease_price_per_sqm: leasePricePerSqm ? parseFloat(leasePricePerSqm) : null,
@@ -789,7 +784,6 @@ export default function AddListingPage() {
           sale_or_lease: saleOrLease,
           date_received: dateReceived || new Date().toISOString().split("T")[0],
           date_updated: dateUpdated || new Date().toISOString().split("T")[0],
-          fb_link: fbLink,
           map_link: mapLink,
           sale_price_per_sqm: salePricePerSqm ? parseFloat(salePricePerSqm) : null,
           lease_price_per_sqm: leasePricePerSqm ? parseFloat(leasePricePerSqm) : null,
@@ -897,7 +891,6 @@ export default function AddListingPage() {
     setEditType("");
     setEditStatus("");
     // MORE INFO fields
-    setFbLink("");
     setMapLink("");
     setSalePricePerSqm("");
     setLeasePricePerSqm("");
@@ -1510,19 +1503,13 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
 
                 {/* MORE INFO Section */}
                 <div className="pt-3 border-t">
-                  <h4 className="text-sm font-semibold mb-2 text-muted-foreground">MORE INFO</h4>
                   <div className="grid grid-cols-3 gap-x-6 gap-y-2">
-                  {/* Row 1: GEO ID | FB LINK */}
+                  {/* Row 1: GEO ID | TYPE | MAP LINK */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
                     <span className="text-sm font-semibold font-mono">{searchResult.id}</span>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">FB Link</Label>
-                    <Input value={fbLink} onChange={(e) => handleInputChange(setFbLink)(e.target.value)} className="h-8 text-sm" />
-                  </div>
 
-                  {/* Row 2: TYPE | MAP LINK */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
                     <Select value={propertyType} onValueChange={(v) => handleInputChange(setPropertyType)(v)}>
@@ -1542,7 +1529,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Map Link</Label>
                     <Input value={mapLink} onChange={(e) => handleInputChange(setMapLink)(e.target.value)} className="h-8 text-sm" />
                   </div>
@@ -1784,19 +1771,13 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
 
                 {/* MORE INFO Section */}
                 <div className="pt-3 border-t">
-                  <h4 className="text-sm font-semibold mb-2 text-muted-foreground">MORE INFO</h4>
                   <div className="grid grid-cols-3 gap-x-6 gap-y-2">
-                  {/* Row 1: GEO ID | FB LINK */}
+                  {/* Row 1: GEO ID | TYPE | MAP LINK */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
                     <span className="text-sm font-semibold font-mono">{newGeoId || "—"}</span>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">FB Link</Label>
-                    <Input value={fbLink} onChange={(e) => handleInputChange(setFbLink)(e.target.value)} className="h-8 text-sm" />
-                  </div>
 
-                  {/* Row 2: TYPE | MAP LINK */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
                     <Select value={propertyType} onValueChange={(v) => handleInputChange(setPropertyType)(v)}>
@@ -1816,7 +1797,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Map Link</Label>
                     <Input value={mapLink} onChange={(e) => handleInputChange(setMapLink)(e.target.value)} className="h-8 text-sm" />
                   </div>
@@ -2243,17 +2224,12 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               <div className="pt-3 border-t">
                 <h4 className="text-sm font-semibold mb-2 text-muted-foreground">MORE INFO</h4>
                 <div className="grid grid-cols-3 gap-x-6 gap-y-2">
-                  {/* Row 1: GEO ID | FB LINK */}
+                  {/* Row 1: GEO ID | TYPE | MAP LINK */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
                     <span className="text-sm font-semibold font-mono">{searchResult?.id || newGeoId || "—"}</span>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">FB Link</Label>
-                    <Input value={fbLink} onChange={(e) => handleInputChange(setFbLink)(e.target.value)} className="h-8 text-sm" />
-                  </div>
 
-                  {/* Row 2: TYPE | MAP LINK */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
                     <Select value={propertyType} onValueChange={(v) => handleInputChange(setPropertyType)(v)}>
@@ -2273,7 +2249,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Map Link</Label>
                     <Input value={mapLink} onChange={(e) => handleInputChange(setMapLink)(e.target.value)} className="h-8 text-sm" />
                   </div>
