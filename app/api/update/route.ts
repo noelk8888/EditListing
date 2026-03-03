@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { updateDisplayColumns, updateSyncColumns, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
+import { auth } from "@/lib/auth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -10,6 +11,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const TABLE_NAME = "KIU Properties";
 
 export async function POST(request: Request) {
+  const session = await auth();
+  const updatedBy = session?.user?.email || session?.user?.name || "";
+
   try {
     const body = await request.json();
     const {
@@ -288,10 +292,10 @@ export async function POST(request: Request) {
       };
 
       // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-      await updateSyncColumns(id, syncData, summary || "");
+      await updateSyncColumns(id, syncData, summary || "", updatedBy);
       console.log("✅ GSheet columns A + Z-BO updated successfully");
 
-      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "");
+      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", updatedBy);
       if (gsheetUpdated) {
         console.log("✅ GSheet columns B-P updated successfully");
       } else {

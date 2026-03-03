@@ -533,7 +533,7 @@ export interface GSheetSyncData {
 /**
  * Update Supabase sync columns Z-BO for a listing by GEO ID
  */
-export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string): Promise<boolean> {
+export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, updatedBy?: string): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
 
@@ -627,6 +627,50 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     },
   });
 
+  // Insert notes on AQ (status), BE, BF, BG (lat/long) with the user who made the update
+  if (updatedBy) {
+    try {
+      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+      const sheet = spreadsheet.data.sheets?.find(
+        (s) => s.properties?.title === SHEET_NAME
+      );
+      const sheetId = sheet?.properties?.sheetId;
+      if (sheetId !== undefined) {
+        const now = new Date().toLocaleString("en-PH", {
+          timeZone: "Asia/Manila",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: true,
+        });
+        const noteText = `Updated by: ${updatedBy}\n${now}`;
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [
+              // Col AQ (index 42) — STATUS
+              {
+                updateCells: {
+                  range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 42, endColumnIndex: 43 },
+                  rows: [{ values: [{ note: noteText }] }],
+                  fields: "note",
+                },
+              },
+              // Cols BE/BF/BG (indices 56–58) — LAT LONG / LAT / LONG (adjacent, one request)
+              {
+                updateCells: {
+                  range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 56, endColumnIndex: 59 },
+                  rows: [{ values: [{ note: noteText }, { note: noteText }, { note: noteText }] }],
+                  fields: "note",
+                },
+              },
+            ],
+          },
+        });
+      }
+    } catch (noteError) {
+      console.warn("⚠️ Could not insert cell notes:", noteError);
+    }
+  }
+
   console.log(`✅ Updated GSheet columns A + Z-BO for ${geoId} (row ${rowNumber})`);
   return true;
 }
@@ -634,7 +678,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
 /**
  * Update display columns A-P for a listing by GEO ID
  */
-export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string): Promise<boolean> {
+export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, updatedBy?: string): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
 
@@ -692,33 +736,57 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     const sheetId = sheet?.properties?.sheetId;
 
     if (sheetId !== undefined) {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              repeatCell: {
-                range: {
-                  sheetId,
-                  startRowIndex: rowNumber - 1,
-                  endRowIndex: rowNumber,
-                  startColumnIndex: 0,
-                  endColumnIndex: 16, // A-P (16 columns)
+      const requests: object[] = [
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: rowNumber - 1,
+              endRowIndex: rowNumber,
+              startColumnIndex: 0,
+              endColumnIndex: 16, // A-P (16 columns)
+            },
+            cell: {
+              userEnteredFormat: {
+                textFormat: {
+                  fontFamily: "Calibri",
+                  fontSize: 11,
+                  bold: false,
                 },
-                cell: {
-                  userEnteredFormat: {
-                    textFormat: {
-                      fontFamily: "Calibri",
-                      fontSize: 11,
-                      bold: false,
-                    },
-                  },
-                },
-                fields: "userEnteredFormat.textFormat",
               },
             },
-          ],
+            fields: "userEnteredFormat.textFormat",
+          },
         },
+      ];
+
+      // Insert note on columns N (Date Updated) and O (Status) with the user who made the update
+      if (updatedBy) {
+        const now = new Date().toLocaleString("en-PH", {
+          timeZone: "Asia/Manila",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: true,
+        });
+        const noteText = `Updated by: ${updatedBy}\n${now}`;
+        // Cols N+O are adjacent (indices 13–14) — set both in one request
+        requests.push({
+          updateCells: {
+            range: {
+              sheetId,
+              startRowIndex: rowNumber - 1,
+              endRowIndex: rowNumber,
+              startColumnIndex: 13, // N
+              endColumnIndex: 15,   // up to (not including) P
+            },
+            rows: [{ values: [{ note: noteText }, { note: noteText }] }],
+            fields: "note",
+          },
+        });
+      }
+
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests },
       });
       console.log(`✅ Applied Calibri 11 formatting to row ${rowNumber}`);
     }
