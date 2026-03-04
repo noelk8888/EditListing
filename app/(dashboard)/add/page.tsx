@@ -1320,6 +1320,18 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   )}
                 </Button>
               )}
+              {batchActive && batchIndex > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setError(null);
+                    setBatchIndex(prev => prev - 1);
+                  }}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Back
+                </Button>
+              )}
               {batchActive && (
                 <Button
                   variant="outline"
