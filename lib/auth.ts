@@ -55,10 +55,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
-    // Store role in JWT on first sign-in
+    // Store/Refresh role in JWT
     jwt: async ({ token, user }) => {
+      // On first sign-in, user object is available
       if (user?.email) {
         token.role = await lookupRole(user.email);
+      }
+      // On subsequent requests, refresh if role is missing or UNAUTHORIZED
+      // This allows users to gain access without waiting for token expiry if they were recently added
+      else if (token.email && (!token.role || token.role === "UNAUTHORIZED")) {
+        token.role = await lookupRole(token.email as string);
       }
       return token;
     },
