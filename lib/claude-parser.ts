@@ -120,7 +120,7 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
       agricultural: Boolean(parsed.agricultural),
       lotArea: String(parsed.lotArea || ""),
       floorArea: String(parsed.floorArea || ""),
-      status: normalizeStatus(parsed.status) || "AVAILABLE",
+      status: normalizeStatus(parsed.status) || "Available",
       type: PROPERTY_TYPES.includes(parsed.type) ? parsed.type : "",
       salePrice: String(parsed.salePrice || "").replace(/[^0-9.-]/g, ""),
       salePricePerSqm: String(parsed.salePricePerSqm || "").replace(
