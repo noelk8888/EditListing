@@ -1213,17 +1213,17 @@ export async function updateListing(id: string, listing: Listing): Promise<Listi
   return { ...listing, id };
 }
 
-export async function getRowRange(startRow: number, endRow: number): Promise<BatchRowData[]> {
+export async function getRowRange(startRow: number, endRow: number, spreadsheetId?: string): Promise<BatchRowData[]> {
   if (startRow < 2) throw new Error("startRow must be >= 2 (row 1 is the header)");
   if (endRow < startRow) throw new Error("endRow must be >= startRow");
   if (endRow - startRow > 499) throw new Error("Range too large (max 500 rows)");
 
   const sheets = getSheets();
-  const spreadsheetId = process.env.SPREADSHEET_ID;
-  if (!spreadsheetId) throw new Error("SPREADSHEET_ID not configured");
+  const spreadsheetId_ = spreadsheetId || process.env.SPREADSHEET_ID;
+  if (!spreadsheetId_) throw new Error("SPREADSHEET_ID not configured");
 
   const batchResponse = await sheets.spreadsheets.values.batchGet({
-    spreadsheetId,
+    spreadsheetId: spreadsheetId_,
     ranges: [
       `${SHEET_NAME}!A${startRow}:A${endRow}`,
       `${SHEET_NAME}!AC${startRow}:AC${endRow}`,

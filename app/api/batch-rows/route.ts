@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const startRow = parseInt(searchParams.get("startRow") ?? "", 10);
     const endRow   = parseInt(searchParams.get("endRow")   ?? "", 10);
+    const sheetUrl = searchParams.get("sheetUrl") ?? "";
 
     if (isNaN(startRow) || isNaN(endRow)) {
       return NextResponse.json(
@@ -20,7 +21,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const rows = await getRowRange(startRow, endRow);
+    let spreadsheetId: string | undefined;
+    if (sheetUrl) {
+      const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (!match) {
+        return NextResponse.json({ error: "Invalid Google Sheets URL" }, { status: 400 });
+      }
+      spreadsheetId = match[1];
+    }
+
+    const rows = await getRowRange(startRow, endRow, spreadsheetId);
     return NextResponse.json({ rows });
   } catch (error) {
     console.error("batch-rows error:", error);

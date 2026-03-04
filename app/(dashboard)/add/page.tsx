@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SupabaseListing } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
@@ -117,6 +117,8 @@ export default function AddListingPage() {
   const [copied, setCopied] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [suggestedGeoId, setSuggestedGeoId] = useState("");
   const [newGeoId, setNewGeoId] = useState("");
   const [geoIdConfirmed, setGeoIdConfirmed] = useState(false);
@@ -124,6 +126,7 @@ export default function AddListingPage() {
   // === BATCH MODE STATE ===
   type BatchRow = { rowNumber: number; colA: string; colAC: string; colJ: string; colK: string; colL: string };
   const [batchMode, setBatchMode]                 = useState(false);      // setup panel open
+  const [batchSheetUrl, setBatchSheetUrl]         = useState("");
   const [batchStartRow, setBatchStartRow]         = useState("2");
   const [batchEndRow, setBatchEndRow]             = useState("50");
   const [batchRows, setBatchRows]                 = useState<BatchRow[]>([]);
@@ -749,6 +752,28 @@ export default function AddListingPage() {
     }
   };
 
+  const handleDeleteListing = async () => {
+    if (!searchResult) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: searchResult.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Delete failed");
+      alert(`🗑️ Listing ${searchResult.id} has been permanently deleted.`);
+      router.push("/add");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Delete failed");
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Add the new listing
   const confirmAddNew = async () => {
     setAdding(true);
@@ -832,7 +857,11 @@ export default function AddListingPage() {
     setBatchLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/batch-rows?startRow=${start}&endRow=${end}`);
+      const url = new URL("/api/batch-rows", window.location.origin);
+      url.searchParams.set("startRow", String(start));
+      url.searchParams.set("endRow", String(end));
+      if (batchSheetUrl.trim()) url.searchParams.set("sheetUrl", batchSheetUrl.trim());
+      const res = await fetch(url.toString());
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch rows");
       setBatchRows(data.rows);
@@ -1016,6 +1045,16 @@ export default function AddListingPage() {
           <p className="text-xs text-muted-foreground">
             Fetches col A text from a GSheet row range. Auto-pastes, searches, and extracts each row — you only press Update Listing.
           </p>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs shrink-0">Sheet URL</Label>
+            <Input
+              type="url"
+              placeholder="Paste GSheet URL (leave blank to use default sheet)"
+              value={batchSheetUrl}
+              onChange={e => setBatchSheetUrl(e.target.value)}
+              className="h-8 text-sm flex-1"
+            />
+          </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Label className="text-xs shrink-0">Start Row</Label>
@@ -2008,6 +2047,16 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   )}
                 </Button>
               )}
+              {searchResult && permissions.delete_listing !== false && (
+                <Button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -2431,6 +2480,39 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
       )}
 
       {/* Telegram Post Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-lg p-6 w-full max-w-sm shadow-xl space-y-4">
+            <h3 className="font-semibold text-lg flex items-center gap-2 text-red-600">
+              <Trash2 className="h-5 w-5" />
+              Delete Listing
+            </h3>
+            <p className="text-sm">
+              You are about to permanently delete listing <strong>{searchResult?.id}</strong>.
+            </p>
+            <p className="text-sm font-semibold text-red-600">
+              ⚠️ This action cannot be undone. The listing will be removed from both Google Sheets and Supabase.
+            </p>
+            <div className="flex gap-3 pt-2">
+              <Button
+                onClick={handleDeleteListing}
+                disabled={deleting}
+                className="bg-red-600 hover:bg-red-700 text-white flex-1"
+              >
+                {deleting ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Deleting...</>
+                ) : (
+                  <><Trash2 className="mr-2 h-4 w-4" />Yes, Delete Permanently</>
+                )}
+              </Button>
+              <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)} disabled={deleting}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTelegramModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-background rounded-lg p-6 w-full max-w-md shadow-xl space-y-4">

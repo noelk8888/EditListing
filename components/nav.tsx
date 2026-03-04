@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Building2, Plus, List, LogOut, Users, ShieldCheck } from "lucide-react";
+import { Building2, Plus, LogOut, Users, ShieldCheck, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 
@@ -24,12 +26,11 @@ const ROLE_BADGE: Record<string, { label: string; className: string }> = {
 export function Nav({ user }: NavProps) {
   const pathname = usePathname();
   const role = user?.role || "";
+  const { theme, setTheme } = useTheme();
   const isAdmin = role === "SUPERADMIN" || role === "ADMIN";
 
   const links = [
-    { href: "/", label: "Dashboard", icon: Building2 },
     { href: "/add", label: "Add Listing", icon: Plus },
-    { href: "/listings", label: "All Listings", icon: List },
     ...(isAdmin
       ? [{ href: "/admin/users", label: "Users", icon: Users }]
       : []),
@@ -71,6 +72,14 @@ export function Nav({ user }: NavProps) {
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            title="Toggle dark mode"
+          >
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
           {user && (
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
@@ -81,12 +90,10 @@ export function Nav({ user }: NavProps) {
                 )}
                 <span className="text-sm text-muted-foreground">{user.email}</span>
               </div>
-              <form action="/api/auth/signout" method="POST">
-                <Button variant="ghost" size="sm" type="submit">
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </Button>
-              </form>
+              <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
+                <LogOut className="h-4 w-4 mr-2" />
+                Sign Out
+              </Button>
             </div>
           )}
         </div>
