@@ -1285,6 +1285,55 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
 
           {/* RIGHT: Existing Listing Info */}
           {searchResult && (
+            <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
+              {permissions.telegram_send !== false && (
+                <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
+                  <input
+                    type="checkbox"
+                    checked={telegramPostEnabled}
+                    onChange={() => setTelegramPostEnabled(v => !v)}
+                    className="h-4 w-4 accent-blue-600 cursor-pointer"
+                  />
+                  <Send className="h-3.5 w-3.5 text-blue-600" />
+                  TELEGRAM POST
+                </label>
+              )}
+              <Button
+                onClick={handleUpdateExisting}
+                disabled={updating}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {updating ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+                ) : (
+                  <><Save className="mr-2 h-4 w-4" />Update Existing</>
+                )}
+              </Button>
+              {permissions.ai_extract !== false && (
+                <Button onClick={handleExtractData} disabled={loading} variant="default">
+                  {loading ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
+                  ) : (
+                    <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
+                  )}
+                </Button>
+              )}
+              {batchActive && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const current = batchRows[batchIndex];
+                    if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
+                    setError(null);
+                    setBatchIndex(prev => prev + 1);
+                  }}
+                >
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
+            </div>
             <Card className={useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -1353,56 +1402,9 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3 pt-1 flex-wrap justify-end">
-                  {permissions.telegram_send !== false && (
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
-                      <input
-                        type="checkbox"
-                        checked={telegramPostEnabled}
-                        onChange={() => setTelegramPostEnabled(v => !v)}
-                        className="h-4 w-4 accent-blue-600 cursor-pointer"
-                      />
-                      <Send className="h-3.5 w-3.5 text-blue-600" />
-                      TELEGRAM POST
-                    </label>
-                  )}
-                  <Button
-                    onClick={handleUpdateExisting}
-                    disabled={updating}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    {updating ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
-                    ) : (
-                      <><Save className="mr-2 h-4 w-4" />Update Existing</>
-                    )}
-                  </Button>
-                  {permissions.ai_extract !== false && (
-                    <Button onClick={handleExtractData} disabled={loading} variant="default">
-                      {loading ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
-                      ) : (
-                        <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
-                      )}
-                    </Button>
-                  )}
-                  {batchActive && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        const current = batchRows[batchIndex];
-                        if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
-                        setError(null);
-                        setBatchIndex(prev => prev + 1);
-                      }}
-                    >
-                      Next
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
               </CardContent>
             </Card>
+            </div>
           )}
           </div>{/* end grid */}
 
