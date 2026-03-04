@@ -155,8 +155,8 @@ export interface GSheetFullRow extends GSheetDisplayData {
   supabaseCompound: string;    // BO
 }
 
-function getAuth() {
-  // Try to use the service account JSON file first (more reliable)
+export function getAuth() {
+  // Try to use the service account JSON file first (more reliable for local dev)
   const serviceAccountPath = path.join(process.cwd(), "service-account.json");
 
   if (fs.existsSync(serviceAccountPath)) {
@@ -164,61 +164,58 @@ function getAuth() {
       const credentialsJson = fs.readFileSync(serviceAccountPath, "utf-8");
       const credentials = JSON.parse(credentialsJson);
       console.log("GSheet Auth: Using service-account.json file");
-      console.log("GSheet Auth: Email:", credentials.client_email);
-
-      const client = new JWT({
+      return new JWT({
         email: credentials.client_email,
         key: credentials.private_key,
         scopes: SCOPES,
       });
-      return client;
     } catch (fileError) {
       console.error("GSheet Auth: Error reading service-account.json:", fileError);
     }
-  } else {
-    console.log("GSheet Auth: service-account.json not found at", serviceAccountPath);
   }
 
-  // Fallback to environment variables
+  // Fallback to environment variables (Production/Vercel)
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
 
   if (!email || !privateKey) {
-    throw new Error("Google service account credentials not configured");
+    throw new Error("Google service account credentials (EMAIL or PRIVATE_KEY) not configured");
   }
 
-  // Robust private key parsing for Vercel env vars
-  let processedKey = privateKey as string;
-  try {
-    // If it's a JSON-stringified key (common in some setups)
-    if (processedKey.startsWith('"') && processedKey.endsWith('"')) {
+  // Robust private key parsing
+  let processedKey = privateKey.trim();
+
+  // 1. Handle JSON-stringified keys (removes wrapping quotes and unescapes \n)
+  if (processedKey.startsWith('"') && processedKey.endsWith('"')) {
+    try {
       processedKey = JSON.parse(processedKey);
+    } catch {
+      // Not valid JSON, strip quotes manually
+      processedKey = processedKey.substring(1, processedKey.length - 1);
     }
-  } catch {
-    // Not a JSON string, continue
   }
 
-  // Replace literal \n with actual newlines
-  processedKey = processedKey.replace(/\\n/g, '\n');
-
-  // Ensure it has BEGIN/END tags and no extra wrapping quotes from Vercel UI
-  processedKey = processedKey.trim();
+  // 2. Handle single-quote wrapping (sometimes added by Vercel UI)
   if (processedKey.startsWith("'") && processedKey.endsWith("'")) {
     processedKey = processedKey.substring(1, processedKey.length - 1);
   }
 
-  console.log("GSheet Auth: Using env vars, email:", email);
+  // 3. Replace literal \n sequences with actual newlines
+  processedKey = processedKey.replace(/\\n/g, "\n");
 
-  const client = new JWT({
+  // 4. Final safety: ensure the key format is correct for OpenSSL
+  if (!processedKey.includes("-----BEGIN PRIVATE KEY-----")) {
+    console.error("GSheet Auth: Key is missing BEGIN tag. Length:", processedKey.length);
+  }
+
+  return new JWT({
     email,
     key: processedKey,
     scopes: SCOPES,
   });
-
-  return client;
 }
 
-function getSheets() {
+export function getSheets() {
   const auth = getAuth();
   return google.sheets({ version: "v4", auth });
 }

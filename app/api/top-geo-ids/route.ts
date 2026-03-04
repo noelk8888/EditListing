@@ -1,30 +1,9 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
-import { JWT } from "google-auth-library";
+import { getAuth } from "@/lib/google-sheets";
 
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const SHEET_NAME = "Sheet1";
-
-function getAuth() {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  let privateKey = process.env.GOOGLE_PRIVATE_KEY;
-
-  if (!email || !privateKey) {
-    throw new Error("Google service account credentials not configured");
-  }
-
-  // Handle JSON-encoded key (e.g. wrapped in quotes)
-  try {
-    privateKey = JSON.parse(privateKey);
-  } catch {
-    // Not JSON-encoded, use as-is
-  }
-
-  // Replace literal \n with actual newlines
-  privateKey = (privateKey as string).replace(/\\n/g, "\n");
-
-  return new JWT({ email, key: privateKey, scopes: SCOPES });
-}
 
 export async function GET() {
   try {
