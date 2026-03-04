@@ -124,7 +124,7 @@ export default function AddListingPage() {
   const [geoIdConfirmed, setGeoIdConfirmed] = useState(false);
 
   // === BATCH MODE STATE ===
-  type BatchRow = { rowNumber: number; colA: string; colAC: string; colJ: string; colK: string; colL: string };
+  type BatchRow = { rowNumber: number; colA: string; colAC: string; colJ: string; colK: string; colL: string; colM: string; colN: string };
   const [batchMode, setBatchMode]                 = useState(false);      // setup panel open
   const [batchSheetUrl, setBatchSheetUrl]         = useState("https://docs.google.com/spreadsheets/d/1Y_ZL7HaipVk7_Y9EFeYZWek5zCYoITTr6tQS06Rkzcc/edit?gid=1361278820#gid=1361278820");
   const [batchStartRow, setBatchStartRow]         = useState("2");
@@ -586,8 +586,14 @@ export default function AddListingPage() {
         if (val.includes('direct')) setDirectOrCobroker('Direct to Owner');
         else if (val.includes('cobroker') || val.includes('broker')) setDirectOrCobroker('With Cobroker');
       }
-      setDateReceived(searchResult.date_received || '');
-      const originalDate = searchResult.date_updated || new Date().toISOString().split('T')[0];
+      // Normalize MM/DD/YYYY → YYYY-MM-DD for GSheet date fallbacks
+      const normDate = (d: string) => {
+        if (!d) return "";
+        const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        return m ? `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}` : d;
+      };
+      setDateReceived(searchResult.date_received || normDate(gsheet?.colM || '') || '');
+      const originalDate = searchResult.date_updated || normDate(gsheet?.colN || '') || new Date().toISOString().split('T')[0];
       setDateUpdated(originalDate);
       setOriginalDateUpdated(originalDate);
       setAvailable(searchResult.available || "");
