@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       photo_link,
       send_telegram,
       telegram_post_message,
+      telegram_groups,
     } = body;
 
     if (!id) {
@@ -335,9 +336,10 @@ export async function POST(request: Request) {
 
     // Send Telegram notifications only when checkbox is checked
     if (send_telegram) {
-      await sendTelegramNotification(mainWithId);
+      const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
+      await sendTelegramNotification(mainWithId, groups);
       if (telegram_post_message) {
-        await sendTelegramNotification(telegram_post_message);
+        await sendTelegramNotification(telegram_post_message, groups);
       }
     }
 

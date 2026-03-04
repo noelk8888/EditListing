@@ -737,6 +737,7 @@ export default function AddListingPage() {
           photo_link: photosLink,
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
+          telegram_groups: telegramGroups,
         }),
       });
 
