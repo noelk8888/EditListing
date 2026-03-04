@@ -1224,9 +1224,28 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
   const spreadsheetId_ = spreadsheetId || process.env.SPREADSHEET_ID;
   if (!spreadsheetId_) throw new Error("SPREADSHEET_ID not configured");
 
-  // Fetch all columns including AC (GEO ID). If the sheet has fewer columns
-  // than AC (col 29) — e.g. a temporary/custom sheet — fall back without AC only.
-  // Columns M (13) and N (14) are always safe to fetch regardless of sheet width.
+  // Google Sheets API trims leading AND trailing empty rows from the response.
+  // e.g. if K2:K300 has data only at K276, the API returns values=[["Metrosummit"]]
+  // with range="Sheet1!K276:K276" — NOT a padded array starting at row 2.
+  // We must parse the actual start row from each returned range to correctly map values.
+
+  // Parse the first row number from a range string like "Sheet1!K276:K300"
+  const rangeStartRow = (rangeStr: string | null | undefined): number => {
+    if (!rangeStr) return startRow;
+    const m = rangeStr.match(/\D(\d+):/);
+    return m ? parseInt(m[1], 10) : startRow;
+  };
+
+  // Look up a value for a specific sheet row, accounting for the API's trimmed start
+  const colVal = (values: string[][], apiStart: number, rowNum: number): string => {
+    const idx = rowNum - apiStart;
+    return (idx >= 0 && idx < values.length) ? (values[idx]?.[0] || "") : "";
+  };
+
+  // Per-column start rows (filled after each batchGet)
+  let aStart = startRow, acStart = startRow, jStart = startRow,
+      kStart = startRow, lStart = startRow, mStart = startRow, nStart = startRow;
+
   let colAValues:  string[][] = [];
   let colACValues: string[][] = [];
   let colJValues:  string[][] = [];
@@ -1248,13 +1267,14 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
         `${SHEET_NAME}!N${startRow}:N${endRow}`,
       ],
     });
-    colAValues  = (batchResponse.data.valueRanges?.[0]?.values || []) as string[][];
-    colACValues = (batchResponse.data.valueRanges?.[1]?.values || []) as string[][];
-    colJValues  = (batchResponse.data.valueRanges?.[2]?.values || []) as string[][];
-    colKValues  = (batchResponse.data.valueRanges?.[3]?.values || []) as string[][];
-    colLValues  = (batchResponse.data.valueRanges?.[4]?.values || []) as string[][];
-    colMValues  = (batchResponse.data.valueRanges?.[5]?.values || []) as string[][];
-    colNValues  = (batchResponse.data.valueRanges?.[6]?.values || []) as string[][];
+    const vr = batchResponse.data.valueRanges || [];
+    colAValues  = (vr[0]?.values || []) as string[][];  aStart  = rangeStartRow(vr[0]?.range);
+    colACValues = (vr[1]?.values || []) as string[][];  acStart = rangeStartRow(vr[1]?.range);
+    colJValues  = (vr[2]?.values || []) as string[][];  jStart  = rangeStartRow(vr[2]?.range);
+    colKValues  = (vr[3]?.values || []) as string[][];  kStart  = rangeStartRow(vr[3]?.range);
+    colLValues  = (vr[4]?.values || []) as string[][];  lStart  = rangeStartRow(vr[4]?.range);
+    colMValues  = (vr[5]?.values || []) as string[][];  mStart  = rangeStartRow(vr[5]?.range);
+    colNValues  = (vr[6]?.values || []) as string[][];  nStart  = rangeStartRow(vr[6]?.range);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.includes("exceeds grid limits")) throw err;
@@ -1270,27 +1290,29 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
         `${SHEET_NAME}!N${startRow}:N${endRow}`,
       ],
     });
-    colAValues = (fallback.data.valueRanges?.[0]?.values || []) as string[][];
-    colJValues = (fallback.data.valueRanges?.[1]?.values || []) as string[][];
-    colKValues = (fallback.data.valueRanges?.[2]?.values || []) as string[][];
-    colLValues = (fallback.data.valueRanges?.[3]?.values || []) as string[][];
-    colMValues = (fallback.data.valueRanges?.[4]?.values || []) as string[][];
-    colNValues = (fallback.data.valueRanges?.[5]?.values || []) as string[][];
+    const vr = fallback.data.valueRanges || [];
+    colAValues = (vr[0]?.values || []) as string[][];  aStart = rangeStartRow(vr[0]?.range);
+    colJValues = (vr[1]?.values || []) as string[][];  jStart = rangeStartRow(vr[1]?.range);
+    colKValues = (vr[2]?.values || []) as string[][];  kStart = rangeStartRow(vr[2]?.range);
+    colLValues = (vr[3]?.values || []) as string[][];  lStart = rangeStartRow(vr[3]?.range);
+    colMValues = (vr[4]?.values || []) as string[][];  mStart = rangeStartRow(vr[4]?.range);
+    colNValues = (vr[5]?.values || []) as string[][];  nStart = rangeStartRow(vr[5]?.range);
     // colACValues stays empty — GEO IDs will be blank for this sheet
   }
 
   const count = endRow - startRow + 1;
   const results: BatchRowData[] = [];
   for (let i = 0; i < count; i++) {
+    const rowNum = startRow + i;
     results.push({
-      rowNumber: startRow + i,
-      colA:  colAValues[i]?.[0]  || "",
-      colAC: colACValues[i]?.[0] || "",
-      colJ:  colJValues[i]?.[0]  || "",
-      colK:  colKValues[i]?.[0]  || "",
-      colL:  colLValues[i]?.[0]  || "",
-      colM:  colMValues[i]?.[0]  || "",
-      colN:  colNValues[i]?.[0]  || "",
+      rowNumber: rowNum,
+      colA:  colVal(colAValues,  aStart,  rowNum),
+      colAC: colVal(colACValues, acStart, rowNum),
+      colJ:  colVal(colJValues,  jStart,  rowNum),
+      colK:  colVal(colKValues,  kStart,  rowNum),
+      colL:  colVal(colLValues,  lStart,  rowNum),
+      colM:  colVal(colMValues,  mStart,  rowNum),
+      colN:  colVal(colNValues,  nStart,  rowNum),
     });
   }
   return results;
