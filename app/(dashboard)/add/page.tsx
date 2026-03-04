@@ -1216,7 +1216,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               {/* Preview of listing */}
               <div className="space-y-2">
                 <Label>Listing Preview</Label>
-                <div className="bg-muted p-3 rounded-md font-mono text-sm whitespace-pre-wrap max-h-64 overflow-y-auto">
+                <div className="bg-muted p-3 rounded-md font-mono text-sm whitespace-pre-wrap">
                   {rawText || "No preview available"}
                 </div>
                 {listingId && (
@@ -1348,7 +1348,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       className="font-mono text-xs min-h-64 leading-relaxed resize-y"
                     />
                   ) : (
-                    <div className="bg-muted p-3 rounded-md font-mono text-xs max-h-64 overflow-y-auto leading-relaxed">
+                    <div className="bg-muted p-3 rounded-md font-mono text-xs leading-relaxed">
                       {renderDiffText(rawText, editSummary)}
                     </div>
                   )}
