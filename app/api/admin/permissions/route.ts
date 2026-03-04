@@ -68,8 +68,8 @@ export async function PUT(request: NextRequest) {
         .select("role")
         .eq("email", userEmail.toLowerCase())
         .single();
-      if (!targetUser || !["BROKER", "EDITOR"].includes(targetUser.role)) {
-        return NextResponse.json({ error: "AD can only override BR/ED user permissions" }, { status: 403 });
+      if (!targetUser || !["EDITOR"].includes(targetUser.role)) {
+        return NextResponse.json({ error: "ADMIN can only override EDITOR user permissions" }, { status: 403 });
       }
     }
 

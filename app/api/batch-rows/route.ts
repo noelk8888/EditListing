@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getRowRange } from "@/lib/google-sheets";
 import { auth } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -11,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const startRow = parseInt(searchParams.get("startRow") ?? "", 10);
-    const endRow   = parseInt(searchParams.get("endRow")   ?? "", 10);
+    const endRow = parseInt(searchParams.get("endRow") ?? "", 10);
     const sheetUrl = searchParams.get("sheetUrl") ?? "";
 
     if (isNaN(startRow) || isNaN(endRow)) {

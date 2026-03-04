@@ -187,21 +187,31 @@ function getAuth() {
     throw new Error("Google service account credentials not configured");
   }
 
-  // Handle different formats of private key from env
+  // Robust private key parsing for Vercel env vars
+  let processedKey = privateKey as string;
   try {
-    privateKey = JSON.parse(privateKey);
+    // If it's a JSON-stringified key (common in some setups)
+    if (processedKey.startsWith('"') && processedKey.endsWith('"')) {
+      processedKey = JSON.parse(processedKey);
+    }
   } catch {
-    // Not a JSON string, continue with string processing
+    // Not a JSON string, continue
   }
 
   // Replace literal \n with actual newlines
-  privateKey = (privateKey as string).replace(/\\n/g, '\n');
+  processedKey = processedKey.replace(/\\n/g, '\n');
+
+  // Ensure it has BEGIN/END tags and no extra wrapping quotes from Vercel UI
+  processedKey = processedKey.trim();
+  if (processedKey.startsWith("'") && processedKey.endsWith("'")) {
+    processedKey = processedKey.substring(1, processedKey.length - 1);
+  }
 
   console.log("GSheet Auth: Using env vars, email:", email);
 
   const client = new JWT({
     email,
-    key: privateKey,
+    key: processedKey,
     scopes: SCOPES,
   });
 
@@ -606,13 +616,13 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
   const blastedFormatToWrite = data.blastedFormat !== undefined
     ? data.blastedFormat
     : (() => {
-        if (!data.main) return "";
-        const lines = data.main.split('\n');
-        if (lines.length > 0 && /^[A-Z]\d{4,6}$/.test(lines[0].trim())) {
-          return lines.slice(1).join('\n');
-        }
-        return data.main;
-      })();
+      if (!data.main) return "";
+      const lines = data.main.split('\n');
+      if (lines.length > 0 && /^[A-Z]\d{4,6}$/.test(lines[0].trim())) {
+        return lines.slice(1).join('\n');
+      }
+      return data.main;
+    })();
 
   // Batch write: COL A (blastedFormat) + COL Z-BO (sync data) in one API call
   await sheets.spreadsheets.values.batchUpdate({
@@ -899,48 +909,48 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
 
   // Z-BO: Sync columns — write in the same append to avoid a second lookup
   if (syncData) {
-    rowData[GSHEET_COLUMNS.Z_FB_LINK]          = syncData.fbLink || "";
+    rowData[GSHEET_COLUMNS.Z_FB_LINK] = syncData.fbLink || "";
     // AA already set above with correct geoId
-    rowData[GSHEET_COLUMNS.AB_PHOTO]           = syncData.photo || "";
+    rowData[GSHEET_COLUMNS.AB_PHOTO] = syncData.photo || "";
     // AC already set above
-    rowData[GSHEET_COLUMNS.AD_MAP_LINK]        = syncData.mapLink || "";
-    rowData[GSHEET_COLUMNS.AE_REGION]          = syncData.region || "";
-    rowData[GSHEET_COLUMNS.AF_PROVINCE]        = syncData.province || "";
-    rowData[GSHEET_COLUMNS.AG_CITY]            = syncData.city || "";
-    rowData[GSHEET_COLUMNS.AH_BARANGAY]        = syncData.barangay || "";
-    rowData[GSHEET_COLUMNS.AI_AREA]            = syncData.area || "";
-    rowData[GSHEET_COLUMNS.AJ_BUILDING]        = syncData.building || "";
-    rowData[GSHEET_COLUMNS.AK_RESIDENTIAL]     = syncData.residential || "";
-    rowData[GSHEET_COLUMNS.AL_COMMERCIAL]      = syncData.commercial || "";
-    rowData[GSHEET_COLUMNS.AM_INDUSTRIAL]      = syncData.industrial || "";
-    rowData[GSHEET_COLUMNS.AN_AGRICULTURAL]    = syncData.agricultural || "";
-    rowData[GSHEET_COLUMNS.AO_LOT_AREA]        = syncData.lotArea || "";
-    rowData[GSHEET_COLUMNS.AP_FLOOR_AREA]      = syncData.floorArea || "";
-    rowData[GSHEET_COLUMNS.AQ_STATUS]          = syncData.status || "";
-    rowData[GSHEET_COLUMNS.AR_TYPE]            = syncData.type || "";
-    rowData[GSHEET_COLUMNS.AS_SALE_PRICE]      = syncData.salePrice || "";
-    rowData[GSHEET_COLUMNS.AT_SALE_SQM]        = syncData.saleSqm || "";
-    rowData[GSHEET_COLUMNS.AU_LEASE_PRICE]     = syncData.leasePrice || "";
-    rowData[GSHEET_COLUMNS.AV_LEASE_SQM]       = syncData.leaseSqm || "";
-    rowData[GSHEET_COLUMNS.AW_COMMENTS]        = syncData.comments || "";
-    rowData[GSHEET_COLUMNS.AX_WITH_INCOME]     = syncData.withIncome || "";
-    rowData[GSHEET_COLUMNS.AY_DIRECT_BROKER]   = syncData.directBroker || "";
-    rowData[GSHEET_COLUMNS.AZ_NAME]            = syncData.name || "";
-    rowData[GSHEET_COLUMNS.BA_AWAY]            = syncData.away || "";
-    rowData[GSHEET_COLUMNS.BB_DATE_RECV]       = syncData.dateRecv || "";
-    rowData[GSHEET_COLUMNS.BC_DATE_UPDATED]    = syncData.dateUpdated || "";
+    rowData[GSHEET_COLUMNS.AD_MAP_LINK] = syncData.mapLink || "";
+    rowData[GSHEET_COLUMNS.AE_REGION] = syncData.region || "";
+    rowData[GSHEET_COLUMNS.AF_PROVINCE] = syncData.province || "";
+    rowData[GSHEET_COLUMNS.AG_CITY] = syncData.city || "";
+    rowData[GSHEET_COLUMNS.AH_BARANGAY] = syncData.barangay || "";
+    rowData[GSHEET_COLUMNS.AI_AREA] = syncData.area || "";
+    rowData[GSHEET_COLUMNS.AJ_BUILDING] = syncData.building || "";
+    rowData[GSHEET_COLUMNS.AK_RESIDENTIAL] = syncData.residential || "";
+    rowData[GSHEET_COLUMNS.AL_COMMERCIAL] = syncData.commercial || "";
+    rowData[GSHEET_COLUMNS.AM_INDUSTRIAL] = syncData.industrial || "";
+    rowData[GSHEET_COLUMNS.AN_AGRICULTURAL] = syncData.agricultural || "";
+    rowData[GSHEET_COLUMNS.AO_LOT_AREA] = syncData.lotArea || "";
+    rowData[GSHEET_COLUMNS.AP_FLOOR_AREA] = syncData.floorArea || "";
+    rowData[GSHEET_COLUMNS.AQ_STATUS] = syncData.status || "";
+    rowData[GSHEET_COLUMNS.AR_TYPE] = syncData.type || "";
+    rowData[GSHEET_COLUMNS.AS_SALE_PRICE] = syncData.salePrice || "";
+    rowData[GSHEET_COLUMNS.AT_SALE_SQM] = syncData.saleSqm || "";
+    rowData[GSHEET_COLUMNS.AU_LEASE_PRICE] = syncData.leasePrice || "";
+    rowData[GSHEET_COLUMNS.AV_LEASE_SQM] = syncData.leaseSqm || "";
+    rowData[GSHEET_COLUMNS.AW_COMMENTS] = syncData.comments || "";
+    rowData[GSHEET_COLUMNS.AX_WITH_INCOME] = syncData.withIncome || "";
+    rowData[GSHEET_COLUMNS.AY_DIRECT_BROKER] = syncData.directBroker || "";
+    rowData[GSHEET_COLUMNS.AZ_NAME] = syncData.name || "";
+    rowData[GSHEET_COLUMNS.BA_AWAY] = syncData.away || "";
+    rowData[GSHEET_COLUMNS.BB_DATE_RECV] = syncData.dateRecv || "";
+    rowData[GSHEET_COLUMNS.BC_DATE_UPDATED] = syncData.dateUpdated || "";
     rowData[GSHEET_COLUMNS.BD_LISTING_OWNERSHIP] = syncData.listingOwnership || "";
-    rowData[GSHEET_COLUMNS.BE_LAT_LONG]        = syncData.latLong || "";
-    rowData[GSHEET_COLUMNS.BF_LAT]             = syncData.lat || "";
-    rowData[GSHEET_COLUMNS.BG_LONG]            = syncData.long || "";
-    rowData[GSHEET_COLUMNS.BH_SPONSOR_START]   = syncData.sponsorStart || "";
-    rowData[GSHEET_COLUMNS.BI_SPONSOR_END]     = syncData.sponsorEnd || "";
-    rowData[GSHEET_COLUMNS.BJ_BEDROOMS]        = syncData.bedrooms || "";
-    rowData[GSHEET_COLUMNS.BK_TOILET]          = syncData.toilet || "";
-    rowData[GSHEET_COLUMNS.BL_GARAGE]          = syncData.garage || "";
-    rowData[GSHEET_COLUMNS.BM_AMENITIES]       = syncData.amenities || "";
-    rowData[GSHEET_COLUMNS.BN_CORNER]          = syncData.corner || "";
-    rowData[GSHEET_COLUMNS.BO_COMPOUND]        = syncData.compound || "";
+    rowData[GSHEET_COLUMNS.BE_LAT_LONG] = syncData.latLong || "";
+    rowData[GSHEET_COLUMNS.BF_LAT] = syncData.lat || "";
+    rowData[GSHEET_COLUMNS.BG_LONG] = syncData.long || "";
+    rowData[GSHEET_COLUMNS.BH_SPONSOR_START] = syncData.sponsorStart || "";
+    rowData[GSHEET_COLUMNS.BI_SPONSOR_END] = syncData.sponsorEnd || "";
+    rowData[GSHEET_COLUMNS.BJ_BEDROOMS] = syncData.bedrooms || "";
+    rowData[GSHEET_COLUMNS.BK_TOILET] = syncData.toilet || "";
+    rowData[GSHEET_COLUMNS.BL_GARAGE] = syncData.garage || "";
+    rowData[GSHEET_COLUMNS.BM_AMENITIES] = syncData.amenities || "";
+    rowData[GSHEET_COLUMNS.BN_CORNER] = syncData.corner || "";
+    rowData[GSHEET_COLUMNS.BO_COMPOUND] = syncData.compound || "";
   }
 
   // Find the next empty row by checking the last row with data in col A and col AC.
@@ -950,7 +960,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!A:A` }),
     sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!AC:AC` }),
   ]);
-  const rowsInColA  = (colAResp.data.values  || []).length;
+  const rowsInColA = (colAResp.data.values || []).length;
   const rowsInColAC = (colACResp.data.values || []).length;
   const nextRow = Math.max(rowsInColA, rowsInColAC) + 1;
 
@@ -1244,15 +1254,15 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
 
   // Per-column start rows (filled after each batchGet)
   let aStart = startRow, acStart = startRow, jStart = startRow,
-      kStart = startRow, lStart = startRow, mStart = startRow, nStart = startRow;
+    kStart = startRow, lStart = startRow, mStart = startRow, nStart = startRow;
 
-  let colAValues:  string[][] = [];
+  let colAValues: string[][] = [];
   let colACValues: string[][] = [];
-  let colJValues:  string[][] = [];
-  let colKValues:  string[][] = [];
-  let colLValues:  string[][] = [];
-  let colMValues:  string[][] = [];
-  let colNValues:  string[][] = [];
+  let colJValues: string[][] = [];
+  let colKValues: string[][] = [];
+  let colLValues: string[][] = [];
+  let colMValues: string[][] = [];
+  let colNValues: string[][] = [];
 
   try {
     const batchResponse = await sheets.spreadsheets.values.batchGet({
@@ -1268,13 +1278,13 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
       ],
     });
     const vr = batchResponse.data.valueRanges || [];
-    colAValues  = (vr[0]?.values || []) as string[][];  aStart  = rangeStartRow(vr[0]?.range);
-    colACValues = (vr[1]?.values || []) as string[][];  acStart = rangeStartRow(vr[1]?.range);
-    colJValues  = (vr[2]?.values || []) as string[][];  jStart  = rangeStartRow(vr[2]?.range);
-    colKValues  = (vr[3]?.values || []) as string[][];  kStart  = rangeStartRow(vr[3]?.range);
-    colLValues  = (vr[4]?.values || []) as string[][];  lStart  = rangeStartRow(vr[4]?.range);
-    colMValues  = (vr[5]?.values || []) as string[][];  mStart  = rangeStartRow(vr[5]?.range);
-    colNValues  = (vr[6]?.values || []) as string[][];  nStart  = rangeStartRow(vr[6]?.range);
+    colAValues = (vr[0]?.values || []) as string[][]; aStart = rangeStartRow(vr[0]?.range);
+    colACValues = (vr[1]?.values || []) as string[][]; acStart = rangeStartRow(vr[1]?.range);
+    colJValues = (vr[2]?.values || []) as string[][]; jStart = rangeStartRow(vr[2]?.range);
+    colKValues = (vr[3]?.values || []) as string[][]; kStart = rangeStartRow(vr[3]?.range);
+    colLValues = (vr[4]?.values || []) as string[][]; lStart = rangeStartRow(vr[4]?.range);
+    colMValues = (vr[5]?.values || []) as string[][]; mStart = rangeStartRow(vr[5]?.range);
+    colNValues = (vr[6]?.values || []) as string[][]; nStart = rangeStartRow(vr[6]?.range);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.includes("exceeds grid limits")) throw err;
@@ -1291,12 +1301,12 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
       ],
     });
     const vr = fallback.data.valueRanges || [];
-    colAValues = (vr[0]?.values || []) as string[][];  aStart = rangeStartRow(vr[0]?.range);
-    colJValues = (vr[1]?.values || []) as string[][];  jStart = rangeStartRow(vr[1]?.range);
-    colKValues = (vr[2]?.values || []) as string[][];  kStart = rangeStartRow(vr[2]?.range);
-    colLValues = (vr[3]?.values || []) as string[][];  lStart = rangeStartRow(vr[3]?.range);
-    colMValues = (vr[4]?.values || []) as string[][];  mStart = rangeStartRow(vr[4]?.range);
-    colNValues = (vr[5]?.values || []) as string[][];  nStart = rangeStartRow(vr[5]?.range);
+    colAValues = (vr[0]?.values || []) as string[][]; aStart = rangeStartRow(vr[0]?.range);
+    colJValues = (vr[1]?.values || []) as string[][]; jStart = rangeStartRow(vr[1]?.range);
+    colKValues = (vr[2]?.values || []) as string[][]; kStart = rangeStartRow(vr[2]?.range);
+    colLValues = (vr[3]?.values || []) as string[][]; lStart = rangeStartRow(vr[3]?.range);
+    colMValues = (vr[4]?.values || []) as string[][]; mStart = rangeStartRow(vr[4]?.range);
+    colNValues = (vr[5]?.values || []) as string[][]; nStart = rangeStartRow(vr[5]?.range);
     // colACValues stays empty — GEO IDs will be blank for this sheet
   }
 
@@ -1306,13 +1316,13 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
     const rowNum = startRow + i;
     results.push({
       rowNumber: rowNum,
-      colA:  colVal(colAValues,  aStart,  rowNum),
+      colA: colVal(colAValues, aStart, rowNum),
       colAC: colVal(colACValues, acStart, rowNum),
-      colJ:  colVal(colJValues,  jStart,  rowNum),
-      colK:  colVal(colKValues,  kStart,  rowNum),
-      colL:  colVal(colLValues,  lStart,  rowNum),
-      colM:  colVal(colMValues,  mStart,  rowNum),
-      colN:  colVal(colNValues,  nStart,  rowNum),
+      colJ: colVal(colJValues, jStart, rowNum),
+      colK: colVal(colKValues, kStart, rowNum),
+      colL: colVal(colLValues, lStart, rowNum),
+      colM: colVal(colMValues, mStart, rowNum),
+      colN: colVal(colNValues, nStart, rowNum),
     });
   }
   return results;
