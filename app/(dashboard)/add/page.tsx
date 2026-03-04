@@ -497,11 +497,22 @@ export default function AddListingPage() {
     // Pre-fill dates from GSheet col M (Date Received) and col N (Date Updated).
     // Must come AFTER goToStep because goToStep → clearEditFields resets these fields.
     // React batches all setState calls in this effect; last write wins.
-    // GSheet stores dates as MM/DD/YYYY — convert to YYYY-MM-DD for <input type="date">
+    // GSheet stores dates as MM/DD/YYYY or "Month DD, YYYY" — convert to YYYY-MM-DD for <input type="date">
+    const MONTHS: Record<string, string> = {
+      january:"01",february:"02",march:"03",april:"04",may:"05",june:"06",
+      july:"07",august:"08",september:"09",october:"10",november:"11",december:"12"
+    };
     const normalizeGSheetDate = (d: string) => {
       if (!d) return "";
-      const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+      // MM/DD/YYYY
+      const slash = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (slash) return `${slash[3]}-${slash[1].padStart(2,'0')}-${slash[2].padStart(2,'0')}`;
+      // "Month DD, YYYY" e.g. "February 13, 2025"
+      const spelled = d.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+      if (spelled) {
+        const mo = MONTHS[spelled[1].toLowerCase()];
+        if (mo) return `${spelled[3]}-${mo}-${spelled[2].padStart(2,'0')}`;
+      }
       return d; // already YYYY-MM-DD or unknown format
     };
     if (row.colM) setDateReceived(normalizeGSheetDate(row.colM));
@@ -586,11 +597,21 @@ export default function AddListingPage() {
         if (val.includes('direct')) setDirectOrCobroker('Direct to Owner');
         else if (val.includes('cobroker') || val.includes('broker')) setDirectOrCobroker('With Cobroker');
       }
-      // Normalize MM/DD/YYYY → YYYY-MM-DD for GSheet date fallbacks
+      // Normalize MM/DD/YYYY or "Month DD, YYYY" → YYYY-MM-DD for GSheet date fallbacks
+      const MONTH_MAP: Record<string, string> = {
+        january:"01",february:"02",march:"03",april:"04",may:"05",june:"06",
+        july:"07",august:"08",september:"09",october:"10",november:"11",december:"12"
+      };
       const normDate = (d: string) => {
         if (!d) return "";
-        const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        return m ? `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}` : d;
+        const slash = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (slash) return `${slash[3]}-${slash[1].padStart(2,'0')}-${slash[2].padStart(2,'0')}`;
+        const spelled = d.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+        if (spelled) {
+          const mo = MONTH_MAP[spelled[1].toLowerCase()];
+          if (mo) return `${spelled[3]}-${mo}-${spelled[2].padStart(2,'0')}`;
+        }
+        return d;
       };
       setDateReceived(searchResult.date_received || normDate(gsheet?.colM || '') || '');
       const originalDate = searchResult.date_updated || normDate(gsheet?.colN || '') || new Date().toISOString().split('T')[0];
