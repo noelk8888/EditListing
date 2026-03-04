@@ -155,45 +155,59 @@ export interface GSheetFullRow extends GSheetDisplayData {
   supabaseCompound: string;    // BO
 }
 
-function cleanPrivateKey(key: string): string {
-  let cleaned = key.trim();
+function cleanPrivateKey(raw: string): string {
+  const BEGIN = "-----BEGIN PRIVATE KEY-----";
+  const END = "-----END PRIVATE KEY-----";
 
-  // 1. Handle JSON-stringified keys (escaped \n and wrapping quotes)
-  if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
-    try {
-      cleaned = JSON.parse(cleaned);
-    } catch {
-      cleaned = cleaned.substring(1, cleaned.length - 1);
+  let key = raw.trim();
+
+  // ── Layer 1: strip surrounding quotes (double or single) ──
+  for (let i = 0; i < 3; i++) {                       // repeat in case of nested quoting
+    if (key.startsWith('"') && key.endsWith('"')) {
+      try { key = JSON.parse(key); } catch { key = key.slice(1, -1); }
+    }
+    if (key.startsWith("'") && key.endsWith("'")) {
+      key = key.slice(1, -1);
     }
   }
 
-  // 2. Handle single-quote wrapping
-  if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
-    cleaned = cleaned.substring(1, cleaned.length - 1);
+  // ── Layer 2: unescape literal backslash-n sequences ──
+  key = key.replace(/\\n/g, "\n");
+
+  // ── Layer 3 (NUCLEAR): extract only the base64 body ──
+  let body: string;
+  const beginIdx = key.indexOf(BEGIN);
+  const endIdx = key.indexOf(END);
+
+  if (beginIdx !== -1 && endIdx !== -1) {
+    // Standard PEM — grab everything between the tags
+    body = key.substring(beginIdx + BEGIN.length, endIdx);
+  } else {
+    // No PEM headers at all — treat entire string as base64 body
+    console.warn("GSheet Auth [NUCLEAR]: No PEM headers found, treating entire value as base64 body");
+    body = key;
   }
 
-  // 3. Replace literal \n (backslash + n) with actual newlines
-  cleaned = cleaned.replace(/\\n/g, "\n");
+  // Strip ALL whitespace from the body (spaces, tabs, newlines, carriage returns)
+  body = body.replace(/[\s\r\n]+/g, "");
 
-  // 4. Ensure BEGIN/END tags are present and not duplicated or mangled
-  const beginTag = "-----BEGIN PRIVATE KEY-----";
-  const endTag = "-----END PRIVATE KEY-----";
-
-  if (!cleaned.includes(beginTag)) {
-    console.warn("GSheet Auth: Key missing BEGIN tag, attempting to prepend.");
-    cleaned = `${beginTag}\n${cleaned}`;
-  }
-  if (!cleaned.includes(endTag)) {
-    console.warn("GSheet Auth: Key missing END tag, attempting to append.");
-    cleaned = `${cleaned}\n${endTag}`;
+  // Validate: the body should only contain base64 chars
+  if (!/^[A-Za-z0-9+/=]+$/.test(body)) {
+    console.error("GSheet Auth [NUCLEAR]: Body contains non-base64 characters! Length:", body.length,
+      "First 20 chars:", body.substring(0, 20));
   }
 
-  // 5. Final cleanup of any accidental double newlines or spaces around tags
-  cleaned = cleaned
-    .replace(/-----BEGIN PRIVATE KEY-----\s*/, `${beginTag}\n`)
-    .replace(/\s*-----END PRIVATE KEY-----/, `\n${endTag}`);
+  // Rebuild into clean 64-char-per-line PEM
+  const lines: string[] = [];
+  for (let i = 0; i < body.length; i += 64) {
+    lines.push(body.substring(i, i + 64));
+  }
 
-  return cleaned;
+  const rebuilt = `${BEGIN}\n${lines.join("\n")}\n${END}\n`;
+
+  console.log(`GSheet Auth [NUCLEAR]: Rebuilt PEM — ${lines.length} base64 lines, ${body.length} base64 chars`);
+
+  return rebuilt;
 }
 
 export function getAuth() {
@@ -202,6 +216,7 @@ export function getAuth() {
   if (fs.existsSync(serviceAccountPath)) {
     try {
       const credentials = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
+      console.log("GSheet Auth: Using service-account.json file");
       return new JWT({
         email: credentials.client_email,
         key: credentials.private_key,
@@ -220,21 +235,13 @@ export function getAuth() {
     throw new Error("Google service account credentials (EMAIL or PRIVATE_KEY) not configured");
   }
 
-  try {
-    const cleanedKey = cleanPrivateKey(privateKey);
+  const cleanedKey = cleanPrivateKey(privateKey);
 
-    // Log key status (safe version)
-    console.log(`GSheet Auth: Key length ${cleanedKey.length}, starts with ${cleanedKey.substring(0, 20)}...`);
-
-    return new JWT({
-      email,
-      key: cleanedKey,
-      scopes: SCOPES,
-    });
-  } catch (err) {
-    console.error("GSheet Auth: Critical failure initializing JWT:", err);
-    throw new Error(`GSheet Auth Initialization Failed: ${err instanceof Error ? err.message : String(err)}`);
-  }
+  return new JWT({
+    email,
+    key: cleanedKey,
+    scopes: SCOPES,
+  });
 }
 
 export function getSheets() {
