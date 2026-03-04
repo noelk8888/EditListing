@@ -125,24 +125,24 @@ export default function AddListingPage() {
 
   // === BATCH MODE STATE ===
   type BatchRow = { rowNumber: number; colA: string; colAC: string; colJ: string; colK: string; colL: string; colM: string; colN: string };
-  const [batchMode, setBatchMode]                 = useState(false);      // setup panel open
-  const [batchSheetUrl, setBatchSheetUrl]         = useState("https://docs.google.com/spreadsheets/d/1Y_ZL7HaipVk7_Y9EFeYZWek5zCYoITTr6tQS06Rkzcc/edit?gid=1361278820#gid=1361278820");
-  const [batchStartRow, setBatchStartRow]         = useState("2");
-  const [batchEndRow, setBatchEndRow]             = useState("50");
-  const [batchRows, setBatchRows]                 = useState<BatchRow[]>([]);
-  const [batchIndex, setBatchIndex]               = useState(0);
-  const [batchLoading, setBatchLoading]           = useState(false);
-  const [batchActive, setBatchActive]             = useState(false);      // processing in progress
-  const [batchSkips, setBatchSkips]               = useState<number[]>([]);
-  const batchCurrentRowRef                        = useRef<BatchRow | null>(null); // GSheet data for current row
+  const [batchMode, setBatchMode] = useState(false);      // setup panel open
+  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit?gid=1361278820#gid=1361278820");
+  const [batchStartRow, setBatchStartRow] = useState("2");
+  const [batchEndRow, setBatchEndRow] = useState("50");
+  const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
+  const [batchIndex, setBatchIndex] = useState(0);
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [batchActive, setBatchActive] = useState(false);      // processing in progress
+  const [batchSkips, setBatchSkips] = useState<number[]>([]);
+  const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
 
   // === TELEGRAM POST STATE ===
   const [telegramPostEnabled, setTelegramPostEnabled] = useState(false);
-  const [showTelegramModal, setShowTelegramModal]     = useState(false);
-  const [telegramLine1, setTelegramLine1]             = useState("");
-  const [telegramLine2, setTelegramLine2]             = useState("");
-  const [telegramLine3, setTelegramLine3]             = useState("");
-  const [telegramGroups, setTelegramGroups]           = useState<string[]>(["RESIDENTIAL"]);
+  const [showTelegramModal, setShowTelegramModal] = useState(false);
+  const [telegramLine1, setTelegramLine1] = useState("");
+  const [telegramLine2, setTelegramLine2] = useState("");
+  const [telegramLine3, setTelegramLine3] = useState("");
+  const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL"]);
 
   // === PERMISSIONS ===
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
@@ -499,25 +499,25 @@ export default function AddListingPage() {
     // React batches all setState calls in this effect; last write wins.
     // GSheet stores dates as MM/DD/YYYY or "Month DD, YYYY" — convert to YYYY-MM-DD for <input type="date">
     const MONTHS: Record<string, string> = {
-      january:"01",february:"02",march:"03",april:"04",may:"05",june:"06",
-      july:"07",august:"08",september:"09",october:"10",november:"11",december:"12"
+      january: "01", february: "02", march: "03", april: "04", may: "05", june: "06",
+      july: "07", august: "08", september: "09", october: "10", november: "11", december: "12"
     };
     const normalizeGSheetDate = (d: string) => {
       if (!d) return "";
       // MM/DD/YYYY
       const slash = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-      if (slash) return `${slash[3]}-${slash[1].padStart(2,'0')}-${slash[2].padStart(2,'0')}`;
+      if (slash) return `${slash[3]}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`;
       // "Month DD, YYYY" e.g. "February 13, 2025"
       const spelled = d.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
       if (spelled) {
         const mo = MONTHS[spelled[1].toLowerCase()];
-        if (mo) return `${spelled[3]}-${mo}-${spelled[2].padStart(2,'0')}`;
+        if (mo) return `${spelled[3]}-${mo}-${spelled[2].padStart(2, '0')}`;
       }
       return d; // already YYYY-MM-DD or unknown format
     };
     if (row.colM) setDateReceived(normalizeGSheetDate(row.colM));
     if (row.colN) setDateUpdated(normalizeGSheetDate(row.colN));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchActive, batchIndex, batchRows]);
 
   // Auto-fill fields from search result
@@ -537,7 +537,7 @@ export default function AddListingPage() {
         setEditPrice("");
         setEditLeasePrice(
           searchResult.lease_price ? searchResult.lease_price.toString() :
-          searchResult.price ? searchResult.price.toString() : ""
+            searchResult.price ? searchResult.price.toString() : ""
         );
       } else {
         setEditPrice(searchResult.price ? searchResult.price.toString() : "");
@@ -599,17 +599,17 @@ export default function AddListingPage() {
       }
       // Normalize MM/DD/YYYY or "Month DD, YYYY" → YYYY-MM-DD for GSheet date fallbacks
       const MONTH_MAP: Record<string, string> = {
-        january:"01",february:"02",march:"03",april:"04",may:"05",june:"06",
-        july:"07",august:"08",september:"09",october:"10",november:"11",december:"12"
+        january: "01", february: "02", march: "03", april: "04", may: "05", june: "06",
+        july: "07", august: "08", september: "09", october: "10", november: "11", december: "12"
       };
       const normDate = (d: string) => {
         if (!d) return "";
         const slash = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (slash) return `${slash[3]}-${slash[1].padStart(2,'0')}-${slash[2].padStart(2,'0')}`;
+        if (slash) return `${slash[3]}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`;
         const spelled = d.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
         if (spelled) {
           const mo = MONTH_MAP[spelled[1].toLowerCase()];
-          if (mo) return `${spelled[3]}-${mo}-${spelled[2].padStart(2,'0')}`;
+          if (mo) return `${spelled[3]}-${mo}-${spelled[2].padStart(2, '0')}`;
         }
         return d;
       };
@@ -682,16 +682,16 @@ export default function AddListingPage() {
       setTelegramLine3(ownerBroker);
       setTelegramGroups([
         ...(residential ? ["RESIDENTIAL"] : []),
-        ...(commercial  ? ["COMMERCIAL"]  : []),
-        ...(industrial  ? ["INDUSTRIAL"]  : []),
+        ...(commercial ? ["COMMERCIAL"] : []),
+        ...(industrial ? ["INDUSTRIAL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
       ].filter(Boolean).length > 0
         ? [
-            ...(residential ? ["RESIDENTIAL"] : []),
-            ...(commercial  ? ["COMMERCIAL"]  : []),
-            ...(industrial  ? ["INDUSTRIAL"]  : []),
-            ...(agricultural ? ["AGRICULTURAL"] : []),
-          ]
+          ...(residential ? ["RESIDENTIAL"] : []),
+          ...(commercial ? ["COMMERCIAL"] : []),
+          ...(industrial ? ["INDUSTRIAL"] : []),
+          ...(agricultural ? ["AGRICULTURAL"] : []),
+        ]
         : ["RESIDENTIAL"]
       );
       setShowTelegramModal(true);
@@ -890,7 +890,7 @@ export default function AddListingPage() {
 
   const handleStartBatch = async () => {
     const start = parseInt(batchStartRow, 10);
-    const end   = parseInt(batchEndRow, 10);
+    const end = parseInt(batchEndRow, 10);
     if (isNaN(start) || isNaN(end) || start < 2 || end < start) {
       setError("Start row must be ≥ 2 and end row must be ≥ start row");
       return;
@@ -1229,223 +1229,223 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
       {step === "check" && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4 items-start">
-          {/* LEFT: Search / Listing Preview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                Check if Existing Listing
-              </CardTitle>
-              <CardDescription>
-                Verify this is a new listing before proceeding
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Preview of listing */}
-              <div className="space-y-2">
-                <Label>Listing Preview</Label>
-                <div className="bg-muted p-3 rounded-md font-mono text-sm whitespace-pre-wrap">
-                  {rawText || "No preview available"}
-                </div>
-                {listingId && (
-                  <p className="text-sm text-muted-foreground">
-                    Detected Listing ID: <span className="font-semibold text-foreground">{listingId}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* Search Result */}
-              {searching && (
-                <div className="p-4 rounded-md border border-blue-300 bg-blue-50">
-                  <div className="flex items-center gap-2 text-blue-700">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <span className="font-semibold">Searching for existing listing...</span>
+            {/* LEFT: Search / Listing Preview */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5" />
+                  Check if Existing Listing
+                </CardTitle>
+                <CardDescription>
+                  Verify this is a new listing before proceeding
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Preview of listing */}
+                <div className="space-y-2">
+                  <Label>Listing Preview</Label>
+                  <div className="bg-muted p-3 rounded-md font-mono text-sm whitespace-pre-wrap">
+                    {rawText || "No preview available"}
                   </div>
+                  {listingId && (
+                    <p className="text-sm text-muted-foreground">
+                      Detected Listing ID: <span className="font-semibold text-foreground">{listingId}</span>
+                    </p>
+                  )}
                 </div>
-              )}
-              {searchPerformed && !searching && (
-                <>
-                  {searchResult ? (
-                    <div className="p-4 rounded-md border border-yellow-500 bg-yellow-50">
-                      <div className="flex items-center gap-2 text-yellow-700">
-                        <AlertCircle className="h-5 w-5" />
-                        <div>
-                          <span className="font-semibold">
-                            Existing Listing Found!
-                            {matchedBy && <span className="font-normal text-xs ml-2">(matched by {matchedBy})</span>}
-                          </span>
-                          <p className="text-sm font-normal mt-1">Pre-filled from existing listing - modify if needed</p>
+
+                {/* Search Result */}
+                {searching && (
+                  <div className="p-4 rounded-md border border-blue-300 bg-blue-50">
+                    <div className="flex items-center gap-2 text-blue-700">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span className="font-semibold">Searching for existing listing...</span>
+                    </div>
+                  </div>
+                )}
+                {searchPerformed && !searching && (
+                  <>
+                    {searchResult ? (
+                      <div className="p-4 rounded-md border border-yellow-500 bg-yellow-50">
+                        <div className="flex items-center gap-2 text-yellow-700">
+                          <AlertCircle className="h-5 w-5" />
+                          <div>
+                            <span className="font-semibold">
+                              Existing Listing Found!
+                              {matchedBy && <span className="font-normal text-xs ml-2">(matched by {matchedBy})</span>}
+                            </span>
+                            <p className="text-sm font-normal mt-1">Pre-filled from existing listing - modify if needed</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="p-4 rounded-md border border-green-500 bg-green-50">
-                      <div className="flex items-center gap-2 text-green-700">
-                        <CheckCircle2 className="h-5 w-5" />
-                        <span className="font-semibold">No existing listing found - this appears to be new!</span>
+                    ) : (
+                      <div className="p-4 rounded-md border border-green-500 bg-green-50">
+                        <div className="flex items-center gap-2 text-green-700">
+                          <CheckCircle2 className="h-5 w-5" />
+                          <span className="font-semibold">No existing listing found - this appears to be new!</span>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              <div className="flex gap-2">
-                <Button variant="secondary" onClick={handleSearch} disabled={searching || (!photosLink && !listingId && !previewLines)}>
-                  {searching ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Searching...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="mr-2 h-4 w-4" />
-                      Search Again
-                    </>
-                  )}
-                </Button>
-                <Button variant="outline" onClick={() => goToStep("paste")}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* RIGHT: Existing Listing Info */}
-          {searchResult && (
-            <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3 flex-wrap justify-end">
-              {permissions.telegram_send !== false && (
-                <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
-                  <input
-                    type="checkbox"
-                    checked={telegramPostEnabled}
-                    onChange={() => setTelegramPostEnabled(v => !v)}
-                    className="h-4 w-4 accent-blue-600 cursor-pointer"
-                  />
-                  <Send className="h-3.5 w-3.5 text-blue-600" />
-                  TELEGRAM POST
-                </label>
-              )}
-              <Button
-                onClick={handleUpdateExisting}
-                disabled={updating}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {updating ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
-                ) : (
-                  <><Save className="mr-2 h-4 w-4" />Update Existing</>
+                    )}
+                  </>
                 )}
-              </Button>
-              {permissions.ai_extract !== false && (
-                <Button onClick={handleExtractData} disabled={loading} variant="default">
-                  {loading ? (
-                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
-                  ) : (
-                    <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
-                  )}
-                </Button>
-              )}
-              {batchActive && batchIndex > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setError(null);
-                    setBatchIndex(prev => prev - 1);
-                  }}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-              )}
-              {batchActive && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const current = batchRows[batchIndex];
-                    if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
-                    setError(null);
-                    setBatchIndex(prev => prev + 1);
-                  }}
-                >
-                  Next
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              )}
-            </div>
-            <Card className={useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="radio"
-                      name="mainSource"
-                      checked={useExistingMain}
-                      onChange={() => {}} // controlled by onClick below
-                      onClick={() => {
-                        if (useExistingMain) {
-                          // Toggle OFF: revert to original DB text
-                          setUseExistingMain(false);
-                          setEditSummary(originalEditSummary);
-                        } else {
-                          // Toggle ON: show existing DB text in editable textarea
-                          setUseExistingMain(true);
-                          // editSummary already = DB text (originalEditSummary), no change needed
-                        }
-                      }}
-                      className="h-4 w-4 accent-green-600 cursor-pointer"
-                    />
-                    <span className="text-sm font-semibold text-green-700">USE THIS LISTING</span>
-                  </label>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* MAIN: diff view or editable textarea */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground">MAIN</Label>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        navigator.clipboard.writeText(editSummary);
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
-                      type="button"
-                      className={`h-6 px-2 ${copied ? "text-green-600" : ""}`}
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-3 w-3 mr-1" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3 mr-1" />
-                          Copy
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  {useExistingMain ? (
-                    <Textarea
-                      value={editSummary}
-                      onChange={(e) => setEditSummary(e.target.value)}
-                      className="font-mono text-xs min-h-64 leading-relaxed resize-y"
-                    />
-                  ) : (
-                    <div className="bg-muted p-3 rounded-md font-mono text-xs leading-relaxed">
-                      {renderDiffText(rawText, editSummary)}
-                    </div>
-                  )}
+
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={handleSearch} disabled={searching || (!photosLink && !listingId && !previewLines)}>
+                    {searching ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="mr-2 h-4 w-4" />
+                        Search Again
+                      </>
+                    )}
+                  </Button>
+                  <Button variant="outline" onClick={() => goToStep("paste")}>
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
                 </div>
               </CardContent>
             </Card>
-            </div>
-          )}
+
+            {/* RIGHT: Existing Listing Info */}
+            {searchResult && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {permissions.telegram_send !== false && (
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
+                      <input
+                        type="checkbox"
+                        checked={telegramPostEnabled}
+                        onChange={() => setTelegramPostEnabled(v => !v)}
+                        className="h-4 w-4 accent-blue-600 cursor-pointer"
+                      />
+                      <Send className="h-3.5 w-3.5 text-blue-600" />
+                      TELEGRAM POST
+                    </label>
+                  )}
+                  <Button
+                    onClick={handleUpdateExisting}
+                    disabled={updating}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {updating ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+                    ) : (
+                      <><Save className="mr-2 h-4 w-4" />Update Existing</>
+                    )}
+                  </Button>
+                  {permissions.ai_extract !== false && (
+                    <Button onClick={handleExtractData} disabled={loading} variant="default">
+                      {loading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
+                      ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
+                      )}
+                    </Button>
+                  )}
+                  {batchActive && batchIndex > 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setError(null);
+                        setBatchIndex(prev => prev - 1);
+                      }}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                  )}
+                  {batchActive && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const current = batchRows[batchIndex];
+                        if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
+                        setError(null);
+                        setBatchIndex(prev => prev + 1);
+                      }}
+                    >
+                      Next
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+                <Card className={useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>
+                      <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                          type="radio"
+                          name="mainSource"
+                          checked={useExistingMain}
+                          onChange={() => { }} // controlled by onClick below
+                          onClick={() => {
+                            if (useExistingMain) {
+                              // Toggle OFF: revert to original DB text
+                              setUseExistingMain(false);
+                              setEditSummary(originalEditSummary);
+                            } else {
+                              // Toggle ON: show existing DB text in editable textarea
+                              setUseExistingMain(true);
+                              // editSummary already = DB text (originalEditSummary), no change needed
+                            }
+                          }}
+                          className="h-4 w-4 accent-green-600 cursor-pointer"
+                        />
+                        <span className="text-sm font-semibold text-green-700">USE THIS LISTING</span>
+                      </label>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {/* MAIN: diff view or editable textarea */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">MAIN</Label>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(editSummary);
+                            setCopied(true);
+                            setTimeout(() => setCopied(false), 2000);
+                          }}
+                          type="button"
+                          className={`h-6 px-2 ${copied ? "text-green-600" : ""}`}
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="h-3 w-3 mr-1" />
+                              Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3 w-3 mr-1" />
+                              Copy
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {useExistingMain ? (
+                        <Textarea
+                          value={editSummary}
+                          onChange={(e) => setEditSummary(e.target.value)}
+                          className="font-mono text-xs min-h-64 leading-relaxed resize-y"
+                        />
+                      ) : (
+                        <div className="bg-muted p-3 rounded-md font-mono text-xs leading-relaxed">
+                          {renderDiffText(rawText, editSummary)}
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>{/* end grid */}
 
           {/* Full-width: form fields for existing listing */}
@@ -1612,147 +1612,147 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 {/* MORE INFO Section */}
                 <div className="pt-3 border-t">
                   <div className="grid grid-cols-3 gap-x-6 gap-y-2">
-                  {/* Row 1: GEO ID | TYPE | MAP LINK */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
-                    <span className="text-sm font-semibold font-mono">{searchResult.id}</span>
-                  </div>
+                    {/* Row 1: GEO ID | TYPE | MAP LINK */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
+                      <span className="text-sm font-semibold font-mono">{searchResult.id}</span>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
-                    <Select value={propertyType} onValueChange={(v) => handleInputChange(setPropertyType)(v)}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="TOWNHOUSE">TOWNHOUSE</SelectItem>
-                        <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
-                        <SelectItem value="VACANT LOT">VACANT LOT</SelectItem>
-                        <SelectItem value="HOUSE AND LOT">HOUSE AND LOT</SelectItem>
-                        <SelectItem value="CONDO">CONDO</SelectItem>
-                        <SelectItem value="OFFICE/COMMERCIAL">OFFICE/COMMERCIAL</SelectItem>
-                        <SelectItem value="BUILDING">BUILDING</SelectItem>
-                        <SelectItem value="CLUB SHARE">CLUB SHARE</SelectItem>
-                        <SelectItem value="BUSINESS">BUSINESS</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Map Link</Label>
-                    <Input value={mapLink} onChange={(e) => handleInputChange(setMapLink)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
+                      <Select value={propertyType} onValueChange={(v) => handleInputChange(setPropertyType)(v)}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TOWNHOUSE">TOWNHOUSE</SelectItem>
+                          <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
+                          <SelectItem value="VACANT LOT">VACANT LOT</SelectItem>
+                          <SelectItem value="HOUSE AND LOT">HOUSE AND LOT</SelectItem>
+                          <SelectItem value="CONDO">CONDO</SelectItem>
+                          <SelectItem value="OFFICE/COMMERCIAL">OFFICE/COMMERCIAL</SelectItem>
+                          <SelectItem value="BUILDING">BUILDING</SelectItem>
+                          <SelectItem value="CLUB SHARE">CLUB SHARE</SelectItem>
+                          <SelectItem value="BUSINESS">BUSINESS</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Map Link</Label>
+                      <Input value={mapLink} onChange={(e) => handleInputChange(setMapLink)(e.target.value)} className="h-8 text-sm" />
+                    </div>
 
-                  {/* Row 3: REGION, PROVINCE, CITY */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Region</Label>
-                    <Input value={editRegion} onChange={(e) => { const v = e.target.value; handleInputChange(setEditRegion)(v); if (v.trim().toUpperCase() === "NCR") handleInputChange(setEditProvince)("Metro Manila"); }} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Province</Label>
-                    <Input value={editProvince} onChange={(e) => handleInputChange(setEditProvince)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">City</Label>
-                    <Input value={editCity} onChange={(e) => handleInputChange(setEditCity)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                    {/* Row 3: REGION, PROVINCE, CITY */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Region</Label>
+                      <Input value={editRegion} onChange={(e) => { const v = e.target.value; handleInputChange(setEditRegion)(v); if (v.trim().toUpperCase() === "NCR") handleInputChange(setEditProvince)("Metro Manila"); }} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Province</Label>
+                      <Input value={editProvince} onChange={(e) => handleInputChange(setEditProvince)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">City</Label>
+                      <Input value={editCity} onChange={(e) => handleInputChange(setEditCity)(e.target.value)} className="h-8 text-sm" />
+                    </div>
 
-                  {/* Row 3: BARANGAY, AREA, BUILDING */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Barangay</Label>
-                    <Input value={editBarangay} onChange={(e) => handleInputChange(setEditBarangay)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Area</Label>
-                    <Input value={editArea} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Building</Label>
-                    <Input value={editBuilding} onChange={(e) => handleInputChange(setEditBuilding)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                    {/* Row 3: BARANGAY, AREA, BUILDING */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Barangay</Label>
+                      <Input value={editBarangay} onChange={(e) => handleInputChange(setEditBarangay)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Area</Label>
+                      <Input value={editArea} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Building</Label>
+                      <Input value={editBuilding} onChange={(e) => handleInputChange(setEditBuilding)(e.target.value)} className="h-8 text-sm" />
+                    </div>
 
-                  {/* Row 5: LOT AREA, EXTRACTED SALE PRICE, SALE/SQM */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
-                    <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
-                    <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
-                    <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
+                    {/* Row 5: LOT AREA, EXTRACTED SALE PRICE, SALE/SQM */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
+                      <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
+                      <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
+                      <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
 
-                  {/* Row 6: FLOOR AREA, EXTRACTED LEASE PRICE, LEASE/SQM */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
-                    <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
-                    <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
-                    <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
+                    {/* Row 6: FLOOR AREA, EXTRACTED LEASE PRICE, LEASE/SQM */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
+                      <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
+                      <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
+                      <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
 
-                  {/* Row 7: LAT, LONG, LAT LONG */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat</Label>
-                    <Input value={lat} onChange={(e) => handleInputChange(setLat)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Long</Label>
-                    <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat/Long</Label>
-                    <span className="text-xs">{lat && long ? `${lat}, ${long}` : "—"}</span>
-                  </div>
+                    {/* Row 7: LAT, LONG, LAT LONG */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat</Label>
+                      <Input value={lat} onChange={(e) => handleInputChange(setLat)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Long</Label>
+                      <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat/Long</Label>
+                      <span className="text-xs">{lat && long ? `${lat}, ${long}` : "—"}</span>
+                    </div>
 
-                  {/* Row 8: bedrooms, toilet, garage */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Bedrooms</Label>
-                    <Input value={bedrooms} onChange={(e) => handleInputChange(setBedrooms)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Toilet</Label>
-                    <Input value={toilet} onChange={(e) => handleInputChange(setToilet)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Garage</Label>
-                    <Input value={garage} onChange={(e) => handleInputChange(setGarage)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                    {/* Row 8: bedrooms, toilet, garage */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Bedrooms</Label>
+                      <Input value={bedrooms} onChange={(e) => handleInputChange(setBedrooms)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Toilet</Label>
+                      <Input value={toilet} onChange={(e) => handleInputChange(setToilet)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Garage</Label>
+                      <Input value={garage} onChange={(e) => handleInputChange(setGarage)(e.target.value)} className="h-8 text-sm" />
+                    </div>
 
-                  {/* Row 9: amenities, corner, compound */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Amenities</Label>
-                    <Input value={amenities} onChange={(e) => handleInputChange(setAmenities)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Corner</Label>
-                    <Input value={corner} onChange={(e) => handleInputChange(setCorner)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Compound</Label>
-                    <Input value={compound} onChange={(e) => handleInputChange(setCompound)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                    {/* Row 9: amenities, corner, compound */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Amenities</Label>
+                      <Input value={amenities} onChange={(e) => handleInputChange(setAmenities)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Corner</Label>
+                      <Input value={corner} onChange={(e) => handleInputChange(setCorner)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Compound</Label>
+                      <Input value={compound} onChange={(e) => handleInputChange(setCompound)(e.target.value)} className="h-8 text-sm" />
+                    </div>
 
-                  {/* Row 10: COMMENTS, SPONSOR START, SPONSOR END */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                    <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor Start</Label>
-                    <Input type="date" value={sponsorStart} onChange={(e) => handleInputChange(setSponsorStart)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor End</Label>
-                    <Input type="date" value={sponsorEnd} onChange={(e) => handleInputChange(setSponsorEnd)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                    {/* Row 10: COMMENTS, SPONSOR START, SPONSOR END */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
+                      <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor Start</Label>
+                      <Input type="date" value={sponsorStart} onChange={(e) => handleInputChange(setSponsorStart)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor End</Label>
+                      <Input type="date" value={sponsorEnd} onChange={(e) => handleInputChange(setSponsorEnd)(e.target.value)} className="h-8 text-sm" />
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -1880,139 +1880,139 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 {/* MORE INFO Section */}
                 <div className="pt-3 border-t">
                   <div className="grid grid-cols-3 gap-x-6 gap-y-2">
-                  {/* Row 1: GEO ID | TYPE | MAP LINK */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
-                    <span className="text-sm font-semibold font-mono">{newGeoId || "—"}</span>
-                  </div>
+                    {/* Row 1: GEO ID | TYPE | MAP LINK */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
+                      <span className="text-sm font-semibold font-mono">{newGeoId || "—"}</span>
+                    </div>
 
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
-                    <Select value={propertyType} onValueChange={(v) => handleInputChange(setPropertyType)(v)}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="TOWNHOUSE">TOWNHOUSE</SelectItem>
-                        <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
-                        <SelectItem value="VACANT LOT">VACANT LOT</SelectItem>
-                        <SelectItem value="HOUSE AND LOT">HOUSE AND LOT</SelectItem>
-                        <SelectItem value="CONDO">CONDO</SelectItem>
-                        <SelectItem value="OFFICE/COMMERCIAL">OFFICE/COMMERCIAL</SelectItem>
-                        <SelectItem value="BUILDING">BUILDING</SelectItem>
-                        <SelectItem value="CLUB SHARE">CLUB SHARE</SelectItem>
-                        <SelectItem value="BUSINESS">BUSINESS</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Map Link</Label>
-                    <Input value={mapLink} onChange={(e) => handleInputChange(setMapLink)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  {/* Row 3: REGION, PROVINCE, CITY */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Region</Label>
-                    <Input value={editRegion} onChange={(e) => { const v = e.target.value; handleInputChange(setEditRegion)(v); if (v.trim().toUpperCase() === "NCR") handleInputChange(setEditProvince)("Metro Manila"); }} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Province</Label>
-                    <Input value={editProvince} onChange={(e) => handleInputChange(setEditProvince)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">City</Label>
-                    <Input value={editCity} onChange={(e) => handleInputChange(setEditCity)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  {/* Row 3: BARANGAY, AREA, BUILDING */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Barangay</Label>
-                    <Input value={editBarangay} onChange={(e) => handleInputChange(setEditBarangay)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Area</Label>
-                    <Input value={editArea} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Building</Label>
-                    <Input value={editBuilding} onChange={(e) => handleInputChange(setEditBuilding)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  {/* Row 4: LOT AREA, SALE PRICE, SALE/SQM */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
-                    <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
-                    <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
-                    <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  {/* Row 5: FLOOR AREA, LEASE PRICE, LEASE/SQM */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
-                    <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
-                    <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
-                    <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
-                  {/* Row 6: LAT, LONG, LAT/LONG */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat</Label>
-                    <Input value={lat} onChange={(e) => handleInputChange(setLat)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Long</Label>
-                    <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat/Long</Label>
-                    <span className="text-xs">{lat && long ? `${lat}, ${long}` : "—"}</span>
-                  </div>
-                  {/* Row 7: BEDROOMS, TOILET, GARAGE */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Bedrooms</Label>
-                    <Input value={bedrooms} onChange={(e) => handleInputChange(setBedrooms)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Toilet</Label>
-                    <Input value={toilet} onChange={(e) => handleInputChange(setToilet)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Garage</Label>
-                    <Input value={garage} onChange={(e) => handleInputChange(setGarage)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  {/* Row 8: AMENITIES, CORNER, COMPOUND */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Amenities</Label>
-                    <Input value={amenities} onChange={(e) => handleInputChange(setAmenities)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Corner</Label>
-                    <Input value={corner} onChange={(e) => handleInputChange(setCorner)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Compound</Label>
-                    <Input value={compound} onChange={(e) => handleInputChange(setCompound)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  {/* Row 9: COMMENTS, SPONSOR START, SPONSOR END */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                    <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor Start</Label>
-                    <Input type="date" value={sponsorStart} onChange={(e) => handleInputChange(setSponsorStart)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor End</Label>
-                    <Input type="date" value={sponsorEnd} onChange={(e) => handleInputChange(setSponsorEnd)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
+                      <Select value={propertyType} onValueChange={(v) => handleInputChange(setPropertyType)(v)}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="TOWNHOUSE">TOWNHOUSE</SelectItem>
+                          <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
+                          <SelectItem value="VACANT LOT">VACANT LOT</SelectItem>
+                          <SelectItem value="HOUSE AND LOT">HOUSE AND LOT</SelectItem>
+                          <SelectItem value="CONDO">CONDO</SelectItem>
+                          <SelectItem value="OFFICE/COMMERCIAL">OFFICE/COMMERCIAL</SelectItem>
+                          <SelectItem value="BUILDING">BUILDING</SelectItem>
+                          <SelectItem value="CLUB SHARE">CLUB SHARE</SelectItem>
+                          <SelectItem value="BUSINESS">BUSINESS</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Map Link</Label>
+                      <Input value={mapLink} onChange={(e) => handleInputChange(setMapLink)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    {/* Row 3: REGION, PROVINCE, CITY */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Region</Label>
+                      <Input value={editRegion} onChange={(e) => { const v = e.target.value; handleInputChange(setEditRegion)(v); if (v.trim().toUpperCase() === "NCR") handleInputChange(setEditProvince)("Metro Manila"); }} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Province</Label>
+                      <Input value={editProvince} onChange={(e) => handleInputChange(setEditProvince)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">City</Label>
+                      <Input value={editCity} onChange={(e) => handleInputChange(setEditCity)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    {/* Row 3: BARANGAY, AREA, BUILDING */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Barangay</Label>
+                      <Input value={editBarangay} onChange={(e) => handleInputChange(setEditBarangay)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Area</Label>
+                      <Input value={editArea} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Building</Label>
+                      <Input value={editBuilding} onChange={(e) => handleInputChange(setEditBuilding)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    {/* Row 4: LOT AREA, SALE PRICE, SALE/SQM */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
+                      <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
+                      <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
+                      <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    {/* Row 5: FLOOR AREA, LEASE PRICE, LEASE/SQM */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
+                      <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
+                      <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
+                      <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                    {/* Row 6: LAT, LONG, LAT/LONG */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat</Label>
+                      <Input value={lat} onChange={(e) => handleInputChange(setLat)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Long</Label>
+                      <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat/Long</Label>
+                      <span className="text-xs">{lat && long ? `${lat}, ${long}` : "—"}</span>
+                    </div>
+                    {/* Row 7: BEDROOMS, TOILET, GARAGE */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Bedrooms</Label>
+                      <Input value={bedrooms} onChange={(e) => handleInputChange(setBedrooms)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Toilet</Label>
+                      <Input value={toilet} onChange={(e) => handleInputChange(setToilet)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Garage</Label>
+                      <Input value={garage} onChange={(e) => handleInputChange(setGarage)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    {/* Row 8: AMENITIES, CORNER, COMPOUND */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Amenities</Label>
+                      <Input value={amenities} onChange={(e) => handleInputChange(setAmenities)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Corner</Label>
+                      <Input value={corner} onChange={(e) => handleInputChange(setCorner)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Compound</Label>
+                      <Input value={compound} onChange={(e) => handleInputChange(setCompound)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    {/* Row 9: COMMENTS, SPONSOR START, SPONSOR END */}
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
+                      <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor Start</Label>
+                      <Input type="date" value={sponsorStart} onChange={(e) => handleInputChange(setSponsorStart)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor End</Label>
+                      <Input type="date" value={sponsorEnd} onChange={(e) => handleInputChange(setSponsorEnd)(e.target.value)} className="h-8 text-sm" />
+                    </div>
                   </div>
                 </div>
               </CardContent>
