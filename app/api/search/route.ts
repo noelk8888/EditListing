@@ -513,6 +513,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ result: null });
   } catch (err) {
     console.error("API error:", err);
-    return NextResponse.json({ error: "Search failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Search failed" },
+      { status: 500 }
+    );
   }
 }

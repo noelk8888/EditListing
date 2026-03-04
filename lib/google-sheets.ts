@@ -155,26 +155,64 @@ export interface GSheetFullRow extends GSheetDisplayData {
   supabaseCompound: string;    // BO
 }
 
-export function getAuth() {
-  // Try to use the service account JSON file first (more reliable for local dev)
-  const serviceAccountPath = path.join(process.cwd(), "service-account.json");
+function cleanPrivateKey(key: string): string {
+  let cleaned = key.trim();
 
+  // 1. Handle JSON-stringified keys (escaped \n and wrapping quotes)
+  if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+    try {
+      cleaned = JSON.parse(cleaned);
+    } catch {
+      cleaned = cleaned.substring(1, cleaned.length - 1);
+    }
+  }
+
+  // 2. Handle single-quote wrapping
+  if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
+    cleaned = cleaned.substring(1, cleaned.length - 1);
+  }
+
+  // 3. Replace literal \n (backslash + n) with actual newlines
+  cleaned = cleaned.replace(/\\n/g, "\n");
+
+  // 4. Ensure BEGIN/END tags are present and not duplicated or mangled
+  const beginTag = "-----BEGIN PRIVATE KEY-----";
+  const endTag = "-----END PRIVATE KEY-----";
+
+  if (!cleaned.includes(beginTag)) {
+    console.warn("GSheet Auth: Key missing BEGIN tag, attempting to prepend.");
+    cleaned = `${beginTag}\n${cleaned}`;
+  }
+  if (!cleaned.includes(endTag)) {
+    console.warn("GSheet Auth: Key missing END tag, attempting to append.");
+    cleaned = `${cleaned}\n${endTag}`;
+  }
+
+  // 5. Final cleanup of any accidental double newlines or spaces around tags
+  cleaned = cleaned
+    .replace(/-----BEGIN PRIVATE KEY-----\s*/, `${beginTag}\n`)
+    .replace(/\s*-----END PRIVATE KEY-----/, `\n${endTag}`);
+
+  return cleaned;
+}
+
+export function getAuth() {
+  // Try to use the service account JSON file first
+  const serviceAccountPath = path.join(process.cwd(), "service-account.json");
   if (fs.existsSync(serviceAccountPath)) {
     try {
-      const credentialsJson = fs.readFileSync(serviceAccountPath, "utf-8");
-      const credentials = JSON.parse(credentialsJson);
-      console.log("GSheet Auth: Using service-account.json file");
+      const credentials = JSON.parse(fs.readFileSync(serviceAccountPath, "utf-8"));
       return new JWT({
         email: credentials.client_email,
         key: credentials.private_key,
         scopes: SCOPES,
       });
-    } catch (fileError) {
-      console.error("GSheet Auth: Error reading service-account.json:", fileError);
+    } catch (err) {
+      console.error("GSheet Auth: Error reading service-account.json:", err);
     }
   }
 
-  // Fallback to environment variables (Production/Vercel)
+  // Fallback to environment variables
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
   const privateKey = process.env.GOOGLE_PRIVATE_KEY;
 
@@ -182,37 +220,21 @@ export function getAuth() {
     throw new Error("Google service account credentials (EMAIL or PRIVATE_KEY) not configured");
   }
 
-  // Robust private key parsing
-  let processedKey = privateKey.trim();
+  try {
+    const cleanedKey = cleanPrivateKey(privateKey);
 
-  // 1. Handle JSON-stringified keys (removes wrapping quotes and unescapes \n)
-  if (processedKey.startsWith('"') && processedKey.endsWith('"')) {
-    try {
-      processedKey = JSON.parse(processedKey);
-    } catch {
-      // Not valid JSON, strip quotes manually
-      processedKey = processedKey.substring(1, processedKey.length - 1);
-    }
+    // Log key status (safe version)
+    console.log(`GSheet Auth: Key length ${cleanedKey.length}, starts with ${cleanedKey.substring(0, 20)}...`);
+
+    return new JWT({
+      email,
+      key: cleanedKey,
+      scopes: SCOPES,
+    });
+  } catch (err) {
+    console.error("GSheet Auth: Critical failure initializing JWT:", err);
+    throw new Error(`GSheet Auth Initialization Failed: ${err instanceof Error ? err.message : String(err)}`);
   }
-
-  // 2. Handle single-quote wrapping (sometimes added by Vercel UI)
-  if (processedKey.startsWith("'") && processedKey.endsWith("'")) {
-    processedKey = processedKey.substring(1, processedKey.length - 1);
-  }
-
-  // 3. Replace literal \n sequences with actual newlines
-  processedKey = processedKey.replace(/\\n/g, "\n");
-
-  // 4. Final safety: ensure the key format is correct for OpenSSL
-  if (!processedKey.includes("-----BEGIN PRIVATE KEY-----")) {
-    console.error("GSheet Auth: Key is missing BEGIN tag. Length:", processedKey.length);
-  }
-
-  return new JWT({
-    email,
-    key: processedKey,
-    scopes: SCOPES,
-  });
 }
 
 export function getSheets() {
