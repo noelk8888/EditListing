@@ -84,6 +84,8 @@ export interface BatchRowData {
   colJ: string;       // Direct or with Cobroker
   colK: string;       // Owner/Broker name
   colL: string;       // How many broker away
+  colM: string;       // Date Received
+  colN: string;       // Date Resorted/Updated
 }
 
 // Interface for display columns A-P data
@@ -1222,24 +1224,62 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
   const spreadsheetId_ = spreadsheetId || process.env.SPREADSHEET_ID;
   if (!spreadsheetId_) throw new Error("SPREADSHEET_ID not configured");
 
-  const batchResponse = await sheets.spreadsheets.values.batchGet({
-    spreadsheetId: spreadsheetId_,
-    ranges: [
-      `${SHEET_NAME}!A${startRow}:A${endRow}`,
-      `${SHEET_NAME}!AC${startRow}:AC${endRow}`,
-      `${SHEET_NAME}!J${startRow}:J${endRow}`,
-      `${SHEET_NAME}!K${startRow}:K${endRow}`,
-      `${SHEET_NAME}!L${startRow}:L${endRow}`,
-    ],
-  });
+  // Fetch all columns including AC (GEO ID). If the sheet has fewer columns
+  // than AC (col 29) — e.g. a temporary/custom sheet — fall back without AC only.
+  // Columns M (13) and N (14) are always safe to fetch regardless of sheet width.
+  let colAValues:  string[][] = [];
+  let colACValues: string[][] = [];
+  let colJValues:  string[][] = [];
+  let colKValues:  string[][] = [];
+  let colLValues:  string[][] = [];
+  let colMValues:  string[][] = [];
+  let colNValues:  string[][] = [];
 
-  const colAValues  = batchResponse.data.valueRanges?.[0]?.values || [];
-  const colACValues = batchResponse.data.valueRanges?.[1]?.values || [];
-  const colJValues  = batchResponse.data.valueRanges?.[2]?.values || [];
-  const colKValues  = batchResponse.data.valueRanges?.[3]?.values || [];
-  const colLValues  = batchResponse.data.valueRanges?.[4]?.values || [];
+  try {
+    const batchResponse = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId: spreadsheetId_,
+      ranges: [
+        `${SHEET_NAME}!A${startRow}:A${endRow}`,
+        `${SHEET_NAME}!AC${startRow}:AC${endRow}`,
+        `${SHEET_NAME}!J${startRow}:J${endRow}`,
+        `${SHEET_NAME}!K${startRow}:K${endRow}`,
+        `${SHEET_NAME}!L${startRow}:L${endRow}`,
+        `${SHEET_NAME}!M${startRow}:M${endRow}`,
+        `${SHEET_NAME}!N${startRow}:N${endRow}`,
+      ],
+    });
+    colAValues  = (batchResponse.data.valueRanges?.[0]?.values || []) as string[][];
+    colACValues = (batchResponse.data.valueRanges?.[1]?.values || []) as string[][];
+    colJValues  = (batchResponse.data.valueRanges?.[2]?.values || []) as string[][];
+    colKValues  = (batchResponse.data.valueRanges?.[3]?.values || []) as string[][];
+    colLValues  = (batchResponse.data.valueRanges?.[4]?.values || []) as string[][];
+    colMValues  = (batchResponse.data.valueRanges?.[5]?.values || []) as string[][];
+    colNValues  = (batchResponse.data.valueRanges?.[6]?.values || []) as string[][];
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.includes("exceeds grid limits")) throw err;
+    // Sheet has fewer columns than AC — retry without it (M and N are always safe)
+    const fallback = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId: spreadsheetId_,
+      ranges: [
+        `${SHEET_NAME}!A${startRow}:A${endRow}`,
+        `${SHEET_NAME}!J${startRow}:J${endRow}`,
+        `${SHEET_NAME}!K${startRow}:K${endRow}`,
+        `${SHEET_NAME}!L${startRow}:L${endRow}`,
+        `${SHEET_NAME}!M${startRow}:M${endRow}`,
+        `${SHEET_NAME}!N${startRow}:N${endRow}`,
+      ],
+    });
+    colAValues = (fallback.data.valueRanges?.[0]?.values || []) as string[][];
+    colJValues = (fallback.data.valueRanges?.[1]?.values || []) as string[][];
+    colKValues = (fallback.data.valueRanges?.[2]?.values || []) as string[][];
+    colLValues = (fallback.data.valueRanges?.[3]?.values || []) as string[][];
+    colMValues = (fallback.data.valueRanges?.[4]?.values || []) as string[][];
+    colNValues = (fallback.data.valueRanges?.[5]?.values || []) as string[][];
+    // colACValues stays empty — GEO IDs will be blank for this sheet
+  }
+
   const count = endRow - startRow + 1;
-
   const results: BatchRowData[] = [];
   for (let i = 0; i < count; i++) {
     results.push({
@@ -1249,6 +1289,8 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
       colJ:  colJValues[i]?.[0]  || "",
       colK:  colKValues[i]?.[0]  || "",
       colL:  colLValues[i]?.[0]  || "",
+      colM:  colMValues[i]?.[0]  || "",
+      colN:  colNValues[i]?.[0]  || "",
     });
   }
   return results;

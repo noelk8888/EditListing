@@ -493,6 +493,19 @@ export default function AddListingPage() {
     batchCurrentRowRef.current = row;     // store GSheet data for fallback
     setRawText(row.colA);
     goToStep("check", row.colA);
+
+    // Pre-fill dates from GSheet col M (Date Received) and col N (Date Updated).
+    // Must come AFTER goToStep because goToStep → clearEditFields resets these fields.
+    // React batches all setState calls in this effect; last write wins.
+    // GSheet stores dates as MM/DD/YYYY — convert to YYYY-MM-DD for <input type="date">
+    const normalizeGSheetDate = (d: string) => {
+      if (!d) return "";
+      const m = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+      if (m) return `${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+      return d; // already YYYY-MM-DD or unknown format
+    };
+    if (row.colM) setDateReceived(normalizeGSheetDate(row.colM));
+    if (row.colN) setDateUpdated(normalizeGSheetDate(row.colN));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchActive, batchIndex, batchRows]);
 
@@ -1373,6 +1386,20 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       )}
                     </Button>
                   )}
+                  {batchActive && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const current = batchRows[batchIndex];
+                        if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
+                        setError(null);
+                        setBatchIndex(prev => prev + 1);
+                      }}
+                    >
+                      Next
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -2045,6 +2072,20 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       Extract & Review
                     </>
                   )}
+                </Button>
+              )}
+              {batchActive && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const current = batchRows[batchIndex];
+                    if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
+                    setError(null);
+                    setBatchIndex(prev => prev + 1);
+                  }}
+                >
+                  Next
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               )}
               {searchResult && permissions.delete_listing !== false && (
