@@ -124,7 +124,7 @@ export default function AddListingPage() {
   const [geoIdConfirmed, setGeoIdConfirmed] = useState(false);
 
   // === BATCH MODE STATE ===
-  type BatchRow = { rowNumber: number; colA: string; colAC: string; colJ: string; colK: string; colL: string; colM: string; colN: string };
+  type BatchRow = { rowNumber: number; colA: string; colB: string; colC: string; colD: string; colE: string; colF: string; colG: string; colH: string; colI: string; colJ: string; colK: string; colL: string; colM: string; colN: string; colO: string; colP: string; colAC: string };
   const [batchMode, setBatchMode] = useState(false);      // setup panel open
   const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit?gid=1361278820#gid=1361278820");
   const [batchStartRow, setBatchStartRow] = useState("2");
@@ -517,6 +517,37 @@ export default function AddListingPage() {
     };
     if (row.colM) setDateReceived(normalizeGSheetDate(row.colM));
     if (row.colN) setDateUpdated(normalizeGSheetDate(row.colN));
+
+    // Pre-fill additional fields from GSheet columns B-I, O-P
+    if (row.colB) {
+      const t = row.colB.toLowerCase();
+      if (t.includes('residential')) setResidential(true);
+      if (t.includes('commercial')) setCommercial(true);
+      if (t.includes('industrial')) setIndustrial(true);
+      if (t.includes('agricultural')) setAgricultural(true);
+    }
+    if (row.colC) setEditArea(row.colC);
+    if (row.colD) setEditCity(row.colD);
+    if (row.colE) setEditLotArea(row.colE);
+    if (row.colF) setEditFloorArea(row.colF);
+    if (row.colG) setEditPrice(row.colG);
+    if (row.colH) {
+      const h = row.colH.toLowerCase();
+      if (h.includes('sale') && h.includes('lease')) setSaleOrLease('Sale/Lease');
+      else if (h.includes('lease')) setSaleOrLease('Lease');
+      else if (h.includes('sale')) setSaleOrLease('Sale');
+    }
+    if (row.colI) setWithIncome(row.colI);
+    if (row.colJ) {
+      const val = row.colJ.toLowerCase();
+      if (val.includes('direct')) setDirectOrCobroker('Direct to Owner');
+      else if (val.includes('cobroker') || val.includes('broker')) setDirectOrCobroker('With Cobroker');
+    }
+    if (row.colK) setOwnerBroker(row.colK);
+    if (row.colL) setHowManyAway(row.colL);
+    if (row.colO) setAvailable(row.colO);
+    if (row.colO) setEditStatus(normalizeStatus(row.colO));
+    if (row.colP) setListingOwnership(row.colP);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchActive, batchIndex, batchRows]);
 
@@ -590,7 +621,26 @@ export default function AddListingPage() {
       const gsheet = batchCurrentRowRef.current;
       setOwnerBroker(searchResult.owner_broker || gsheet?.colK || '');
       setHowManyAway(searchResult.how_many_away || gsheet?.colL || '');
-      setListingOwnership(searchResult.listing_ownership || '');
+      setListingOwnership(searchResult.listing_ownership || gsheet?.colP || '');
+      // Apply GSheet fallbacks for fields B-I, O when Supabase is empty
+      if (!searchResult.area && gsheet?.colC) setEditArea(gsheet.colC);
+      if (!searchResult.city && gsheet?.colD) setEditCity(gsheet.colD);
+      if (!searchResult.lot_area && gsheet?.colE) setEditLotArea(gsheet.colE);
+      if (!searchResult.floor_area && gsheet?.colF) setEditFloorArea(gsheet.colF);
+      if (!searchResult.price && !searchResult.lease_price && gsheet?.colG) {
+        setEditPrice(gsheet.colG);
+      }
+      if (!searchResult.sale_or_lease && gsheet?.colH) {
+        const h = gsheet.colH.toLowerCase();
+        if (h.includes('sale') && h.includes('lease')) setSaleOrLease('Sale/Lease');
+        else if (h.includes('lease')) setSaleOrLease('Lease');
+        else if (h.includes('sale')) setSaleOrLease('Sale');
+      }
+      if (!searchResult.with_income && gsheet?.colI) setWithIncome(gsheet.colI);
+      if (!searchResult.status && gsheet?.colO) {
+        setEditStatus(normalizeStatus(gsheet.colO));
+        setAvailable(gsheet.colO);
+      }
       // Apply GSheet direct_or_broker fallback if Supabase field is empty
       if (!searchResult.direct_or_broker && gsheet?.colJ) {
         const val = gsheet.colJ.toLowerCase();

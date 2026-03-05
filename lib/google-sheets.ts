@@ -76,16 +76,26 @@ export const GSHEET_COLUMNS = {
 // Which cells to annotate with an "Updated by" note, and by whom
 export type NoteConfig = { updatedBy: string; cols: Set<number> };
 
-// Interface for batch row data (col A + col AC + key display cols)
+// Interface for batch row data (col A-P display columns + col AC GEO ID)
 export interface BatchRowData {
   rowNumber: number;  // 1-indexed sheet row
-  colA: string;       // BLASTED FORMAT (raw listing text)
-  colAC: string;      // GEO ID (lookup key)
-  colJ: string;       // Direct or with Cobroker
-  colK: string;       // Owner/Broker name
-  colL: string;       // How many broker away
-  colM: string;       // Date Received
-  colN: string;       // Date Resorted/Updated
+  colA: string;       // A - BLASTED FORMAT (raw listing text)
+  colB: string;       // B - Type (Residential, Commercial, etc.)
+  colC: string;       // C - Area (Brgy or Village)
+  colD: string;       // D - City
+  colE: string;       // E - Lot Area
+  colF: string;       // F - Floor Area
+  colG: string;       // G - Price
+  colH: string;       // H - Sale or Lease
+  colI: string;       // I - With Income
+  colJ: string;       // J - Direct or with Cobroker
+  colK: string;       // K - Owner/Broker name
+  colL: string;       // L - How many broker away
+  colM: string;       // M - Date Received
+  colN: string;       // N - Date Resorted/Updated
+  colO: string;       // O - AVAILABLE/Status
+  colP: string;       // P - LISTING OWNERSHIP
+  colAC: string;      // AC - GEO ID (lookup key)
 }
 
 // Interface for display columns A-P data
@@ -1260,95 +1270,76 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
   const spreadsheetId_ = spreadsheetId || process.env.SPREADSHEET_ID;
   if (!spreadsheetId_) throw new Error("SPREADSHEET_ID not configured");
 
-  // Google Sheets API trims leading AND trailing empty rows from the response.
-  // e.g. if K2:K300 has data only at K276, the API returns values=[["Metrosummit"]]
-  // with range="Sheet1!K276:K276" — NOT a padded array starting at row 2.
-  // We must parse the actual start row from each returned range to correctly map values.
+  // Fetch A-P as a contiguous range (all 16 display columns in one call) + AC separately
+  let apRows: string[][] = [];
+  let acValues: string[][] = [];
+  let apStart = startRow;
+  let acStart = startRow;
 
-  // Parse the first row number from a range string like "Sheet1!K276:K300"
+  // Parse the first row number from a range string like "Sheet1!A2:P50"
   const rangeStartRow = (rangeStr: string | null | undefined): number => {
     if (!rangeStr) return startRow;
-    const m = rangeStr.match(/\D(\d+):/);
+    const m = rangeStr.match(/\D(\d+)(?::|$)/);
     return m ? parseInt(m[1], 10) : startRow;
   };
-
-  // Look up a value for a specific sheet row, accounting for the API's trimmed start
-  const colVal = (values: string[][], apiStart: number, rowNum: number): string => {
-    const idx = rowNum - apiStart;
-    return (idx >= 0 && idx < values.length) ? (values[idx]?.[0] || "") : "";
-  };
-
-  // Per-column start rows (filled after each batchGet)
-  let aStart = startRow, acStart = startRow, jStart = startRow,
-    kStart = startRow, lStart = startRow, mStart = startRow, nStart = startRow;
-
-  let colAValues: string[][] = [];
-  let colACValues: string[][] = [];
-  let colJValues: string[][] = [];
-  let colKValues: string[][] = [];
-  let colLValues: string[][] = [];
-  let colMValues: string[][] = [];
-  let colNValues: string[][] = [];
 
   try {
     const batchResponse = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: spreadsheetId_,
       ranges: [
-        `${SHEET_NAME}!A${startRow}:A${endRow}`,
+        `${SHEET_NAME}!A${startRow}:P${endRow}`,
         `${SHEET_NAME}!AC${startRow}:AC${endRow}`,
-        `${SHEET_NAME}!J${startRow}:J${endRow}`,
-        `${SHEET_NAME}!K${startRow}:K${endRow}`,
-        `${SHEET_NAME}!L${startRow}:L${endRow}`,
-        `${SHEET_NAME}!M${startRow}:M${endRow}`,
-        `${SHEET_NAME}!N${startRow}:N${endRow}`,
       ],
     });
     const vr = batchResponse.data.valueRanges || [];
-    colAValues = (vr[0]?.values || []) as string[][]; aStart = rangeStartRow(vr[0]?.range);
-    colACValues = (vr[1]?.values || []) as string[][]; acStart = rangeStartRow(vr[1]?.range);
-    colJValues = (vr[2]?.values || []) as string[][]; jStart = rangeStartRow(vr[2]?.range);
-    colKValues = (vr[3]?.values || []) as string[][]; kStart = rangeStartRow(vr[3]?.range);
-    colLValues = (vr[4]?.values || []) as string[][]; lStart = rangeStartRow(vr[4]?.range);
-    colMValues = (vr[5]?.values || []) as string[][]; mStart = rangeStartRow(vr[5]?.range);
-    colNValues = (vr[6]?.values || []) as string[][]; nStart = rangeStartRow(vr[6]?.range);
+    apRows = (vr[0]?.values || []) as string[][];
+    apStart = rangeStartRow(vr[0]?.range);
+    acValues = (vr[1]?.values || []) as string[][];
+    acStart = rangeStartRow(vr[1]?.range);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.includes("exceeds grid limits")) throw err;
-    // Sheet has fewer columns than AC — retry without it (M and N are always safe)
+    // Sheet has fewer columns than AC — retry without AC
     const fallback = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: spreadsheetId_,
-      ranges: [
-        `${SHEET_NAME}!A${startRow}:A${endRow}`,
-        `${SHEET_NAME}!J${startRow}:J${endRow}`,
-        `${SHEET_NAME}!K${startRow}:K${endRow}`,
-        `${SHEET_NAME}!L${startRow}:L${endRow}`,
-        `${SHEET_NAME}!M${startRow}:M${endRow}`,
-        `${SHEET_NAME}!N${startRow}:N${endRow}`,
-      ],
+      ranges: [`${SHEET_NAME}!A${startRow}:P${endRow}`],
     });
     const vr = fallback.data.valueRanges || [];
-    colAValues = (vr[0]?.values || []) as string[][]; aStart = rangeStartRow(vr[0]?.range);
-    colJValues = (vr[1]?.values || []) as string[][]; jStart = rangeStartRow(vr[1]?.range);
-    colKValues = (vr[2]?.values || []) as string[][]; kStart = rangeStartRow(vr[2]?.range);
-    colLValues = (vr[3]?.values || []) as string[][]; lStart = rangeStartRow(vr[3]?.range);
-    colMValues = (vr[4]?.values || []) as string[][]; mStart = rangeStartRow(vr[4]?.range);
-    colNValues = (vr[5]?.values || []) as string[][]; nStart = rangeStartRow(vr[5]?.range);
-    // colACValues stays empty — GEO IDs will be blank for this sheet
+    apRows = (vr[0]?.values || []) as string[][];
+    apStart = rangeStartRow(vr[0]?.range);
+    // acValues stays empty — GEO IDs will be blank for this sheet
   }
 
   const count = endRow - startRow + 1;
   const results: BatchRowData[] = [];
   for (let i = 0; i < count; i++) {
     const rowNum = startRow + i;
+    // A-P row (16 columns, indices 0-15)
+    const apIdx = rowNum - apStart;
+    const row = (apIdx >= 0 && apIdx < apRows.length) ? apRows[apIdx] : [];
+    // AC column
+    const acIdx = rowNum - acStart;
+    const ac = (acIdx >= 0 && acIdx < acValues.length) ? (acValues[acIdx]?.[0] || "") : "";
+
     results.push({
       rowNumber: rowNum,
-      colA: colVal(colAValues, aStart, rowNum),
-      colAC: colVal(colACValues, acStart, rowNum),
-      colJ: colVal(colJValues, jStart, rowNum),
-      colK: colVal(colKValues, kStart, rowNum),
-      colL: colVal(colLValues, lStart, rowNum),
-      colM: colVal(colMValues, mStart, rowNum),
-      colN: colVal(colNValues, nStart, rowNum),
+      colA: row[0] || "",   // A - BLASTED FORMAT
+      colB: row[1] || "",   // B - Type
+      colC: row[2] || "",   // C - Area
+      colD: row[3] || "",   // D - City
+      colE: row[4] || "",   // E - Lot Area
+      colF: row[5] || "",   // F - Floor Area
+      colG: row[6] || "",   // G - Price
+      colH: row[7] || "",   // H - Sale or Lease
+      colI: row[8] || "",   // I - With Income
+      colJ: row[9] || "",   // J - Direct or Cobroker
+      colK: row[10] || "",  // K - Owner/Broker
+      colL: row[11] || "",  // L - Away
+      colM: row[12] || "",  // M - Date Received
+      colN: row[13] || "",  // N - Date Updated
+      colO: row[14] || "",  // O - Status
+      colP: row[15] || "",  // P - Listing Ownership
+      colAC: ac,            // AC - GEO ID
     });
   }
   return results;
