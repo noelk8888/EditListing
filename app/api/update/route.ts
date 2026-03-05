@@ -100,6 +100,8 @@ export async function POST(request: Request) {
 
     console.log("=== UPDATING LISTING ===");
     console.log("ID:", id);
+    console.log("send_telegram:", send_telegram);
+    console.log("telegram_groups:", telegram_groups);
 
     const { data, error } = await supabase
       .from(TABLE_NAME)

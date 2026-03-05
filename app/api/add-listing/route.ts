@@ -59,6 +59,8 @@ export async function POST(request: Request) {
     } = body;
 
     console.log("=== ADDING NEW LISTING ===");
+    console.log("send_telegram:", send_telegram);
+    console.log("telegram_groups:", telegram_groups);
 
     // Build type string from checkboxes
     const typeValues = [
