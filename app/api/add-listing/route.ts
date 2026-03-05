@@ -53,6 +53,9 @@ export async function POST(request: Request) {
       comments,
       photo_link,
       geo_id,
+      send_telegram,
+      telegram_post_message,
+      telegram_groups,
     } = body;
 
     console.log("=== ADDING NEW LISTING ===");
@@ -214,8 +217,16 @@ export async function POST(request: Request) {
 
     console.log("✅ Supabase row added for GEO ID:", newGeoId);
 
-    // Send Telegram notification with GEO ID + col A (BLASTED FORMAT)
-    await sendTelegramNotification(`🆕 New Listing: ${newGeoId}\n\n${summary || ""}`);
+    // Send Telegram notifications if requested
+    if (send_telegram) {
+      const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
+      // 1. Send default notification
+      await sendTelegramNotification(`🆕 New Listing: ${newGeoId}\n\n${summary || ""}`, groups);
+      // 2. Send custom message if provided
+      if (telegram_post_message) {
+        await sendTelegramNotification(telegram_post_message, groups);
+      }
+    }
 
     return NextResponse.json({
       success: true,

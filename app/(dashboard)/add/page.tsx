@@ -753,7 +753,11 @@ export default function AddListingPage() {
   const handleTelegramConfirm = () => {
     setShowTelegramModal(false);
     const msg = [telegramLine1, telegramLine2, telegramLine3].filter(Boolean).join("\n");
-    confirmUpdate(msg);
+    if (searchResult) {
+      confirmUpdate(msg);
+    } else {
+      confirmAddNew(msg);
+    }
   };
 
   // Actually perform the update after confirmation
@@ -865,8 +869,36 @@ export default function AddListingPage() {
     }
   };
 
+  // Directly perform the save without confirmation OR trigger modal
+  const handleSaveNew = () => {
+    if (telegramPostEnabled) {
+      const now = new Date();
+      const today = now.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+      setTelegramLine1(`*New Listing ${today}*`);
+      setTelegramLine2("");
+      setTelegramLine3(ownerBroker);
+      setTelegramGroups([
+        ...(residential ? ["RESIDENTIAL"] : []),
+        ...(commercial ? ["COMMERCIAL"] : []),
+        ...(industrial ? ["INDUSTRIAL"] : []),
+        ...(agricultural ? ["AGRICULTURAL"] : []),
+      ].filter(Boolean).length > 0
+        ? [
+          ...(residential ? ["RESIDENTIAL"] : []),
+          ...(commercial ? ["COMMERCIAL"] : []),
+          ...(industrial ? ["INDUSTRIAL"] : []),
+          ...(agricultural ? ["AGRICULTURAL"] : []),
+        ]
+        : ["RESIDENTIAL"]
+      );
+      setShowTelegramModal(true);
+    } else {
+      confirmAddNew();
+    }
+  };
+
   // Add the new listing
-  const confirmAddNew = async () => {
+  const confirmAddNew = async (telegramMsg?: string) => {
     setAdding(true);
     setError(null);
 
@@ -914,6 +946,9 @@ export default function AddListingPage() {
           comments: comments,
           photo_link: photosLink,
           geo_id: newGeoId || undefined,
+          send_telegram: telegramPostEnabled,
+          telegram_post_message: telegramMsg || undefined,
+          telegram_groups: telegramGroups,
         }),
       });
 
@@ -2578,7 +2613,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               Back to Check & Info
             </Button>
             <div className="flex items-center gap-3 flex-wrap justify-end">
-              {searchResult && permissions.telegram_send !== false && (
+              {permissions.telegram_send !== false && (
                 <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium">
                   <input
                     type="checkbox"
@@ -2591,7 +2626,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 </label>
               )}
               <Button
-                onClick={() => { searchResult ? handleUpdateExisting() : confirmAddNew(); }}
+                onClick={() => { searchResult ? handleUpdateExisting() : handleSaveNew(); }}
                 disabled={updating || adding}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
@@ -2603,7 +2638,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Update Listing
+                    {searchResult ? "Update Listing" : "Save New Listing"}
                   </>
                 )}
               </Button>
