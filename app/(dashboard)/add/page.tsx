@@ -987,7 +987,7 @@ export default function AddListingPage() {
           compound: compound,
           comments: comments,
           photo_link: photosLink,
-          geo_id: batchActive ? (newGeoId || undefined) : undefined,
+          geo_id: undefined, // always let server generate the correct highest+1
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,
@@ -1003,6 +1003,7 @@ export default function AddListingPage() {
       // Success
       if (batchActive) {
         setError(null);
+        if (data.geoId) setNewGeoId(data.geoId); // show the actual server-assigned GEO ID briefly
         setBatchIndex(prev => prev + 1);
       } else {
         alert(`New listing created: ${data.geoId}`);
