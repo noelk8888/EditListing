@@ -2351,15 +2351,50 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
         <div className="space-y-6">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-3 text-lg">
-                Review Extracted Data
-                {(searchResult?.id || newGeoId) && (
-                  <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs font-bold rounded font-mono">
-                    {searchResult?.id || newGeoId}
-                  </span>
-                )}
-              </CardTitle>
-              <CardDescription>Review and edit the extracted data before saving</CardDescription>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-3 text-lg">
+                    Review Extracted Data
+                    {(searchResult?.id || newGeoId) && (
+                      <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs font-bold rounded font-mono">
+                        {searchResult?.id || newGeoId}
+                      </span>
+                    )}
+                  </CardTitle>
+                  <CardDescription>Review and edit the extracted data before saving</CardDescription>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {permissions.telegram_send !== false && (
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium">
+                      <input
+                        type="checkbox"
+                        checked={telegramPostEnabled}
+                        onChange={() => setTelegramPostEnabled(v => !v)}
+                        className="h-4 w-4 accent-blue-600 cursor-pointer"
+                      />
+                      <Send className="h-3.5 w-3.5 text-blue-600" />
+                      TELEGRAM POST
+                    </label>
+                  )}
+                  <Button
+                    onClick={() => { searchResult ? handleUpdateExisting() : handleSaveNew(); }}
+                    disabled={updating || adding}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {(updating || adding) ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="mr-2 h-4 w-4" />
+                        {searchResult ? "Update Listing" : "Save New Listing"}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {/* MAIN Summary with Copy */}
