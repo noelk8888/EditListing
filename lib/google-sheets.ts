@@ -6,6 +6,8 @@ import * as path from "path";
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const SHEET_NAME = "Sheet1";
 
+console.log("🚀 GOOGLE-SHEETS.TS v4 (FOOLPROOF) LOADED");
+
 // GSheet Column Mapping (A-P = Display columns, Z-BO = Supabase sync columns)
 // Column AC is GEO ID - used as the lookup key
 export const GSHEET_COLUMNS = {
@@ -260,6 +262,103 @@ export function getSheets() {
 }
 
 /**
+ * Ensure the sheet has at least minCols columns.
+ * Google Sheets sometimes creates new sheets with only a few columns (e.g. 18-26).
+ * Our app requires columns Z-BO (up to column 67).
+ */
+export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number) {
+  const logPath = "/tmp/gsheet_debug.log";
+  const log = (msg: string) => {
+    console.log(msg);
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`);
+  };
+
+  try {
+    log(`Checking dimensions for ${spreadsheetId}, target: ${minCols}`);
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+
+    // Find sheet by title, or fallback to the first sheet
+    let sheet = spreadsheet.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+    if (!sheet && spreadsheet.data.sheets?.length) {
+      log(`SHEET_NAME "${SHEET_NAME}" not found, falling back to first sheet: "${spreadsheet.data.sheets[0].properties?.title}"`);
+      sheet = spreadsheet.data.sheets[0];
+    }
+
+    const sheetId = sheet?.properties?.sheetId;
+    const currentCols = sheet?.properties?.gridProperties?.columnCount || 0;
+    const title = sheet?.properties?.title || "Unknown";
+
+    log(`Current sheet: "${title}" (${sheetId}), Cols: ${currentCols}`);
+
+    if (sheetId !== undefined && currentCols < minCols) {
+      log(`Expanding columns from ${currentCols} to ${minCols}`);
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              appendDimension: {
+                sheetId,
+                dimension: "COLUMNS",
+                length: minCols - currentCols,
+              },
+            },
+          ],
+        },
+      });
+      log(`Successfully expanded to ${minCols} columns`);
+    } else {
+      log(`No expansion needed or sheetId missing. sheetId: ${sheetId}, currentCols: ${currentCols}`);
+    }
+  } catch (err: any) {
+    const errMsg = err?.response?.data?.error?.message || err?.message || String(err);
+    log(`ERROR in ensureSheetDimensions: ${errMsg}`);
+    if (errMsg.includes("The caller does not have permission")) {
+      throw new Error("PERMISSION_DENIED: Service account must be an EDITOR on the Google Sheet.");
+    }
+    throw new Error(errMsg);
+  }
+}
+
+/**
+ * Executes a GSheet operation with an automatic retry if a "grid limits" error occurs.
+ */
+export async function runWithExpansion<T>(
+  sheets: any,
+  spreadsheetId: string,
+  minCols: number,
+  operation: () => Promise<T>
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (err: any) {
+    // Robustly check for "grid limits" in message, source message, or nested data
+    const msg = (err?.message || "").toLowerCase();
+    const dataMsg = (err?.response?.data?.error?.message || "").toLowerCase();
+    const innerMsg = (err?.cause?.message || "").toLowerCase();
+
+    const isGridLimit =
+      msg.includes("exceeds grid limits") ||
+      dataMsg.includes("exceeds grid limits") ||
+      innerMsg.includes("exceeds grid limits");
+
+    if (isGridLimit) {
+      console.log(`GSheet: Grid limit hit, attempting expansion to ${minCols} cols...`);
+      try {
+        await ensureSheetDimensions(sheets, spreadsheetId, minCols);
+        // Retry once
+        console.log("GSheet: Expansion successful, retrying operation...");
+        return await operation();
+      } catch (expansionErr: any) {
+        console.error("GSheet: Expansion retry failed:", expansionErr.message);
+        throw expansionErr;
+      }
+    }
+    throw err;
+  }
+}
+
+/**
  * Find row number by GEO ID (column AC)
  */
 export async function findRowByGeoId(geoId: string): Promise<number | null> {
@@ -270,11 +369,16 @@ export async function findRowByGeoId(geoId: string): Promise<number | null> {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
+  // Ensure AC column (29) exists
+  await ensureSheetDimensions(sheets, spreadsheetId, 29);
+
   // Primary: search COL AC (GEO ID sync column)
-  const acResponse = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${SHEET_NAME}!AC2:AC`,
-  });
+  const acResponse = await runWithExpansion(sheets, spreadsheetId, 29, () =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${SHEET_NAME}!AC2:AC`,
+    })
+  );
 
   const acColumn = acResponse.data.values || [];
   const acIndex = acColumn.findIndex((row) => row[0] === geoId);
@@ -592,6 +696,8 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     throw new Error("SPREADSHEET_ID not configured");
   }
 
+  // Ensure enough columns for Z-BO (67 cols)
+  await ensureSheetDimensions(sheets, spreadsheetId, 67);
   let rowNumber = await findRowByGeoId(geoId);
   if (!rowNumber && fallbackText) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
@@ -661,22 +767,24 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     })();
 
   // Batch write: COL A (blastedFormat) + COL Z-BO (sync data) in one API call
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      valueInputOption: "USER_ENTERED",
-      data: [
-        {
-          range: `${SHEET_NAME}!A${rowNumber}`,
-          values: [[blastedFormatToWrite]],
-        },
-        {
-          range: `${SHEET_NAME}!Z${rowNumber}:BO${rowNumber}`,
-          values: [rowData],
-        },
-      ],
-    },
-  });
+  await runWithExpansion(sheets, spreadsheetId, 67, () =>
+    sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: "USER_ENTERED",
+        data: [
+          {
+            range: `${SHEET_NAME}!A${rowNumber}`,
+            values: [[blastedFormatToWrite]],
+          },
+          {
+            range: `${SHEET_NAME}!Z${rowNumber}:BO${rowNumber}`,
+            values: [rowData],
+          },
+        ],
+      },
+    })
+  );
 
   // Insert notes only on columns that actually changed
   if (noteConfig && noteConfig.cols.size > 0) {
@@ -726,6 +834,9 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     throw new Error("SPREADSHEET_ID not configured");
   }
 
+  // Ensure enough columns for BO (up to col 67)
+  await ensureSheetDimensions(sheets, spreadsheetId, 67);
+
   let rowNumber = await findRowByGeoId(geoId);
   if (!rowNumber && fallbackText) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
@@ -757,14 +868,16 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
   ];
 
   // Write values
-  await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: [rowData],
-    },
-  });
+  await runWithExpansion(sheets, spreadsheetId, 16, () =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [rowData],
+      },
+    })
+  );
 
   // Apply font formatting: Calibri, size 11, no bold
   try {
@@ -1190,10 +1303,12 @@ export async function getAllListings(): Promise<Listing[]> {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${SHEET_NAME}!A2:AH`,
-  });
+  const response = await runWithExpansion(sheets, spreadsheetId, 34, () =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${SHEET_NAME}!A2:AH`,
+    })
+  );
 
   const rows = response.data.values || [];
   return rows.map((row, index) => rowToListing(row, index + 2));
@@ -1214,14 +1329,16 @@ export async function addListing(listing: Listing): Promise<Listing> {
 
   const row = listingToRow(listing);
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: `${SHEET_NAME}!A:AH`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: [row],
-    },
-  });
+  await runWithExpansion(sheets, spreadsheetId, 34, () =>
+    sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${SHEET_NAME}!A:AH`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [row],
+      },
+    })
+  );
 
   return listing;
 }

@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2, Play, Pause } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SupabaseListing } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
@@ -134,6 +134,7 @@ export default function AddListingPage() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchActive, setBatchActive] = useState(false);      // processing in progress
   const [batchSkips, setBatchSkips] = useState<number[]>([]);
+  const [batchPaused, setBatchPaused] = useState(false);
   const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
 
   // === TELEGRAM POST STATE ===
@@ -699,6 +700,40 @@ export default function AddListingPage() {
 
   const canProceedFromPaste = rawText.trim().length > 0;
 
+  // Helper: compare if a value is significantly different from Supabase (used in UI highlighting)
+  const isDifferent = (current: any, original: any) => {
+    if (!original && !current) return false;
+    const c = String(current || "").trim().toLowerCase();
+    const o = String(original || "").trim().toLowerCase();
+    return c !== o;
+  };
+
+  // BATCH Auto-Advance Logic — mirrors renderDiffText(rawText, editSummary) exactly
+  useEffect(() => {
+    if (!batchActive || step !== "check" || !searchResult || searching || batchPaused) return;
+
+    const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+    const isGeoId = (s: string) => /^[A-Z]\d{4,6}$/.test(s.trim());
+
+    // Check DB lines against rawText (the paste) — same logic as renderDiffText
+    const normalizedRaw = norm(rawText);
+    const dbLines = (searchResult.summary || "")
+      .split("\n")
+      .filter(l => l.trim() && !isGeoId(l.trim()));
+    const hasDiff = dbLines.some(line => !normalizedRaw.includes(norm(line)));
+
+    if (!hasDiff) {
+      console.log("⚡ Auto-advancing: renderDiffText shows no red lines.");
+      const timer = setTimeout(() => {
+        setBatchIndex(prev => prev + 1);
+        setError(null);
+      }, 1500);
+      return () => clearTimeout(timer);
+    } else {
+      console.log("🛑 renderDiffText has diffs — pausing for manual review.");
+    }
+  }, [batchActive, step, searchResult, searching, rawText, batchPaused]);
+
   // Auto-toggle today and set date when any input changes
   const handleInputChange = <T,>(setter: (value: T) => void) => (value: T) => {
     setter(value);
@@ -827,7 +862,7 @@ export default function AddListingPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || "Failed to update listing");
+        throw new Error(result.details || result.error || "Failed to update listing");
       }
 
       if (result.warning) {
@@ -947,7 +982,7 @@ export default function AddListingPage() {
           compound: compound,
           comments: comments,
           photo_link: photosLink,
-          geo_id: newGeoId || undefined,
+          geo_id: batchActive ? (newGeoId || undefined) : undefined,
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,
@@ -957,7 +992,7 @@ export default function AddListingPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Failed to add listing");
+        throw new Error(data.details || data.error || "Failed to add listing");
       }
 
       // Success
@@ -1076,15 +1111,31 @@ export default function AddListingPage() {
 
   // Line-by-line diff: renders targetText (DB) with red for lines not found in sourceText (raw paste)
   const renderDiffText = (sourceText: string, targetText: string) => {
-    const srcLineSet = new Set(
-      sourceText.split("\n").map((l) => l.trim()).filter(Boolean)
-    );
+    // Helper to collapse whitespace for comparison
+    const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+    const isGeoIdLine = (s: string) => /^[A-Z]\d{4,6}$/.test(s.trim());
+
+    // For better matching, treat the whole source text as one normalized bag of words/phrases
+    // but line-by-line for the target display
+    const normalizedSource = norm(sourceText);
     const tgtLines = targetText.split("\n");
+
     return tgtLines.map((line, i) => {
-      const isDiff = line.trim() !== "" && !srcLineSet.has(line.trim());
+      const trimmed = line.trim();
+      if (!trimmed) return <div key={i}>&nbsp;</div>;
+
+      // Skip GEO ID line from highlighting
+      if (isGeoIdLine(trimmed)) {
+        return <div key={i}>{line}</div>;
+      }
+
+      // Check if this line (normalized) exists within the normalized source text
+      const nLine = norm(trimmed);
+      const isDiff = !normalizedSource.includes(nLine);
+
       return (
         <div key={i} className={isDiff ? "text-red-500 font-medium" : ""}>
-          {line || "\u00A0"}
+          {line}
         </div>
       );
     });
@@ -1109,13 +1160,31 @@ export default function AddListingPage() {
               <span className="text-xs font-bold tracking-widest text-slate-300">BATCH</span>
               <div className="w-32 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-blue-400 transition-all duration-300"
-                  style={{ width: `${batchRows.length ? ((batchIndex) / batchRows.length) * 100 : 0}%` }}
+                  className="h-full bg-blue-500 transition-all duration-500"
+                  style={{ width: `${Math.round(((batchIndex + 1) / batchRows.length) * 100)}%` }}
                 />
               </div>
-              <span className="text-sm">
-                Row {batchIndex + 1} of {batchRows.length}
+              <span className="text-[10px] font-mono text-slate-400">
+                {batchIndex + 1} / {batchRows.length} (Row {batchRows[batchIndex]?.rowNumber})
               </span>
+              <Button
+                size="sm"
+                variant={batchPaused ? "default" : "secondary"}
+                onClick={() => setBatchPaused(!batchPaused)}
+                className="h-7 px-3 text-[10px] font-bold uppercase tracking-wider"
+              >
+                {batchPaused ? (
+                  <>
+                    <Play className="mr-1.5 h-3 w-3 fill-current" />
+                    Resume
+                  </>
+                ) : (
+                  <>
+                    <Pause className="mr-1.5 h-3 w-3 fill-current" />
+                    Pause
+                  </>
+                )}
+              </Button>
             </div>
             <Button
               variant="ghost"
@@ -1563,7 +1632,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   </div>
                   {/* Row 1: SALE/LEASE, AREA, CITY */}
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Lease</Label>
+                    <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(saleOrLease, searchResult.sale_or_lease) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Sale/Lease</Label>
                     <Select value={saleOrLease} onValueChange={(v) => handleInputChange(setSaleOrLease)(v as "Sale" | "Lease" | "Sale/Lease" | "")}>
                       <SelectTrigger className="h-8 text-sm">
                         <SelectValue placeholder="Select" />
@@ -1576,49 +1645,57 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Area</Label>
-                    <Input value={[editBarangay, editArea].filter(Boolean).join(", ")} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
+                    <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editArea, searchResult.area) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Area</Label>
+                    <Input value={editArea} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">City</Label>
+                    <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editCity, searchResult.city) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>City</Label>
                     <Input value={editCity} onChange={(e) => handleInputChange(setEditCity)(e.target.value)} className="h-8 text-sm" />
                   </div>
 
                   {/* Row 2: LOT AREA, FLOOR AREA, PRICE */}
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
+                    <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editLotArea, searchResult.lot_area) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Lot Area</Label>
                     <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
+                    <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editFloorArea, searchResult.floor_area) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Floor Area</Label>
                     <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Price</Label>
-                    <Input value={formatNumber(editPrice || editLeasePrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                  </div>
+                  {permissions.view_pricing !== false && (
+                    <div className="flex items-center gap-2">
+                      <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editPrice || editLeasePrice, saleOrLease === "Lease" ? searchResult.lease_price : searchResult.price) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Price</Label>
+                      <Input value={formatNumber(editPrice || editLeasePrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    </div>
+                  )}
 
                   {/* Row 3 */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/Co</Label>
-                    <Select value={directOrCobroker} onValueChange={(v) => handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "")}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Direct to Owner">Direct</SelectItem>
-                        <SelectItem value="With Cobroker">Cobroker</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Broker</Label>
-                    <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Away</Label>
-                    <Input value={howManyAway} onChange={(e) => handleInputChange(setHowManyAway)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                  {permissions.view_contact !== false && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/Co</Label>
+                      <Select value={directOrCobroker} onValueChange={(v) => handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "")}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Direct to Owner">Direct</SelectItem>
+                          <SelectItem value="With Cobroker">Cobroker</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {permissions.view_contact !== false && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Broker</Label>
+                      <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                  )}
+                  {permissions.view_contact !== false && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Away</Label>
+                      <Input value={howManyAway} onChange={(e) => handleInputChange(setHowManyAway)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                  )}
 
                   {/* Row 4 */}
                   <div className="flex items-center gap-2">
@@ -1674,8 +1751,8 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   </div>
                   {/* Status radio buttons span full width */}
                   <div className="col-span-3 flex items-center gap-4 flex-wrap">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Status</Label>
-                    <span className="text-xs min-w-[100px] font-medium">
+                    <Label className={`text-xs w-16 shrink-0 ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Status</Label>
+                    <span className={`text-xs min-w-[100px] font-medium ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
                       {editStatus || "—"}
                     </span>
                     {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO"].map((status) => (
@@ -1688,7 +1765,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                           onChange={() => handleInputChange(setEditStatus)(status)}
                           className="h-3 w-3 cursor-pointer"
                         />
-                        <label htmlFor={`status-${status}`} className="text-xs cursor-pointer whitespace-nowrap">
+                        <label htmlFor={`status-${status}`} className={`text-xs cursor-pointer whitespace-nowrap ${searchResult && normalizeStatus(status) === normalizeStatus(editStatus) && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
                           {status}
                         </label>
                       </div>
@@ -1762,28 +1839,36 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
                       <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
-                      <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
-                      <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
+                        <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
+                        <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
 
                     {/* Row 6: FLOOR AREA, EXTRACTED LEASE PRICE, LEASE/SQM */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
                       <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
-                      <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
-                      <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
+                        <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
+                        <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
 
                     {/* Row 7: LAT, LONG, LAT LONG */}
                     <div className="flex items-center gap-2">
@@ -1888,26 +1973,32 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/Co</Label>
-                    <Select value={directOrCobroker} onValueChange={(v) => handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "")}>
-                      <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Direct to Owner">Direct</SelectItem>
-                        <SelectItem value="With Cobroker">Cobroker</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Broker</Label>
-                    <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Away</Label>
-                    <Input value={howManyAway} onChange={(e) => handleInputChange(setHowManyAway)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+                  {permissions.view_contact !== false && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/Co</Label>
+                      <Select value={directOrCobroker} onValueChange={(v) => handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "")}>
+                        <SelectTrigger className="h-8 text-sm">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Direct to Owner">Direct</SelectItem>
+                          <SelectItem value="With Cobroker">Cobroker</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {permissions.view_contact !== false && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Broker</Label>
+                      <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                  )}
+                  {permissions.view_contact !== false && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Away</Label>
+                      <Input value={howManyAway} onChange={(e) => handleInputChange(setHowManyAway)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                  )}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
                     <Input type="date" value={dateReceived} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
@@ -2027,27 +2118,35 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
                       <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
-                      <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
-                      <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
+                        <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
+                        <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
                     {/* Row 5: FLOOR AREA, LEASE PRICE, LEASE/SQM */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
                       <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
-                      <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
-                      <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
-                    </div>
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
+                        <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
+                    {permissions.view_pricing !== false && (
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
+                        <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      </div>
+                    )}
                     {/* Row 6: LAT, LONG, LAT/LONG */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat</Label>
@@ -2323,7 +2422,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Area</Label>
-                  <Input value={[editBarangay, editArea].filter(Boolean).join(", ")} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
+                  <Input value={editArea} onChange={(e) => handleInputChange(setEditArea)(e.target.value)} className="h-8 text-sm" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">City</Label>
