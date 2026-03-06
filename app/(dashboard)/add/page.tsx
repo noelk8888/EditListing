@@ -775,7 +775,7 @@ export default function AddListingPage() {
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
-      const isBusiness = editType?.toLowerCase().includes("business");
+      const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
         ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
@@ -919,7 +919,7 @@ export default function AddListingPage() {
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
-      const isBusiness = editType?.toLowerCase().includes("business");
+      const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
         ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
