@@ -772,7 +772,7 @@ export default function AddListingPage() {
       const year = now.getFullYear();
       const today = `${month} ${day}, ${year}`;
       setTelegramLine1(`*Update ${today}*`);
-      setTelegramLine2("");
+      setTelegramLine2(editStatus || "");
       setTelegramLine3(ownerBroker);
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
@@ -916,7 +916,7 @@ export default function AddListingPage() {
       const now = new Date();
       const today = now.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
       setTelegramLine1(`*New Listing ${today}*`);
-      setTelegramLine2("");
+      setTelegramLine2(editStatus || "");
       setTelegramLine3(ownerBroker);
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
