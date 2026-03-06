@@ -774,20 +774,17 @@ export default function AddListingPage() {
       setTelegramLine1(`*Update ${today}*`);
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
-      setTelegramGroups([
+      const isDirect = directOrCobroker?.toLowerCase().includes("direct");
+      const isBusiness = editType?.toLowerCase().includes("business");
+      const autoGroups = [
+        ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
         ...(commercial ? ["COMMERCIAL"] : []),
         ...(industrial ? ["INDUSTRIAL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
-      ].filter(Boolean).length > 0
-        ? [
-          ...(residential ? ["RESIDENTIAL"] : []),
-          ...(commercial ? ["COMMERCIAL"] : []),
-          ...(industrial ? ["INDUSTRIAL"] : []),
-          ...(agricultural ? ["AGRICULTURAL"] : []),
-        ]
-        : ["RESIDENTIAL"]
-      );
+        ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
+      ];
+      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL"]);
       setShowTelegramModal(true);
     } else {
       confirmUpdate();
@@ -921,20 +918,17 @@ export default function AddListingPage() {
       setTelegramLine1(`*New Listing ${today}*`);
       setTelegramLine2("");
       setTelegramLine3(ownerBroker);
-      setTelegramGroups([
+      const isDirect = directOrCobroker?.toLowerCase().includes("direct");
+      const isBusiness = editType?.toLowerCase().includes("business");
+      const autoGroups = [
+        ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
         ...(commercial ? ["COMMERCIAL"] : []),
         ...(industrial ? ["INDUSTRIAL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
-      ].filter(Boolean).length > 0
-        ? [
-          ...(residential ? ["RESIDENTIAL"] : []),
-          ...(commercial ? ["COMMERCIAL"] : []),
-          ...(industrial ? ["INDUSTRIAL"] : []),
-          ...(agricultural ? ["AGRICULTURAL"] : []),
-        ]
-        : ["RESIDENTIAL"]
-      );
+        ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
+      ];
+      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL"]);
       setShowTelegramModal(true);
     } else {
       confirmAddNew();
@@ -2843,7 +2837,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
                 <div className="flex gap-3 flex-wrap">
-                  {["RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "UPDATE LISTING"].map(g => (
+                  {["DIRECT", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "BUSINESS FOR SALE", "UPDATE LISTING"].map(g => (
                     <label key={g} className="flex items-center gap-1.5 cursor-pointer text-sm">
                       <input
                         type="checkbox"
