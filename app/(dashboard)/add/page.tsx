@@ -24,6 +24,8 @@ const STATUS_MAP: Record<string, string> = {
   "on hold": "ON HOLD",
   "under nego": "UNDER NEGO",
   "under negotiation": "UNDER NEGO",
+  "undecisive seller": "UNDECISIVE SELLER",
+  "undecisive": "UNDECISIVE SELLER",
 };
 const normalizeStatus = (raw: string): string =>
   STATUS_MAP[raw.toLowerCase().trim()] ?? raw.toUpperCase();
@@ -1768,7 +1770,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     <span className={`text-xs min-w-[100px] font-medium ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -2050,7 +2052,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     <span className="text-xs min-w-[100px] font-medium">
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -2533,7 +2535,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   <span className="text-xs min-w-[100px] font-medium">
                     {editStatus || "—"}
                   </span>
-                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO"].map((status) => (
+                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                     <div key={status} className="flex items-center gap-1">
                       <input
                         type="radio"
