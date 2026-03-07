@@ -481,7 +481,7 @@ export default function AddListingPage() {
       // If no match found, fetch the next suggested GEO ID
       if (!data.result) {
         try {
-          const geoRes = await fetch("/api/next-geo-id");
+          const geoRes = await fetch("/api/next-geo-id", { cache: "no-store" });
           const geoData = await geoRes.json();
           if (geoData.geoId) {
             setSuggestedGeoId(geoData.geoId);
