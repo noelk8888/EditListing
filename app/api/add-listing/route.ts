@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { addNewGSheetRow, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
+import { auth } from "@/lib/auth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -10,6 +11,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const TABLE_NAME = "KIU Properties";
 
 export async function POST(request: Request) {
+  const session = await auth();
+  const updatedBy = session?.user?.email || session?.user?.name || "";
   try {
     const body = await request.json();
     const {
@@ -160,7 +163,7 @@ export async function POST(request: Request) {
     };
 
     // Single GSheet append — A-BO all written at once, no second lookup
-    const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData);
+    const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
     const mainWithGeoId = newGeoId + "\n" + (summary || "");

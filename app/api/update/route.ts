@@ -81,13 +81,14 @@ export async function POST(request: Request) {
 
     const noteCols = new Set<number>();
     if (updatedBy && current) {
-      if (diff(date_updated, current["DATE UPDATED"])) noteCols.add(13); // N
+      if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
       if (diff(status, current["STATUS"])) { noteCols.add(14); noteCols.add(42); } // O, AQ
       const latChanged = diff(lat, current["LAT"]);
       const longChanged = diff(long, current["LONG"]);
       if (latChanged || longChanged) noteCols.add(56); // BE
       if (latChanged) noteCols.add(57); // BF
       if (longChanged) noteCols.add(58); // BG
+      if (diff(comments, current["COMMENTS"])) noteCols.add(48); // AW
     }
     const noteConfig: NoteConfig | undefined =
       updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;

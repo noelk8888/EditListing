@@ -810,6 +810,10 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
         if (noteConfig.cols.has(57)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 57, endColumnIndex: 58 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
         // Col BG (58) — LONG
         if (noteConfig.cols.has(58)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 58, endColumnIndex: 59 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
+        // Col AW (48) — COMMENTS
+        if (noteConfig.cols.has(48)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 48, endColumnIndex: 49 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
+        // Col BC (54) — DATE UPDATED (sync, mirrors Col N)
+        if (noteConfig.cols.has(54)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 54, endColumnIndex: 55 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
         if (requests.length > 0) {
           await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
         }
@@ -1015,7 +1019,7 @@ export async function getDisplayDataByGeoId(geoId: string): Promise<GSheetDispla
  * Writes to columns A-P (display) and Z-BO (Supabase sync columns)
  * Returns the generated GEO ID
  */
-export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: string, syncData?: GSheetSyncData): Promise<string> {
+export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: string, syncData?: GSheetSyncData, updatedBy?: string): Promise<string> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
 
@@ -1166,6 +1170,34 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     }
   } catch (formatError) {
     console.warn("⚠️ Could not apply font formatting:", formatError);
+  }
+
+  // Insert cell note on Col AC (GEO ID) to record who created this listing
+  if (updatedBy) {
+    try {
+      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+      const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === SHEET_NAME);
+      const sheetId = sheet?.properties?.sheetId;
+      if (sheetId !== undefined) {
+        const now = new Date().toLocaleString("en-PH", {
+          timeZone: "Asia/Manila",
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: true,
+        });
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: { requests: [{
+            updateCells: {
+              range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 28, endColumnIndex: 29 },
+              rows: [{ values: [{ note: `Added by: ${updatedBy}\n${now}` }] }],
+              fields: "note"
+            }
+          }]}
+        });
+      }
+    } catch (noteError) {
+      console.warn("⚠️ Could not insert cell note on Col AC:", noteError);
+    }
   }
 
   console.log(`✅ Added new GSheet row for ${geoId} (row ${rowNumber})`);
