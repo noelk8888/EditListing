@@ -727,19 +727,28 @@ export default function AddListingPage() {
     const dbLines = (searchResult.summary || "")
       .split("\n")
       .filter(l => l.trim() && !isGeoId(l.trim()));
-    const hasDiff = dbLines.some(line => !normalizedRaw.includes(norm(line)));
+    const textDiff = dbLines.some(line => !normalizedRaw.includes(norm(line)));
+
+    // Also pause when Lot Area, Floor Area, or Price fields are red
+    const lotDiff = isDifferent(editLotArea, searchResult.lot_area);
+    const floorDiff = isDifferent(editFloorArea, searchResult.floor_area);
+    const priceDiff = isDifferent(
+      editPrice || editLeasePrice,
+      saleOrLease === "Lease" ? searchResult.lease_price : searchResult.price
+    );
+    const hasDiff = textDiff || lotDiff || floorDiff || priceDiff;
 
     if (!hasDiff) {
-      console.log("⚡ Auto-advancing: renderDiffText shows no red lines.");
+      console.log("⚡ Auto-advancing: no red fields.");
       const timer = setTimeout(() => {
         setBatchIndex(prev => prev + 1);
         setError(null);
       }, 1500);
       return () => clearTimeout(timer);
     } else {
-      console.log("🛑 renderDiffText has diffs — pausing for manual review.");
+      console.log("🛑 Pausing — red fields:", { textDiff, lotDiff, floorDiff, priceDiff });
     }
-  }, [batchActive, step, searchResult, searching, rawText, batchPaused]);
+  }, [batchActive, step, searchResult, searching, rawText, batchPaused, editLotArea, editFloorArea, editPrice, editLeasePrice, saleOrLease]);
 
   // Auto-toggle today and set date when any input changes
   const handleInputChange = <T,>(setter: (value: T) => void) => (value: T) => {
