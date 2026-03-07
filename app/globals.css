@@ -77,6 +77,15 @@
   border-color: hsl(var(--border));
 }
 
+@keyframes flash-red {
+  0%, 100% { background-color: rgb(254 226 226); border-color: rgb(239 68 68); }
+  50%       { background-color: rgb(239 68 68);  border-color: rgb(185 28 28); }
+}
+
+.animate-flash-red {
+  animation: flash-red 0.6s ease-in-out infinite;
+}
+
 body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));

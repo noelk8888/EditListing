@@ -1562,7 +1562,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Button>
                   )}
                 </div>
-                <Card className={batchAutoPaused ? "border-red-500 ring-2 ring-red-500 bg-red-50" : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
+                <Card className={batchAutoPaused ? "animate-flash-red border-2" : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>
