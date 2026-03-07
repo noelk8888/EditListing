@@ -417,37 +417,36 @@ export async function generateNextGeoId(): Promise<string> {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Read all GEO IDs from column AC
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${SHEET_NAME}!AC2:AC`,
-  });
+  // Read Col AC (GEO ID column) AND Col A (blasted format — old rows store GEO ID as first line)
+  const [acResponse, aResponse] = await Promise.all([
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!AC2:AC` }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!A2:A` }),
+  ]);
 
-  const idColumn = response.data.values || [];
-
-  // Find the highest number from all GEO IDs
+  const GEO_ID_RE = /^([A-Z]+)(\d+)$/i;
   let maxNumber = 0;
-  let prefix = "G"; // Default prefix
+  let prefix = "G";
 
-  for (const row of idColumn) {
-    const geoId = row[0];
-    if (!geoId) continue;
-
-    // Extract prefix (letters) and number from GEO ID (e.g., "G11497" → "G", 11497)
-    const match = geoId.match(/^([A-Z]+)(\d+)$/i);
+  const checkId = (geoId: string) => {
+    const match = geoId.trim().match(GEO_ID_RE);
     if (match) {
       const num = parseInt(match[2], 10);
-      if (num > maxNumber) {
-        maxNumber = num;
-        prefix = match[1].toUpperCase();
-      }
+      if (num > maxNumber) { maxNumber = num; prefix = match[1].toUpperCase(); }
     }
+  };
+
+  // Scan Col AC
+  for (const row of (acResponse.data.values || [])) {
+    if (row[0]) checkId(row[0]);
   }
 
-  // Generate next ID
-  const nextNumber = maxNumber + 1;
-  const nextGeoId = `${prefix}${nextNumber}`;
+  // Scan Col A — GEO ID is the first non-empty line (old listings store it there)
+  for (const row of (aResponse.data.values || [])) {
+    const firstLine = (row[0] || "").split("\n")[0].trim();
+    if (firstLine) checkId(firstLine);
+  }
 
+  const nextGeoId = `${prefix}${maxNumber + 1}`;
   console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber})`);
   return nextGeoId;
 }
