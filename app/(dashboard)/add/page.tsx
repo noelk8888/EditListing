@@ -124,6 +124,7 @@ export default function AddListingPage() {
   const [suggestedGeoId, setSuggestedGeoId] = useState("");
   const [newGeoId, setNewGeoId] = useState("");
   const [geoIdConfirmed, setGeoIdConfirmed] = useState(false);
+  const [lastAssignedGeoId, setLastAssignedGeoId] = useState(""); // tracks last server-assigned ID to derive next without re-querying
 
   // === BATCH MODE STATE ===
   type BatchRow = { rowNumber: number; colA: string; colB: string; colC: string; colD: string; colE: string; colF: string; colG: string; colH: string; colI: string; colJ: string; colK: string; colL: string; colM: string; colN: string; colO: string; colP: string; colAC: string };
@@ -478,17 +479,26 @@ export default function AddListingPage() {
       setMatchedBy(data.matchedBy || null);
       setSearchPerformed(true);
 
-      // If no match found, fetch the next suggested GEO ID
+      // If no match found, suggest next GEO ID
       if (!data.result) {
-        try {
-          const geoRes = await fetch("/api/next-geo-id", { cache: "no-store" });
-          const geoData = await geoRes.json();
-          if (geoData.geoId) {
-            setSuggestedGeoId(geoData.geoId);
-            setNewGeoId(geoData.geoId);
+        // If we just saved a listing this session, derive the next ID locally (avoids race condition)
+        const lastMatch = lastAssignedGeoId.match(/^([A-Z])(\d+)$/);
+        if (lastMatch) {
+          const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
+          setSuggestedGeoId(next);
+          setNewGeoId(next);
+        } else {
+          // First new listing this session — must query the sheet
+          try {
+            const geoRes = await fetch("/api/next-geo-id", { cache: "no-store" });
+            const geoData = await geoRes.json();
+            if (geoData.geoId) {
+              setSuggestedGeoId(geoData.geoId);
+              setNewGeoId(geoData.geoId);
+            }
+          } catch {
+            // Non-critical — silently ignore
           }
-        } catch {
-          // Non-critical — silently ignore
         }
       }
     } catch (err) {
@@ -1028,7 +1038,7 @@ export default function AddListingPage() {
       // Success
       if (batchActive) {
         setError(null);
-        if (data.geoId) setNewGeoId(data.geoId); // show the actual server-assigned GEO ID briefly
+        if (data.geoId) { setNewGeoId(data.geoId); setLastAssignedGeoId(data.geoId); }
         setBatchIndex(prev => prev + 1);
       } else {
         alert(`New listing created: ${data.geoId}`);
