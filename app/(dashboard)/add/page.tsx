@@ -1161,6 +1161,20 @@ export default function AddListingPage() {
     );
   }
 
+  // Compute hasDiff for render (mirrors batch auto-advance logic)
+  const _norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  const _isGeoId = (s: string) => /^[A-Z]\d{4,6}$/.test(s.trim());
+  const _normalizedRaw = _norm(rawText);
+  const _dbLines = (searchResult?.summary || "").split("\n").filter(l => l.trim() && !_isGeoId(l.trim()));
+  const _textDiff = _dbLines.some(line => !_normalizedRaw.includes(_norm(line)));
+  const _lotDiff = isDifferent(editLotArea, searchResult?.lot_area ?? "");
+  const _floorDiff = isDifferent(editFloorArea, searchResult?.floor_area ?? "");
+  const _priceDiff = isDifferent(
+    editPrice || editLeasePrice,
+    saleOrLease === "Lease" ? (searchResult?.lease_price ?? "") : (searchResult?.price ?? "")
+  );
+  const batchAutoPaused = batchActive && step === "check" && !!searchResult && (_textDiff || _lotDiff || _floorDiff || _priceDiff);
+
   return (
     <div className="space-y-6">
       {/* Batch Progress Banner */}
@@ -1548,7 +1562,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Button>
                   )}
                 </div>
-                <Card className={useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
+                <Card className={batchAutoPaused ? "border-red-500 ring-2 ring-red-500 bg-red-50" : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>

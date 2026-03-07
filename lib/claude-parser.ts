@@ -20,7 +20,7 @@ IMPORTANT RULES:
    Only set status to "Leased" if the listing explicitly says "LEASED OUT", "already leased", "currently leased", "tenant occupied and not available", or similar meaning the property is no longer available.
 9. Extract photo URLs if present (lines with "Photos:", "Photo Link:", etc.)
 9b. Extract Google Map / map link URLs if present (lines with "Google Map:", "Map Link:", "MAP LINK:", etc.)
-10. For areas, extract numeric values with unit (e.g., "15430" for "15,430 sqm")
+10. For areas, extract numeric values with unit (e.g., "15430" for "15,430 sqm"). CRITICAL: "Lot Area" and "Floor Area" are DIFFERENT things. ONLY set lotArea if the listing explicitly says "Lot Area" or "Land Area". ONLY set floorArea if the listing explicitly says "Floor Area", "Unit Size", "GFA", or similar. A condo/unit listing that says "Floor Area: 147 sqm" has floorArea=147 and lotArea="" (empty). Never copy the floor area value into lotArea.
 11. Look for keywords like "corner lot", "inside compound" to set corner and compound flags
 12. If FOR SALE is mentioned, it's a sale listing. If FOR LEASE/RENT is mentioned, it's a lease listing.
 13. Set withIncome to true if the listing mentions rental income, monthly income, income-generating, "with income", "earning", or any existing tenant/lease arrangement producing income for the buyer.
