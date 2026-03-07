@@ -137,6 +137,7 @@ export default function AddListingPage() {
   const [batchActive, setBatchActive] = useState(false);      // processing in progress
   const [batchSkips, setBatchSkips] = useState<number[]>([]);
   const [batchPaused, setBatchPaused] = useState(false);
+  const [flashOn, setFlashOn] = useState(false);
   const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
 
   // === TELEGRAM POST STATE ===
@@ -715,6 +716,18 @@ export default function AddListingPage() {
     return c !== o;
   };
 
+  // Compute batchAutoPaused — used by both the flash effect and the card render
+  const _normBap = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  const _isGeoIdBap = (s: string) => /^[A-Z]\d{4,6}$/.test(s.trim());
+  const _dbLinesBap = (searchResult?.summary || "").split("\n").filter(l => l.trim() && !_isGeoIdBap(l.trim()));
+  const _textDiffBap = _dbLinesBap.some(line => !_normBap(rawText).includes(_normBap(line)));
+  const batchAutoPaused = batchActive && step === "check" && !!searchResult && (
+    _textDiffBap ||
+    isDifferent(editLotArea, searchResult?.lot_area ?? "") ||
+    isDifferent(editFloorArea, searchResult?.floor_area ?? "") ||
+    isDifferent(editPrice || editLeasePrice, saleOrLease === "Lease" ? (searchResult?.lease_price ?? "") : (searchResult?.price ?? ""))
+  );
+
   // BATCH Auto-Advance Logic — mirrors renderDiffText(rawText, editSummary) exactly
   useEffect(() => {
     if (!batchActive || step !== "check" || !searchResult || searching || batchPaused) return;
@@ -749,6 +762,13 @@ export default function AddListingPage() {
       console.log("🛑 Pausing — red fields:", { textDiff, lotDiff, floorDiff, priceDiff });
     }
   }, [batchActive, step, searchResult, searching, rawText, batchPaused, editLotArea, editFloorArea, editPrice, editLeasePrice, saleOrLease]);
+
+  // Flash toggle for red card warning
+  useEffect(() => {
+    if (!batchAutoPaused) { setFlashOn(false); return; }
+    const interval = setInterval(() => setFlashOn(prev => !prev), 400);
+    return () => clearInterval(interval);
+  }, [batchAutoPaused]);
 
   // Auto-toggle today and set date when any input changes
   const handleInputChange = <T,>(setter: (value: T) => void) => (value: T) => {
@@ -1161,20 +1181,6 @@ export default function AddListingPage() {
     );
   }
 
-  // Compute hasDiff for render (mirrors batch auto-advance logic)
-  const _norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
-  const _isGeoId = (s: string) => /^[A-Z]\d{4,6}$/.test(s.trim());
-  const _normalizedRaw = _norm(rawText);
-  const _dbLines = (searchResult?.summary || "").split("\n").filter(l => l.trim() && !_isGeoId(l.trim()));
-  const _textDiff = _dbLines.some(line => !_normalizedRaw.includes(_norm(line)));
-  const _lotDiff = isDifferent(editLotArea, searchResult?.lot_area ?? "");
-  const _floorDiff = isDifferent(editFloorArea, searchResult?.floor_area ?? "");
-  const _priceDiff = isDifferent(
-    editPrice || editLeasePrice,
-    saleOrLease === "Lease" ? (searchResult?.lease_price ?? "") : (searchResult?.price ?? "")
-  );
-  const batchAutoPaused = batchActive && step === "check" && !!searchResult && (_textDiff || _lotDiff || _floorDiff || _priceDiff);
-
   return (
     <div className="space-y-6">
       {/* Batch Progress Banner */}
@@ -1562,7 +1568,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Button>
                   )}
                 </div>
-                <Card className={batchAutoPaused ? "animate-flash-red border-2" : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
+                <Card className={batchAutoPaused ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>
