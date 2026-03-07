@@ -427,27 +427,25 @@ export async function generateNextGeoId(): Promise<string> {
     sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!A2:A` }),
   ]);
 
-  // Strict GEO ID pattern: single letter + 4-7 digits (e.g. G11624)
-  // Used for Col A / Col AA first-line scanning to avoid false positives from prices, etc.
-  const STRICT_RE = /^([A-Z])(\d{4,7})$/;
-  // Col AC can be trusted fully — accept any letter+digit pattern
-  const LOOSE_RE  = /^([A-Z]+)(\d+)$/i;
+  // Single letter + 4-5 digits only (e.g. G11628).
+  // Rejects typos like G111245 (6 digits) and false positives like P150000 (price).
+  const GEO_RE = /^([A-Z])(\d{4,5})$/;
 
   let maxNumber = 0;
   let prefix = "G";
 
-  const check = (raw: string, strict: boolean) => {
+  const check = (raw: string) => {
     const s = raw.trim();
-    const match = s.match(strict ? STRICT_RE : LOOSE_RE);
+    const match = s.match(GEO_RE);
     if (match) {
       const num = parseInt(match[2], 10);
       if (num > maxNumber) { maxNumber = num; prefix = match[1].toUpperCase(); }
     }
   };
 
-  for (const row of (acRes.data.values || [])) { if (row[0]) check(row[0], false); }
-  for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl, true); }
-  for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl, true); }
+  for (const row of (acRes.data.values || [])) { if (row[0]) check(row[0]); }
+  for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl); }
+  for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl); }
 
   const nextGeoId = `${prefix}${maxNumber + 1}`;
   console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber}, scanned AC+AA+A)`);

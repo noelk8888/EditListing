@@ -18,23 +18,22 @@ export async function GET() {
       sheets.spreadsheets.values.get({ spreadsheetId: spreadsheetId!, range: `${SHEET_NAME}!A2:A` }),
     ]);
 
-    const LOOSE_RE  = /^([A-Z]+)(\d+)$/i;
-    const STRICT_RE = /^([A-Z])(\d{4,7})$/;
+    const GEO_RE = /^([A-Z])(\d{4,5})$/;
     const seen = new Set<string>();
     const geoIds: { id: string; num: number }[] = [];
 
-    const addId = (raw: string, strict: boolean) => {
+    const addId = (raw: string) => {
       const s = raw.trim();
-      const match = s.match(strict ? STRICT_RE : LOOSE_RE);
+      const match = s.match(GEO_RE);
       if (match && !seen.has(s.toUpperCase())) {
         seen.add(s.toUpperCase());
         geoIds.push({ id: s.toUpperCase(), num: parseInt(match[2], 10) });
       }
     };
 
-    for (const row of (acRes.data.values || [])) { if (row[0]) addId(row[0], false); }
-    for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) addId(fl, true); }
-    for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) addId(fl, true); }
+    for (const row of (acRes.data.values || [])) { if (row[0]) addId(row[0]); }
+    for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) addId(fl); }
+    for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) addId(fl); }
 
     // Sort by number descending
     geoIds.sort((a, b) => b.num - a.num);
