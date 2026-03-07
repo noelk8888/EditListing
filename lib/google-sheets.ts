@@ -417,37 +417,40 @@ export async function generateNextGeoId(): Promise<string> {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Read Col AC (GEO ID column) AND Col A (blasted format — old rows store GEO ID as first line)
-  const [acResponse, aResponse] = await Promise.all([
+  // Scan 3 columns in parallel:
+  //   AC — dedicated GEO ID column (set by addNewGSheetRow)
+  //   AA — MAIN column (set as "GeoId\n..." by addNewGSheetRow)
+  //   A  — blasted format (old/manual listings put GEO ID on first line)
+  const [acRes, aaRes, aRes] = await Promise.all([
     sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!AC2:AC` }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!AA2:AA` }),
     sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!A2:A` }),
   ]);
 
-  const GEO_ID_RE = /^([A-Z]+)(\d+)$/i;
+  // Strict GEO ID pattern: single letter + 4-7 digits (e.g. G11624)
+  // Used for Col A / Col AA first-line scanning to avoid false positives from prices, etc.
+  const STRICT_RE = /^([A-Z])(\d{4,7})$/;
+  // Col AC can be trusted fully — accept any letter+digit pattern
+  const LOOSE_RE  = /^([A-Z]+)(\d+)$/i;
+
   let maxNumber = 0;
   let prefix = "G";
 
-  const checkId = (geoId: string) => {
-    const match = geoId.trim().match(GEO_ID_RE);
+  const check = (raw: string, strict: boolean) => {
+    const s = raw.trim();
+    const match = s.match(strict ? STRICT_RE : LOOSE_RE);
     if (match) {
       const num = parseInt(match[2], 10);
       if (num > maxNumber) { maxNumber = num; prefix = match[1].toUpperCase(); }
     }
   };
 
-  // Scan Col AC
-  for (const row of (acResponse.data.values || [])) {
-    if (row[0]) checkId(row[0]);
-  }
-
-  // Scan Col A — GEO ID is the first non-empty line (old listings store it there)
-  for (const row of (aResponse.data.values || [])) {
-    const firstLine = (row[0] || "").split("\n")[0].trim();
-    if (firstLine) checkId(firstLine);
-  }
+  for (const row of (acRes.data.values || [])) { if (row[0]) check(row[0], false); }
+  for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl, true); }
+  for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl, true); }
 
   const nextGeoId = `${prefix}${maxNumber + 1}`;
-  console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber})`);
+  console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber}, scanned AC+AA+A)`);
   return nextGeoId;
 }
 

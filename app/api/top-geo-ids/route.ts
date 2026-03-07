@@ -11,29 +11,30 @@ export async function GET() {
     const sheets = google.sheets({ version: "v4", auth });
     const spreadsheetId = process.env.SPREADSHEET_ID;
 
-    // Read all GEO IDs from column AC
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: spreadsheetId!,
-      range: `${SHEET_NAME}!AC2:AC`,
-    });
+    // Read AC (GEO ID col), AA (MAIN col, first line = GEO ID), A (old listings, first line = GEO ID)
+    const [acRes, aaRes, aRes] = await Promise.all([
+      sheets.spreadsheets.values.get({ spreadsheetId: spreadsheetId!, range: `${SHEET_NAME}!AC2:AC` }),
+      sheets.spreadsheets.values.get({ spreadsheetId: spreadsheetId!, range: `${SHEET_NAME}!AA2:AA` }),
+      sheets.spreadsheets.values.get({ spreadsheetId: spreadsheetId!, range: `${SHEET_NAME}!A2:A` }),
+    ]);
 
-    const idColumn = response.data.values || [];
-
-    // Extract all valid GEO IDs with their numbers
+    const LOOSE_RE  = /^([A-Z]+)(\d+)$/i;
+    const STRICT_RE = /^([A-Z])(\d{4,7})$/;
+    const seen = new Set<string>();
     const geoIds: { id: string; num: number }[] = [];
 
-    for (const row of idColumn) {
-      const geoId = row[0];
-      if (!geoId) continue;
-
-      const match = geoId.match(/^([A-Z]+)(\d+)$/i);
-      if (match) {
-        geoIds.push({
-          id: geoId,
-          num: parseInt(match[2], 10),
-        });
+    const addId = (raw: string, strict: boolean) => {
+      const s = raw.trim();
+      const match = s.match(strict ? STRICT_RE : LOOSE_RE);
+      if (match && !seen.has(s.toUpperCase())) {
+        seen.add(s.toUpperCase());
+        geoIds.push({ id: s.toUpperCase(), num: parseInt(match[2], 10) });
       }
-    }
+    };
+
+    for (const row of (acRes.data.values || [])) { if (row[0]) addId(row[0], false); }
+    for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) addId(fl, true); }
+    for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) addId(fl, true); }
 
     // Sort by number descending
     geoIds.sort((a, b) => b.num - a.num);
