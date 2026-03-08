@@ -129,7 +129,7 @@ export default function AddListingPage() {
   // === BATCH MODE STATE ===
   type BatchRow = { rowNumber: number; colA: string; colB: string; colC: string; colD: string; colE: string; colF: string; colG: string; colH: string; colI: string; colJ: string; colK: string; colL: string; colM: string; colN: string; colO: string; colP: string; colAC: string };
   const [batchMode, setBatchMode] = useState(false);      // setup panel open
-  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit?gid=1361278820#gid=1361278820");
+  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
@@ -139,6 +139,7 @@ export default function AddListingPage() {
   const [batchSkips, setBatchSkips] = useState<number[]>([]);
   const [batchPaused, setBatchPaused] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
+  const [flashDismissed, setFlashDismissed] = useState(false);
   const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
 
   // === TELEGRAM POST STATE ===
@@ -775,10 +776,15 @@ export default function AddListingPage() {
 
   // Flash toggle for red card warning
   useEffect(() => {
-    if (!batchAutoPaused) { setFlashOn(false); return; }
+    if (!batchAutoPaused || flashDismissed) { setFlashOn(false); return; }
     const interval = setInterval(() => setFlashOn(prev => !prev), 400);
     return () => clearInterval(interval);
-  }, [batchAutoPaused]);
+  }, [batchAutoPaused, flashDismissed]);
+
+  // Reset flash dismissed state on each new batch row
+  useEffect(() => {
+    setFlashDismissed(false);
+  }, [batchIndex]);
 
   // Auto-toggle today and set date when any input changes
   const handleInputChange = <T,>(setter: (value: T) => void) => (value: T) => {
@@ -1578,7 +1584,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Button>
                   )}
                 </div>
-                <Card className={batchAutoPaused ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
+                <Card className={batchAutoPaused && !flashDismissed ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""} onClick={() => { if (batchAutoPaused) setFlashDismissed(true); }}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>
