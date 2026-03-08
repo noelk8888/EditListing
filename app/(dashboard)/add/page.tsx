@@ -2123,7 +2123,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     />
                   </div>
                   {/* Status radio buttons span full width */}
-                  <div className="col-span-3 flex items-center gap-4 flex-wrap">
+                  <div className={`col-span-3 flex items-center gap-4 flex-wrap rounded px-2 py-0.5 transition-colors ${batchAutoPaused && !flashDismissed && editStatus !== "AVAILABLE" ? (flashOn ? "bg-red-500 text-white" : "bg-red-50 border border-red-400") : ""}`}>
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Status</Label>
                     <span className="text-xs min-w-[100px] font-medium">
                       {editStatus || "—"}
