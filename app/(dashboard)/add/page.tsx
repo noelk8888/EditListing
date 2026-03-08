@@ -129,7 +129,7 @@ export default function AddListingPage() {
   // === BATCH MODE STATE ===
   type BatchRow = { rowNumber: number; colA: string; colB: string; colC: string; colD: string; colE: string; colF: string; colG: string; colH: string; colI: string; colJ: string; colK: string; colL: string; colM: string; colN: string; colO: string; colP: string; colAC: string };
   const [batchMode, setBatchMode] = useState(false);      // setup panel open
-  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit");
+  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1jK5Sv4OO-6RHZhXITQd-S_kQxthZDiBzGcCZPelNGOw/edit");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
