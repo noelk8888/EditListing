@@ -140,6 +140,7 @@ export default function AddListingPage() {
   const [batchPaused, setBatchPaused] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [flashDismissed, setFlashDismissed] = useState(false);
+  const [pendingExtractUpdate, setPendingExtractUpdate] = useState(false);
   const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
 
   // === TELEGRAM POST STATE ===
@@ -781,6 +782,14 @@ export default function AddListingPage() {
     return () => clearInterval(interval);
   }, [batchAutoPaused, flashDismissed]);
 
+  // Any click anywhere on the page dismisses the flash
+  useEffect(() => {
+    if (!batchAutoPaused || flashDismissed) return;
+    const handler = () => setFlashDismissed(true);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [batchAutoPaused, flashDismissed]);
+
   // Reset flash dismissed state on each new batch row
   useEffect(() => {
     setFlashDismissed(false);
@@ -931,6 +940,21 @@ export default function AddListingPage() {
     } finally {
       setUpdating(false);
     }
+  };
+
+  // Extract & Update: fires confirmUpdate automatically once extraction settles
+  useEffect(() => {
+    if (pendingExtractUpdate && !loading) {
+      setPendingExtractUpdate(false);
+      confirmUpdate();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, pendingExtractUpdate]);
+
+  const handleExtractAndUpdate = () => {
+    if (!searchResult) return;
+    setPendingExtractUpdate(true);
+    handleExtractData();
   };
 
   const handleDeleteListing = async () => {
@@ -1557,6 +1581,19 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       )}
                     </Button>
                   )}
+                  {batchActive && permissions.ai_extract !== false && searchResult && (
+                    <Button
+                      onClick={handleExtractAndUpdate}
+                      disabled={loading || updating}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {loading || (pendingExtractUpdate && updating) ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                      ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" />Extract / Update</>
+                      )}
+                    </Button>
+                  )}
                   {batchActive && batchIndex > 0 && (
                     <Button
                       variant="outline"
@@ -1584,7 +1621,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Button>
                   )}
                 </div>
-                <Card className={batchAutoPaused && !flashDismissed ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""} onClick={() => { if (batchAutoPaused) setFlashDismissed(true); }}>
+                <Card className={batchAutoPaused && !flashDismissed ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>
