@@ -1229,27 +1229,27 @@ export default function AddListingPage() {
           <div className="flex items-center justify-between gap-3">
             {/* Left cluster */}
             <div className="flex items-center gap-3 min-w-0">
-              <span className="text-[12px] font-bold tracking-widest text-slate-300 shrink-0">BATCH</span>
+              <span className="text-[15px] font-bold tracking-widest text-slate-300 shrink-0">BATCH</span>
               <div className="w-28 h-1.5 bg-slate-700 rounded-full overflow-hidden shrink-0">
                 <div
                   className="h-full bg-blue-500 transition-all duration-500"
                   style={{ width: `${Math.round(((batchIndex + 1) / batchRows.length) * 100)}%` }}
                 />
               </div>
-              <span className="text-[12px] font-mono text-slate-400 shrink-0">
+              <span className="text-[15px] font-mono text-slate-400 shrink-0">
                 {batchIndex + 1} / {batchRows.length}{" "}
-                <span className="text-[14px] font-bold text-white">(Row {batchRows[batchIndex]?.rowNumber})</span>
+                <span className="text-[17px] font-bold text-white">(Row {batchRows[batchIndex]?.rowNumber})</span>
               </span>
               {batchRows[batchIndex] && (
-                <span className="text-[12px] text-slate-400 shrink-0">
+                <span className="text-[15px] text-slate-400 shrink-0">
                   <span className="text-slate-600 mx-1">·</span>
                   GEO ID: <span className="font-mono font-bold text-white">{batchRows[batchIndex].colAC || "(new)"}</span>
                   <span className="text-slate-600 mx-1">·</span>
-                  Sheet row <span className="font-mono font-bold text-white text-[14px]">#{batchRows[batchIndex].rowNumber}</span>
+                  Sheet row <span className="font-mono font-bold text-white text-[17px]">#{batchRows[batchIndex].rowNumber}</span>
                 </span>
               )}
               {batchSkips.length > 0 && (
-                <span className="text-[11px] text-yellow-400 shrink-0">
+                <span className="text-[14px] text-yellow-400 shrink-0">
                   ⚠ Skipped: {batchSkips.join(", ")}
                 </span>
               )}
@@ -1701,6 +1701,28 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               <CardContent className="space-y-3 pt-4">
                 {/* Compact Form Grid - Horizontal Layout */}
                 <div className="grid grid-cols-3 gap-x-6 gap-y-2">
+                  {/* Status radio buttons span full width */}
+                  <div className="col-span-3 flex items-center gap-4 flex-wrap">
+                    <Label className={`text-xs w-16 shrink-0 ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Status</Label>
+                    <span className={`text-xs min-w-[100px] font-medium ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
+                      {editStatus || "—"}
+                    </span>
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                      <div key={status} className="flex items-center gap-1">
+                        <input
+                          type="radio"
+                          id={`status-${status}`}
+                          name="status"
+                          checked={editStatus === status}
+                          onChange={() => handleInputChange(setEditStatus)(status)}
+                          className="h-3 w-3 cursor-pointer"
+                        />
+                        <label htmlFor={`status-${status}`} className={`text-xs cursor-pointer whitespace-nowrap ${searchResult && normalizeStatus(status) === normalizeStatus(editStatus) && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
+                          {status}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                   {/* Row 1 - Type checkboxes span full width */}
                   <div className="col-span-3 flex items-center gap-6 flex-wrap">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
@@ -1839,28 +1861,6 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       }}
                       className="h-8 text-sm"
                     />
-                  </div>
-                  {/* Status radio buttons span full width */}
-                  <div className="col-span-3 flex items-center gap-4 flex-wrap">
-                    <Label className={`text-xs w-16 shrink-0 ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Status</Label>
-                    <span className={`text-xs min-w-[100px] font-medium ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
-                      {editStatus || "—"}
-                    </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
-                      <div key={status} className="flex items-center gap-1">
-                        <input
-                          type="radio"
-                          id={`status-${status}`}
-                          name="status"
-                          checked={editStatus === status}
-                          onChange={() => handleInputChange(setEditStatus)(status)}
-                          className="h-3 w-3 cursor-pointer"
-                        />
-                        <label htmlFor={`status-${status}`} className={`text-xs cursor-pointer whitespace-nowrap ${searchResult && normalizeStatus(status) === normalizeStatus(editStatus) && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
-                          {status}
-                        </label>
-                      </div>
-                    ))}
                   </div>
                 </div>
 
