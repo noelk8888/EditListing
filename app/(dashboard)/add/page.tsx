@@ -880,7 +880,7 @@ export default function AddListingPage() {
           floor_area: editFloorArea ? parseFloat(editFloorArea) : null,
           price: editPrice ? parseFloat(editPrice) : null,
           lease_price: editLeasePrice ? parseFloat(editLeasePrice) : null,
-          summary: useExistingMain ? editSummary : (rawText || editSummary),
+          summary: editSummary,
           residential: residential ? "RESIDENTIAL" : "",
           commercial: commercial ? "COMMERCIAL" : "",
           industrial: industrial ? "INDUSTRIAL" : "",
