@@ -1702,7 +1702,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 {/* Compact Form Grid - Horizontal Layout */}
                 <div className="grid grid-cols-3 gap-x-6 gap-y-2">
                   {/* Status radio buttons span full width */}
-                  <div className="col-span-3 flex items-center gap-4 flex-wrap">
+                  <div className={`col-span-3 flex items-center gap-4 flex-wrap rounded px-2 py-0.5 transition-colors ${batchAutoPaused && !flashDismissed && editStatus !== "AVAILABLE" ? (flashOn ? "bg-red-500 text-white" : "bg-red-50 border border-red-400") : ""}`}>
                     <Label className={`text-xs w-16 shrink-0 ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Status</Label>
                     <span className={`text-xs min-w-[100px] font-medium ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
                       {editStatus || "—"}
