@@ -869,6 +869,15 @@ export default function AddListingPage() {
     }
   };
 
+  // Extract bare name from ownerBroker (strips "Owner - " / "Cobroker - " prefix)
+  const extractBrokerName = (val: string) => val.replace(/^(Owner|Cobroker) - /, "").trim();
+
+  // Keep Listing Ownership in sync: "Sales Associate - <name>"
+  const syncListingOwnership = (brokerVal: string) => {
+    const name = extractBrokerName(brokerVal);
+    setListingOwnership(name ? `Sales Associate - ${name}` : "Sales Associate - ");
+  };
+
   // When Direct/CoBroker selection changes, auto-prefix ownerBroker field
   const handleDirectOrCobrokerChange = (v: string) => {
     handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "");
@@ -876,8 +885,16 @@ export default function AddListingPage() {
     if (!prefix) return;
     setOwnerBroker((prev) => {
       const stripped = prev.replace(/^(Owner|Cobroker) - /, "");
-      return stripped ? `${prefix}${stripped}` : prefix;
+      const next = stripped ? `${prefix}${stripped}` : prefix;
+      syncListingOwnership(next);
+      return next;
     });
+  };
+
+  // When Owner/CoBroker name is typed, keep Listing Ownership in sync
+  const handleOwnerBrokerChange = (val: string) => {
+    handleInputChange(setOwnerBroker)(val);
+    syncListingOwnership(val);
   };
 
   // Toggle today button manually
@@ -2009,7 +2026,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   {permissions.view_contact !== false && (
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Owner/CoBroker</Label>
-                      <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
+                      <Input value={ownerBroker} onChange={(e) => handleOwnerBrokerChange(e.target.value)} className="h-8 text-sm" />
                     </div>
                   )}
                   {permissions.view_contact !== false && (
@@ -2312,7 +2329,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   {permissions.view_contact !== false && (
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Owner/CoBroker</Label>
-                      <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
+                      <Input value={ownerBroker} onChange={(e) => handleOwnerBrokerChange(e.target.value)} className="h-8 text-sm" />
                     </div>
                   )}
                   {permissions.view_contact !== false && (
@@ -2793,7 +2810,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Owner/CoBroker</Label>
-                  <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
+                  <Input value={ownerBroker} onChange={(e) => handleOwnerBrokerChange(e.target.value)} className="h-8 text-sm" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Away</Label>
