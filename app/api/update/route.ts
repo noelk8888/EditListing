@@ -63,7 +63,6 @@ export async function POST(request: Request) {
       send_telegram,
       telegram_post_message,
       telegram_groups,
-      write_to_backup,
     } = body;
 
     if (!id) {
@@ -330,14 +329,12 @@ export async function POST(request: Request) {
         console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
       }
 
-      // Sync A-P to 2nd backup sheet if requested and configured
-      if (write_to_backup) {
-        const backupId = process.env.BACKUP_SPREADSHEET_ID;
-        if (backupId) {
-          await updateDisplayColumnsInSheet(id, displayData, backupId).catch((err) =>
-            console.warn("⚠️ Backup sync failed (non-fatal):", err)
-          );
-        }
+      // Always sync A-P to 2nd backup sheet if configured
+      const backupId = process.env.BACKUP_SPREADSHEET_ID;
+      if (backupId) {
+        await updateDisplayColumnsInSheet(id, displayData, backupId).catch((err) =>
+          console.warn("⚠️ Backup sync failed (non-fatal):", err)
+        );
       }
     } catch (gsheetError) {
       const msg = gsheetError instanceof Error ? gsheetError.message : String(gsheetError);
