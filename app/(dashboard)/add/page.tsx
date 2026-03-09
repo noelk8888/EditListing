@@ -869,15 +869,6 @@ export default function AddListingPage() {
     }
   };
 
-  // Extract bare name from ownerBroker (strips "Owner - " / "Cobroker - " prefix)
-  const extractBrokerName = (val: string) => val.replace(/^(Owner|Cobroker) - /, "").trim();
-
-  // Keep Listing Ownership in sync: "Sales Associate - <name>"
-  const syncListingOwnership = (brokerVal: string) => {
-    const name = extractBrokerName(brokerVal);
-    setListingOwnership(name ? `Sales Associate - ${name}` : "Sales Associate - ");
-  };
-
   // When Direct/CoBroker selection changes, auto-prefix ownerBroker field
   const handleDirectOrCobrokerChange = (v: string) => {
     handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "");
@@ -885,16 +876,16 @@ export default function AddListingPage() {
     if (!prefix) return;
     setOwnerBroker((prev) => {
       const stripped = prev.replace(/^(Owner|Cobroker) - /, "");
-      const next = stripped ? `${prefix}${stripped}` : prefix;
-      syncListingOwnership(next);
-      return next;
+      return stripped ? `${prefix}${stripped}` : prefix;
     });
+    // Pre-fill Listing Ownership with "Sales Associate " only if currently empty
+    setListingOwnership((prev) => prev ? prev : "Sales Associate ");
   };
 
-  // When Owner/CoBroker name is typed, keep Listing Ownership in sync
+  // When Owner/CoBroker name is typed, pre-fill Listing Ownership if still empty
   const handleOwnerBrokerChange = (val: string) => {
     handleInputChange(setOwnerBroker)(val);
-    syncListingOwnership(val);
+    setListingOwnership((prev) => prev ? prev : "Sales Associate ");
   };
 
   // Toggle today button manually
