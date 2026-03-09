@@ -1046,8 +1046,9 @@ export default function AddListingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
+      setShowDeleteConfirm(false);
       alert(`🗑️ Listing ${searchResult.id} has been permanently deleted.`);
-      router.push("/add");
+      window.location.href = "/add";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
       setShowDeleteConfirm(false);
