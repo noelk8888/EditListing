@@ -869,6 +869,17 @@ export default function AddListingPage() {
     }
   };
 
+  // When Direct/CoBroker selection changes, auto-prefix ownerBroker field
+  const handleDirectOrCobrokerChange = (v: string) => {
+    handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "");
+    const prefix = v === "Direct to Owner" ? "Owner - " : v === "With Cobroker" ? "Cobroker - " : "";
+    if (!prefix) return;
+    setOwnerBroker((prev) => {
+      const stripped = prev.replace(/^(Owner|Cobroker) - /, "");
+      return stripped ? `${prefix}${stripped}` : prefix;
+    });
+  };
+
   // Toggle today button manually
   const handleTodayToggle = () => {
     if (todayToggle) {
@@ -1982,8 +1993,8 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   {/* Row 3 */}
                   {permissions.view_contact !== false && (
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/Co</Label>
-                      <Select value={directOrCobroker} onValueChange={(v) => handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "")}>
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/CoBroker</Label>
+                      <Select value={directOrCobroker} onValueChange={handleDirectOrCobrokerChange}>
                         <SelectTrigger className="h-8 text-sm">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
@@ -1996,7 +2007,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   )}
                   {permissions.view_contact !== false && (
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Broker</Label>
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Owner/CoBroker</Label>
                       <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
                     </div>
                   )}
@@ -2026,7 +2037,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Ownership</Label>
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
                     <Input value={listingOwnership} onChange={(e) => handleInputChange(setListingOwnership)(e.target.value)} className="h-8 text-sm" />
                   </div>
 
@@ -2285,8 +2296,8 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   </div>
                   {permissions.view_contact !== false && (
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/Co</Label>
-                      <Select value={directOrCobroker} onValueChange={(v) => handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "")}>
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/CoBroker</Label>
+                      <Select value={directOrCobroker} onValueChange={handleDirectOrCobrokerChange}>
                         <SelectTrigger className="h-8 text-sm">
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
@@ -2299,7 +2310,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   )}
                   {permissions.view_contact !== false && (
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Broker</Label>
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Owner/CoBroker</Label>
                       <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
                     </div>
                   )}
@@ -2314,7 +2325,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     <Input type="date" value={dateReceived} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Ownership</Label>
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
                     <Input value={listingOwnership} onChange={(e) => handleInputChange(setListingOwnership)(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div className="flex items-center gap-2">
@@ -2768,8 +2779,8 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
 
                 {/* Row 3 */}
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/Co</Label>
-                  <Select value={directOrCobroker} onValueChange={(v) => handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "")}>
+                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Direct/CoBroker</Label>
+                  <Select value={directOrCobroker} onValueChange={handleDirectOrCobrokerChange}>
                     <SelectTrigger className="h-8 text-sm">
                       <SelectValue placeholder="Select" />
                     </SelectTrigger>
@@ -2780,7 +2791,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   </Select>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Broker</Label>
+                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Owner/CoBroker</Label>
                   <Input value={ownerBroker} onChange={(e) => handleInputChange(setOwnerBroker)(e.target.value)} className="h-8 text-sm" />
                 </div>
                 <div className="flex items-center gap-2">
@@ -2807,7 +2818,7 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   </Button>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Ownership</Label>
+                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
                   <Input value={listingOwnership} onChange={(e) => handleInputChange(setListingOwnership)(e.target.value)} className="h-8 text-sm" />
                 </div>
 
