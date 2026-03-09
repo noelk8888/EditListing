@@ -169,7 +169,11 @@ export async function POST(request: Request) {
     // Mirror to 2nd Backup GSheet
     const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;
     let backupError: string | null = null;
-    if (backupSpreadsheetId) {
+    let backupSkipped = false;
+    if (!backupSpreadsheetId) {
+      backupSkipped = true;
+      console.warn("⚠️ BACKUP_SPREADSHEET_ID not set — backup skipped");
+    } else {
       try {
         await addNewGSheetRow(displayData, newGeoId, syncData, undefined, backupSpreadsheetId);
         console.log("✅ Backup GSheet row added for GEO ID:", newGeoId);
@@ -250,7 +254,7 @@ export async function POST(request: Request) {
       success: true,
       geoId: newGeoId,
       data: data?.[0],
-      backupError: backupError ?? undefined,
+      backupError: backupError ?? (backupSkipped ? "BACKUP_SPREADSHEET_ID not configured in Vercel env" : undefined),
     });
   } catch (err) {
     console.error("API error:", err);
