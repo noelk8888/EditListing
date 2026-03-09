@@ -1602,14 +1602,56 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
 
             {/* RIGHT: New listing notice */}
             {!searchResult && searchPerformed && !searching && (
-              <div className="flex flex-col items-center justify-center rounded-xl border-2 border-green-400 bg-green-50 px-8 py-16 text-center shadow-sm">
-                <CheckCircle2 className="mb-4 h-16 w-16 text-green-500" />
-                <p className="text-3xl font-bold text-green-700 leading-snug">
-                  No existing listing found
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-green-600">
-                  This appears to be new!
-                </p>
+              <div className="flex flex-col items-center justify-center rounded-xl border-2 border-green-400 bg-green-50 px-8 py-16 text-center shadow-sm gap-6">
+                <CheckCircle2 className="h-16 w-16 text-green-500" />
+                <div>
+                  <p className="text-3xl font-bold text-green-700 leading-snug">
+                    No existing listing found
+                  </p>
+                  <p className="mt-2 text-2xl font-semibold text-green-600">
+                    This appears to be new!
+                  </p>
+                </div>
+                {/* GEO ID confirm + Extract */}
+                <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+                  <div className="flex items-center gap-2 p-2 rounded-md border bg-white w-full">
+                    <Checkbox
+                      id="geo-id-confirm-notice"
+                      checked={geoIdConfirmed}
+                      onCheckedChange={(c) => setGeoIdConfirmed(!!c)}
+                    />
+                    <label htmlFor="geo-id-confirm-notice" className="text-xs text-muted-foreground font-medium cursor-pointer whitespace-nowrap">
+                      GEO ID
+                    </label>
+                    <Input
+                      value={newGeoId}
+                      onChange={(e) => { setNewGeoId(e.target.value.toUpperCase()); setGeoIdConfirmed(false); }}
+                      className="h-8 w-28 text-sm font-mono font-bold"
+                      placeholder="G00000"
+                    />
+                    {suggestedGeoId && newGeoId !== suggestedGeoId && (
+                      <button
+                        type="button"
+                        onClick={() => { setNewGeoId(suggestedGeoId); setGeoIdConfirmed(false); }}
+                        className="text-xs text-muted-foreground hover:text-foreground underline whitespace-nowrap"
+                      >
+                        use {suggestedGeoId}
+                      </button>
+                    )}
+                    {geoIdConfirmed && (
+                      <span className="text-xs text-green-600 font-medium whitespace-nowrap">✓ CONFIRMED</span>
+                    )}
+                  </div>
+                  {permissions.ai_extract !== false && (
+                    <Button onClick={handleExtractData} disabled={loading} variant="default" className="w-full">
+                      {loading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
+                      ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
+                      )}
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
 
