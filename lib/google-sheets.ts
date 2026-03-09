@@ -1115,9 +1115,9 @@ export async function getDisplayDataByGeoId(geoId: string): Promise<GSheetDispla
  * Writes to columns A-P (display) and Z-BO (Supabase sync columns)
  * Returns the generated GEO ID
  */
-export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: string, syncData?: GSheetSyncData, updatedBy?: string): Promise<string> {
+export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: string, syncData?: GSheetSyncData, updatedBy?: string, overrideSpreadsheetId?: string): Promise<string> {
   const sheets = getSheets();
-  const spreadsheetId = process.env.SPREADSHEET_ID;
+  const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
 
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");

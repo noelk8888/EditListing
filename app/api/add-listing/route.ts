@@ -166,6 +166,14 @@ export async function POST(request: Request) {
     const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
+    // Mirror to 2nd Backup GSheet (non-fatal)
+    const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;
+    if (backupSpreadsheetId) {
+      addNewGSheetRow(displayData, newGeoId, syncData, undefined, backupSpreadsheetId).catch((err) =>
+        console.warn("⚠️ Backup GSheet append failed (non-fatal):", err)
+      );
+    }
+
     const mainWithGeoId = newGeoId + "\n" + (summary || "");
 
     // Step 2: Add to Supabase with the same GEO ID
