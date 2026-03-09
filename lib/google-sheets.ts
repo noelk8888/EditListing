@@ -1202,12 +1202,22 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     rowData[GSHEET_COLUMNS.BO_COMPOUND] = syncData.compound || "";
   }
 
+  // Resolve the actual sheet tab name (fallback to first sheet if "Sheet1" not found)
+  let sheetTabName = SHEET_NAME;
+  if (overrideSpreadsheetId) {
+    try {
+      const meta = await sheets.spreadsheets.get({ spreadsheetId });
+      const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+      sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+    } catch { /* keep SHEET_NAME as fallback */ }
+  }
+
   // Find the next empty row by checking the last row with data in col A and col AC.
   // Using values.update with an explicit range avoids the Sheets API table-detection
   // bug where append() can start writing at col BE instead of col A.
   const [colAResp, colACResp] = await Promise.all([
-    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!A:A` }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!AC:AC` }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetTabName}!A:A` }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetTabName}!AC:AC` }),
   ]);
   const rowsInColA = (colAResp.data.values || []).length;
   const rowsInColAC = (colACResp.data.values || []).length;
@@ -1216,7 +1226,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   // Write with an explicit A{n}:BO{n} reference — col A is always index 0
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${SHEET_NAME}!A${nextRow}:BO${nextRow}`,
+    range: `${sheetTabName}!A${nextRow}:BO${nextRow}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [rowData],
@@ -1229,7 +1239,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   try {
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
     const sheet = spreadsheet.data.sheets?.find(
-      (s) => s.properties?.title === SHEET_NAME
+      (s) => s.properties?.title === sheetTabName
     );
     const sheetId = sheet?.properties?.sheetId;
 
@@ -1272,7 +1282,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   if (updatedBy) {
     try {
       const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-      const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === SHEET_NAME);
+      const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === sheetTabName);
       const sheetId = sheet?.properties?.sheetId;
       if (sheetId !== undefined) {
         const now = new Date().toLocaleString("en-PH", {
