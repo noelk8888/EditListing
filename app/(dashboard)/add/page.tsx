@@ -114,6 +114,7 @@ export default function AddListingPage() {
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<SupabaseListing | null>(null);
   const [searchPerformed, setSearchPerformed] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [listingId, setListingId] = useState("");
   const [matchedBy, setMatchedBy] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -421,6 +422,7 @@ export default function AddListingPage() {
 
     setSearching(true);
     setError(null);
+    setSearchError(null);
     setSearchResult(null);
     setMatchedBy(null);
     setNewGeoId("");
@@ -514,7 +516,7 @@ export default function AddListingPage() {
         }
       }
     } catch (err) {
-      setError("Failed to search. Please try again.");
+      setSearchError("Failed to search. Please try again.");
     } finally {
       setSearching(false);
     }
@@ -1603,6 +1605,14 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                         </span>
                         <p className="text-sm font-normal mt-1">Pre-filled from existing listing - modify if needed</p>
                       </div>
+                    </div>
+                  </div>
+                )}
+                {searchError && !searching && (
+                  <div className="p-4 rounded-md border border-red-300 bg-red-50">
+                    <div className="flex items-center gap-2 text-red-700">
+                      <AlertCircle className="h-5 w-5" />
+                      <span className="font-semibold">{searchError}</span>
                     </div>
                   </div>
                 )}
