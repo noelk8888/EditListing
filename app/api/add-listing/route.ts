@@ -166,12 +166,17 @@ export async function POST(request: Request) {
     const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
-    // Mirror to 2nd Backup GSheet (awaited so it completes before response in serverless)
+    // Mirror to 2nd Backup GSheet
     const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;
+    let backupError: string | null = null;
     if (backupSpreadsheetId) {
-      await addNewGSheetRow(displayData, newGeoId, syncData, undefined, backupSpreadsheetId).catch((err) =>
-        console.warn("⚠️ Backup GSheet append failed (non-fatal):", err)
-      );
+      try {
+        await addNewGSheetRow(displayData, newGeoId, syncData, undefined, backupSpreadsheetId);
+        console.log("✅ Backup GSheet row added for GEO ID:", newGeoId);
+      } catch (err) {
+        backupError = err instanceof Error ? err.message : String(err);
+        console.error("❌ Backup GSheet append failed:", backupError);
+      }
     }
 
     const mainWithGeoId = newGeoId + "\n" + (summary || "");
@@ -245,6 +250,7 @@ export async function POST(request: Request) {
       success: true,
       geoId: newGeoId,
       data: data?.[0],
+      backupError: backupError ?? undefined,
     });
   } catch (err) {
     console.error("API error:", err);

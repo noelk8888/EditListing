@@ -1154,12 +1154,19 @@ export default function AddListingPage() {
       }
 
       // Success
+      if (data.backupError) {
+        console.error("Backup GSheet error:", data.backupError);
+        setError(`⚠️ Listing saved, but backup GSheet failed: ${data.backupError}`);
+      }
       if (batchActive) {
-        setError(null);
+        if (!data.backupError) setError(null);
         if (data.geoId) { setNewGeoId(data.geoId); setLastAssignedGeoId(data.geoId); }
         setBatchIndex(prev => prev + 1);
       } else {
-        alert(`New listing created: ${data.geoId}`);
+        const msg = data.backupError
+          ? `New listing created: ${data.geoId}\n\n⚠️ Backup GSheet failed: ${data.backupError}`
+          : `New listing created: ${data.geoId}`;
+        alert(msg);
         router.push("/");
       }
     } catch (err) {
