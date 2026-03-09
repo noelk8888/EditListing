@@ -129,7 +129,7 @@ export default function AddListingPage() {
   // === BATCH MODE STATE ===
   type BatchRow = { rowNumber: number; colA: string; colB: string; colC: string; colD: string; colE: string; colF: string; colG: string; colH: string; colI: string; colJ: string; colK: string; colL: string; colM: string; colN: string; colO: string; colP: string; colAC: string };
   const [batchMode, setBatchMode] = useState(false);      // setup panel open
-  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1jK5Sv4OO-6RHZhXITQd-S_kQxthZDiBzGcCZPelNGOw/edit");
+  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
@@ -142,6 +142,16 @@ export default function AddListingPage() {
   const [flashDismissed, setFlashDismissed] = useState(false);
   const [pendingExtractUpdate, setPendingExtractUpdate] = useState(false);
   const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
+
+  // === BACKUP SYNC STATE ===
+  const [backupStatus, setBackupStatus] = useState<"idle" | "loading" | "not-found" | "match" | "conflict">("idle");
+  const [backupData, setBackupData] = useState<{
+    blastedFormat: string; type: string; area: string; city: string;
+    lotArea: string; floorArea: string; price: string; saleOrLease: string;
+    withIncome: string; directCobroker: string; ownerBroker: string; away: string;
+    dateReceived: string; dateResorted: string; available: string; listingOwnership: string;
+  } | null>(null);
+  const [conflictResolved, setConflictResolved] = useState(false);
 
   // === TELEGRAM POST STATE ===
   const [telegramPostEnabled, setTelegramPostEnabled] = useState(false);
@@ -718,6 +728,61 @@ export default function AddListingPage() {
     }
   }, [searchResult]);
 
+  // Fetch 2nd backup row and detect conflict whenever a listing is loaded
+  useEffect(() => {
+    if (!searchResult) {
+      setBackupStatus("idle");
+      setBackupData(null);
+      setConflictResolved(false);
+      return;
+    }
+
+    setBackupStatus("loading");
+    setConflictResolved(false);
+
+    fetch(`/api/backup-row?geoId=${encodeURIComponent(searchResult.id)}`)
+      .then(r => r.json())
+      .then(result => {
+        if (!result.found) {
+          setBackupStatus("not-found");
+          setBackupData(null);
+          return;
+        }
+
+        const bd = result.data;
+        setBackupData(bd);
+
+        // Compare working (searchResult) vs backup to detect conflict
+        const workingBlasted = (searchResult.summary || "").startsWith(searchResult.id)
+          ? (searchResult.summary || "").split("\n").slice(1).join("\n")
+          : (searchResult.summary || "");
+
+        const differs = (a: string, b: string) =>
+          (a || "").trim().toLowerCase() !== (b || "").trim().toLowerCase();
+
+        const hasConflict =
+          differs(workingBlasted, bd.blastedFormat) ||
+          differs(searchResult.area || "", bd.area) ||
+          differs(searchResult.city || "", bd.city) ||
+          differs((searchResult.lot_area ?? "").toString(), bd.lotArea) ||
+          differs((searchResult.floor_area ?? "").toString(), bd.floorArea) ||
+          differs((searchResult.price ?? "").toString(), bd.price) ||
+          differs(searchResult.status || "", bd.available);
+
+        setBackupStatus(hasConflict ? "conflict" : "match");
+      })
+      .catch(() => setBackupStatus("idle"));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchResult?.id]);
+
+  // Default Date Received to today when search returns no existing listing
+  useEffect(() => {
+    if (searchPerformed && !searchResult) {
+      setDateReceived(new Date().toISOString().split("T")[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchPerformed, searchResult]);
+
   const canProceedFromPaste = rawText.trim().length > 0;
 
   // Helper: compare if a value is significantly different from Supabase (used in UI highlighting)
@@ -914,6 +979,7 @@ export default function AddListingPage() {
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,
+          write_to_backup: backupStatus === "match" || (backupStatus === "conflict" && conflictResolved),
         }),
       });
 
@@ -1497,30 +1563,19 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </div>
                   </div>
                 )}
-                {searchPerformed && !searching && (
-                  <>
-                    {searchResult ? (
-                      <div className="p-4 rounded-md border border-yellow-500 bg-yellow-50">
-                        <div className="flex items-center gap-2 text-yellow-700">
-                          <AlertCircle className="h-5 w-5" />
-                          <div>
-                            <span className="font-semibold">
-                              Existing Listing Found!
-                              {matchedBy && <span className="font-normal text-xs ml-2">(matched by {matchedBy})</span>}
-                            </span>
-                            <p className="text-sm font-normal mt-1">Pre-filled from existing listing - modify if needed</p>
-                          </div>
-                        </div>
+                {searchPerformed && !searching && searchResult && (
+                  <div className="p-4 rounded-md border border-yellow-500 bg-yellow-50">
+                    <div className="flex items-center gap-2 text-yellow-700">
+                      <AlertCircle className="h-5 w-5" />
+                      <div>
+                        <span className="font-semibold">
+                          Existing Listing Found!
+                          {matchedBy && <span className="font-normal text-xs ml-2">(matched by {matchedBy})</span>}
+                        </span>
+                        <p className="text-sm font-normal mt-1">Pre-filled from existing listing - modify if needed</p>
                       </div>
-                    ) : (
-                      <div className="p-4 rounded-md border border-green-500 bg-green-50">
-                        <div className="flex items-center gap-2 text-green-700">
-                          <CheckCircle2 className="h-5 w-5" />
-                          <span className="font-semibold">No existing listing found - this appears to be new!</span>
-                        </div>
-                      </div>
-                    )}
-                  </>
+                    </div>
+                  </div>
                 )}
 
                 <div className="flex gap-2">
@@ -1544,6 +1599,19 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                 </div>
               </CardContent>
             </Card>
+
+            {/* RIGHT: New listing notice */}
+            {!searchResult && searchPerformed && !searching && (
+              <div className="flex flex-col items-center justify-center rounded-xl border-2 border-green-400 bg-green-50 px-8 py-16 text-center shadow-sm">
+                <CheckCircle2 className="mb-4 h-16 w-16 text-green-500" />
+                <p className="text-3xl font-bold text-green-700 leading-snug">
+                  No existing listing found
+                </p>
+                <p className="mt-2 text-2xl font-semibold text-green-600">
+                  This appears to be new!
+                </p>
+              </div>
+            )}
 
             {/* RIGHT: Existing Listing Info */}
             {searchResult && (
@@ -1621,6 +1689,93 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                     </Button>
                   )}
                 </div>
+                {/* Backup: no-match warning */}
+                {backupStatus === "not-found" && (
+                  <div className="flex items-start gap-2 rounded-md border border-yellow-400 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
+                    <span className="mt-0.5 shrink-0">⚠️</span>
+                    <span>GEO ID <strong>{searchResult.id}</strong> not found in 2nd Backup sheet. Updates will only write to the Working GSheet.</span>
+                  </div>
+                )}
+
+                {/* Backup: conflict resolution */}
+                {backupStatus === "conflict" && !conflictResolved && backupData && (
+                  <div className="rounded-md border border-orange-400 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+                    <div className="mb-2 font-semibold text-orange-800">⚡ Conflict detected — Working GSheet and 2nd Backup have different data</div>
+                    <div className="mb-3 overflow-x-auto">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-orange-100">
+                            <th className="border border-orange-300 px-2 py-1 text-left font-semibold">Field</th>
+                            <th className="border border-orange-300 px-2 py-1 text-left font-semibold">Working GSheet</th>
+                            <th className="border border-orange-300 px-2 py-1 text-left font-semibold">2nd Backup</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { label: "Status", working: searchResult.status || "", backup: backupData.available },
+                            { label: "Area", working: searchResult.area || "", backup: backupData.area },
+                            { label: "City", working: searchResult.city || "", backup: backupData.city },
+                            { label: "Lot Area", working: (searchResult.lot_area ?? "").toString(), backup: backupData.lotArea },
+                            { label: "Floor Area", working: (searchResult.floor_area ?? "").toString(), backup: backupData.floorArea },
+                            { label: "Price", working: (searchResult.price ?? "").toString(), backup: backupData.price },
+                          ].map(({ label, working, backup }) => {
+                            const diff = working.trim().toLowerCase() !== backup.trim().toLowerCase();
+                            return (
+                              <tr key={label} className={diff ? "bg-red-50" : ""}>
+                                <td className="border border-orange-300 px-2 py-1 font-medium">{label}</td>
+                                <td className={`border border-orange-300 px-2 py-1 ${diff ? "font-semibold text-blue-700" : ""}`}>{working || "—"}</td>
+                                <td className={`border border-orange-300 px-2 py-1 ${diff ? "font-semibold text-purple-700" : ""}`}>{backup || "—"}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConflictResolved(true)}
+                        className="rounded bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                      >
+                        Use Working GSheet
+                      </button>
+                      <button
+                        onClick={() => {
+                          // Pre-fill form fields from backup data
+                          setEditSummary(backupData.blastedFormat);
+                          setEditArea(backupData.area);
+                          setEditCity(backupData.city);
+                          setEditLotArea(backupData.lotArea);
+                          setEditFloorArea(backupData.floorArea);
+                          setEditPrice(backupData.price);
+                          setEditStatus(normalizeStatus(backupData.available));
+                          setAvailable(backupData.available);
+                          if (backupData.saleOrLease) {
+                            const v = backupData.saleOrLease.toLowerCase();
+                            if (v.includes("sale") && v.includes("lease")) setSaleOrLease("Sale/Lease");
+                            else if (v.includes("lease")) setSaleOrLease("Lease");
+                            else if (v.includes("sale")) setSaleOrLease("Sale");
+                          }
+                          setOwnerBroker(backupData.ownerBroker);
+                          setHowManyAway(backupData.away);
+                          setListingOwnership(backupData.listingOwnership);
+                          setConflictResolved(true);
+                        }}
+                        className="rounded bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700"
+                      >
+                        Use 2nd Backup
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Backup: conflict resolved confirmation */}
+                {backupStatus === "conflict" && conflictResolved && (
+                  <div className="flex items-center gap-2 rounded-md border border-green-400 bg-green-50 px-3 py-2 text-sm text-green-800">
+                    <span>✅</span>
+                    <span>Conflict resolved — Extract / Update will write to both Working GSheet and 2nd Backup.</span>
+                  </div>
+                )}
+
                 <Card className={batchAutoPaused && !flashDismissed ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -2031,6 +2186,28 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
               <CardContent className="space-y-3">
                 {/* Compact Form Grid */}
                 <div className="grid grid-cols-3 gap-x-6 gap-y-2">
+                  {/* Status radio buttons span full width — placed above Type */}
+                  <div className={`col-span-3 flex items-center gap-4 flex-wrap rounded px-2 py-0.5 transition-colors ${batchAutoPaused && !flashDismissed && editStatus !== "AVAILABLE" ? (flashOn ? "bg-red-500 text-white" : "bg-red-50 border border-red-400") : ""}`}>
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Status</Label>
+                    <span className="text-xs min-w-[100px] font-medium">
+                      {editStatus || "—"}
+                    </span>
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                      <div key={status} className="flex items-center gap-1">
+                        <input
+                          type="radio"
+                          id={`new-status-${status}`}
+                          name="new-status"
+                          checked={editStatus === status}
+                          onChange={() => handleInputChange(setEditStatus)(status)}
+                          className="h-3 w-3 cursor-pointer"
+                        />
+                        <label htmlFor={`new-status-${status}`} className="text-xs cursor-pointer whitespace-nowrap">
+                          {status}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
                   {/* Type checkboxes span full width */}
                   <div className="col-span-3 flex items-center gap-6 flex-wrap">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
@@ -2121,28 +2298,6 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                       onChange={(e) => setPhotosLink(e.target.value)}
                       className="h-8 text-sm"
                     />
-                  </div>
-                  {/* Status radio buttons span full width */}
-                  <div className={`col-span-3 flex items-center gap-4 flex-wrap rounded px-2 py-0.5 transition-colors ${batchAutoPaused && !flashDismissed && editStatus !== "AVAILABLE" ? (flashOn ? "bg-red-500 text-white" : "bg-red-50 border border-red-400") : ""}`}>
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Status</Label>
-                    <span className="text-xs min-w-[100px] font-medium">
-                      {editStatus || "—"}
-                    </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
-                      <div key={status} className="flex items-center gap-1">
-                        <input
-                          type="radio"
-                          id={`new-status-${status}`}
-                          name="new-status"
-                          checked={editStatus === status}
-                          onChange={() => handleInputChange(setEditStatus)(status)}
-                          className="h-3 w-3 cursor-pointer"
-                        />
-                        <label htmlFor={`new-status-${status}`} className="text-xs cursor-pointer whitespace-nowrap">
-                          {status}
-                        </label>
-                      </div>
-                    ))}
                   </div>
                 </div>
 

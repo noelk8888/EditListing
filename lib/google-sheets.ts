@@ -947,6 +947,102 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 }
 
 /**
+ * Find a row number by GEO ID in any spreadsheet (strict Col AC match, no fallback).
+ */
+async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string): Promise<number | null> {
+  const sheets = getSheets();
+  await ensureSheetDimensions(sheets, spreadsheetId, 29);
+
+  const acResponse = await runWithExpansion(sheets, spreadsheetId, 29, () =>
+    sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${SHEET_NAME}!AC2:AC`,
+    })
+  );
+
+  const acColumn = acResponse.data.values || [];
+  const acIndex = acColumn.findIndex((row) => row[0] === geoId);
+  return acIndex !== -1 ? acIndex + 2 : null;
+}
+
+/**
+ * Read Cols A-P from a specific spreadsheet by GEO ID (strict Col AC match).
+ * Returns null if not found.
+ */
+export async function getDisplayDataFromSheet(
+  geoId: string,
+  spreadsheetId: string
+): Promise<{ rowNumber: number; data: GSheetDisplayData } | null> {
+  const rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId);
+  if (!rowNumber) return null;
+
+  const sheets = getSheets();
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
+  });
+
+  const row = response.data.values?.[0] || [];
+  return {
+    rowNumber,
+    data: {
+      blastedFormat: row[0] || "",
+      type: row[1] || "",
+      area: row[2] || "",
+      city: row[3] || "",
+      lotArea: row[4] || "",
+      floorArea: row[5] || "",
+      price: row[6] || "",
+      saleOrLease: row[7] || "",
+      withIncome: row[8] || "",
+      directCobroker: row[9] || "",
+      ownerBroker: row[10] || "",
+      away: row[11] || "",
+      dateReceived: row[12] || "",
+      dateResorted: row[13] || "",
+      available: row[14] || "",
+      listingOwnership: row[15] || "",
+    },
+  };
+}
+
+/**
+ * Write Cols A-P to a specific spreadsheet by GEO ID (strict Col AC match — no fallback).
+ * Returns false if GEO ID not found in that sheet.
+ */
+export async function updateDisplayColumnsInSheet(
+  geoId: string,
+  data: GSheetDisplayData,
+  spreadsheetId: string
+): Promise<boolean> {
+  const rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId);
+  if (!rowNumber) {
+    console.log(`Backup sync skipped: GEO ID ${geoId} not found in ${spreadsheetId}`);
+    return false;
+  }
+
+  const sheets = getSheets();
+  const rowData = [
+    data.blastedFormat, data.type, data.area, data.city,
+    data.lotArea, data.floorArea, data.price, data.saleOrLease,
+    data.withIncome, data.directCobroker, data.ownerBroker, data.away,
+    data.dateReceived, data.dateResorted, data.available, data.listingOwnership,
+  ];
+
+  await runWithExpansion(sheets, spreadsheetId, 16, () =>
+    sheets.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
+      valueInputOption: "USER_ENTERED",
+      requestBody: { values: [rowData] },
+    })
+  );
+
+  console.log(`✅ Backup sync: GEO ID ${geoId} → row ${rowNumber} in ${spreadsheetId}`);
+  return true;
+}
+
+/**
  * Apply bidirectional fallback logic between display (A-P) and Supabase (Z-BO) columns
  */
 export function applyFallbackLogic(gsheetRow: GSheetFullRow): GSheetDisplayData {
