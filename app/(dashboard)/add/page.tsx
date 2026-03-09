@@ -159,7 +159,7 @@ export default function AddListingPage() {
   const [telegramLine1, setTelegramLine1] = useState("");
   const [telegramLine2, setTelegramLine2] = useState("");
   const [telegramLine3, setTelegramLine3] = useState("");
-  const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL"]);
+  const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL", "UPDATE LISTING"]);
 
   // === PERMISSIONS ===
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
@@ -930,8 +930,9 @@ export default function AddListingPage() {
         ...(industrial ? ["INDUSTRIAL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
+        "UPDATE LISTING",
       ];
-      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL"]);
+      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING"]);
       setShowTelegramModal(true);
     } else {
       confirmUpdate();
@@ -1091,8 +1092,9 @@ export default function AddListingPage() {
         ...(industrial ? ["INDUSTRIAL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
+        "UPDATE LISTING",
       ];
-      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL"]);
+      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING"]);
       setShowTelegramModal(true);
     } else {
       confirmAddNew();
