@@ -25,9 +25,11 @@ export async function POST(request: Request) {
     // Delete from backup GSheet if configured (non-fatal)
     const backupId = process.env.BACKUP_SPREADSHEET_ID;
     if (backupId) {
-      deleteListing(id, backupId).catch((err) =>
-        console.warn("⚠️ Backup delete failed (non-fatal):", err)
-      );
+      const backupDeleted = await deleteListing(id, backupId).catch((err) => {
+        console.warn("⚠️ Backup delete failed (non-fatal):", err);
+        return false;
+      });
+      console.log(backupDeleted ? `✅ Backup GSheet row deleted for ${id}` : `⚠️ ${id} not found in Backup GSheet`);
     }
 
     // Delete from Supabase
