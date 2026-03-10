@@ -1793,12 +1793,12 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                         </thead>
                         <tbody>
                           {[
-                            { label: "Status", working: searchResult.status || "", backup: backupData.available },
-                            { label: "Area", working: searchResult.area || "", backup: backupData.area },
-                            { label: "City", working: searchResult.city || "", backup: backupData.city },
-                            { label: "Lot Area", working: (searchResult.lot_area ?? "").toString(), backup: backupData.lotArea },
-                            { label: "Floor Area", working: (searchResult.floor_area ?? "").toString(), backup: backupData.floorArea },
-                            { label: "Price", working: (searchResult.price ?? "").toString(), backup: backupData.price },
+                            { label: "Status", working: available || searchResult.status || "", backup: backupData.available },
+                            { label: "Area", working: editArea, backup: backupData.area },
+                            { label: "City", working: editCity, backup: backupData.city },
+                            { label: "Lot Area", working: editLotArea, backup: backupData.lotArea },
+                            { label: "Floor Area", working: editFloorArea, backup: backupData.floorArea },
+                            { label: "Price", working: editPrice, backup: backupData.price },
                           ].map(({ label, working, backup }) => {
                             const diff = working.trim().toLowerCase() !== backup.trim().toLowerCase();
                             return (
