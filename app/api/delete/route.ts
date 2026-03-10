@@ -18,9 +18,17 @@ export async function POST(request: Request) {
 
     console.log("=== DELETING LISTING ===", id);
 
-    // Delete from GSheet
+    // Delete from working GSheet
     const gsheetDeleted = await deleteListing(id);
     console.log(gsheetDeleted ? `✅ GSheet row deleted for ${id}` : `⚠️ ${id} not found in GSheet`);
+
+    // Delete from backup GSheet if configured (non-fatal)
+    const backupId = process.env.BACKUP_SPREADSHEET_ID;
+    if (backupId) {
+      deleteListing(id, backupId).catch((err) =>
+        console.warn("⚠️ Backup delete failed (non-fatal):", err)
+      );
+    }
 
     // Delete from Supabase
     const { error, count } = await supabase

@@ -1658,17 +1658,27 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
   return results;
 }
 
-export async function deleteListing(id: string): Promise<boolean> {
+export async function deleteListing(id: string, overrideSpreadsheetId?: string): Promise<boolean> {
   const sheets = getSheets();
-  const spreadsheetId = process.env.SPREADSHEET_ID;
+  const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
 
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
+  // Resolve actual tab name (for backup sheets with different tab names)
+  let sheetTabName = SHEET_NAME;
+  if (overrideSpreadsheetId) {
+    try {
+      const meta = await sheets.spreadsheets.get({ spreadsheetId });
+      const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+      sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+    } catch { /* keep SHEET_NAME */ }
+  }
+
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${SHEET_NAME}!AC2:AC`,
+    range: `${sheetTabName}!AC2:AC`,
   });
 
   const idColumn = response.data.values || [];
@@ -1685,7 +1695,7 @@ export async function deleteListing(id: string): Promise<boolean> {
   });
 
   const sheet = spreadsheet.data.sheets?.find(
-    (s) => s.properties?.title === SHEET_NAME
+    (s) => s.properties?.title === sheetTabName
   );
 
   if (!sheet?.properties?.sheetId) {
