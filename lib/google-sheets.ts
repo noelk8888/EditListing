@@ -694,6 +694,71 @@ export interface GSheetSyncData {
 }
 
 /**
+ * Data for the 10 paired columns that must stay in sync between
+ * display (A-P) and sync (Z-BO) sections of the GSheet.
+ */
+export interface PairedColumnData {
+  status: string;
+  lotArea: string;
+  floorArea: string;
+  withIncome: string;
+  directBroker: string;
+  ownerBroker: string;
+  away: string;
+  dateRecv: string;
+  dateUpdated: string;
+  listingOwnership: string;
+}
+
+/**
+ * Write ONLY the 10 paired columns to both their display (A-P) and sync (Z-BO)
+ * locations in a single batchUpdate. Used by the Supabase webhook handler so
+ * that a direct Supabase update (e.g. from Luxe Listing) is reflected in GSheet.
+ */
+export async function syncPairedColumns(
+  geoId: string,
+  data: PairedColumnData,
+  overrideSpreadsheetId?: string
+): Promise<boolean> {
+  const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
+  if (!spreadsheetId) throw new Error("SPREADSHEET_ID not configured");
+
+  const sheets = getSheets();
+  await ensureSheetDimensions(sheets, spreadsheetId, 56);
+
+  const rowNumber = overrideSpreadsheetId
+    ? await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId)
+    : await findRowByGeoId(geoId);
+
+  if (!rowNumber) {
+    console.log(`syncPairedColumns: GEO ID ${geoId} not found in ${spreadsheetId}`);
+    return false;
+  }
+
+  await runWithExpansion(sheets, spreadsheetId, 56, () =>
+    sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        valueInputOption: "USER_ENTERED",
+        data: [
+          // Display cols: E:F (lotArea, floorArea)
+          { range: `${SHEET_NAME}!E${rowNumber}:F${rowNumber}`, values: [[data.lotArea, data.floorArea]] },
+          // Display cols: I:P (withIncome → listingOwnership)
+          { range: `${SHEET_NAME}!I${rowNumber}:P${rowNumber}`, values: [[data.withIncome, data.directBroker, data.ownerBroker, data.away, data.dateRecv, data.dateUpdated, data.status, data.listingOwnership]] },
+          // Sync cols: AO:AQ (lotArea, floorArea, status)
+          { range: `${SHEET_NAME}!AO${rowNumber}:AQ${rowNumber}`, values: [[data.lotArea, data.floorArea, data.status]] },
+          // Sync cols: AX:BD (withIncome → listingOwnership)
+          { range: `${SHEET_NAME}!AX${rowNumber}:BD${rowNumber}`, values: [[data.withIncome, data.directBroker, data.ownerBroker, data.away, data.dateRecv, data.dateUpdated, data.listingOwnership]] },
+        ],
+      },
+    })
+  );
+
+  console.log(`✅ syncPairedColumns: ${geoId} row ${rowNumber} in ${spreadsheetId}`);
+  return true;
+}
+
+/**
  * Update Supabase sync columns Z-BO for a listing by GEO ID
  */
 export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig): Promise<boolean> {
