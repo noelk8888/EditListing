@@ -8,8 +8,8 @@ const str = (val: unknown): string => {
 
 export async function POST(request: Request) {
   // Verify shared secret sent by Supabase webhook
-  const incomingSecret = request.headers.get("x-webhook-secret");
-  const expectedSecret = process.env.SUPABASE_WEBHOOK_SECRET;
+  const incomingSecret = request.headers.get("x-webhook-secret")?.trim();
+  const expectedSecret = process.env.SUPABASE_WEBHOOK_SECRET?.trim();
 
   if (!expectedSecret || incomingSecret !== expectedSecret) {
     console.warn("sync-status: unauthorized webhook call");
