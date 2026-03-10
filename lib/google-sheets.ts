@@ -774,7 +774,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
       return data.main;
     })();
 
-  // Batch write: COL A (blastedFormat) + COL Z-BO (sync data) in one API call
+  // Batch write: COL A (blastedFormat) + COL Z-BO (sync data) + paired display cols in one API call
   await runWithExpansion(sheets, spreadsheetId, 67, () =>
     sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
@@ -788,6 +788,15 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
           {
             range: `${SHEET_NAME}!Z${rowNumber}:BO${rowNumber}`,
             values: [rowData],
+          },
+          // Keep paired display cols (E:F, I:P) in sync with their Z-BO counterparts (AO:AQ, AX:BD)
+          {
+            range: `${SHEET_NAME}!E${rowNumber}:F${rowNumber}`,
+            values: [[data.lotArea, data.floorArea]],
+          },
+          {
+            range: `${SHEET_NAME}!I${rowNumber}:P${rowNumber}`,
+            values: [[data.withIncome, data.directBroker, data.name, data.away, data.dateRecv, data.dateUpdated, data.status, data.listingOwnership]],
           },
         ],
       },
@@ -879,14 +888,27 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     data.listingOwnership,   // P
   ];
 
-  // Write values
-  await runWithExpansion(sheets, spreadsheetId, 16, () =>
-    sheets.spreadsheets.values.update({
+  // Write values: A-P (display) + paired sync cols AO:AQ and AX:BD in one batch
+  await runWithExpansion(sheets, spreadsheetId, 56, () =>
+    sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
-      range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
-      valueInputOption: "USER_ENTERED",
       requestBody: {
-        values: [rowData],
+        valueInputOption: "USER_ENTERED",
+        data: [
+          {
+            range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
+            values: [rowData],
+          },
+          // Keep paired sync cols (AO:AQ, AX:BD) in sync with their display counterparts (E:F, I:P)
+          {
+            range: `${SHEET_NAME}!AO${rowNumber}:AQ${rowNumber}`,
+            values: [[data.lotArea, data.floorArea, data.available]],
+          },
+          {
+            range: `${SHEET_NAME}!AX${rowNumber}:BD${rowNumber}`,
+            values: [[data.withIncome, data.directCobroker, data.ownerBroker, data.away, data.dateReceived, data.dateResorted, data.listingOwnership]],
+          },
+        ],
       },
     })
   );
