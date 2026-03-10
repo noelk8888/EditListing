@@ -1310,6 +1310,64 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   return geoId;
 }
 
+/**
+ * Append only Cols A-P + GEO ID (Col AC) to a backup spreadsheet.
+ * Lighter than addNewGSheetRow — no sync cols, no formatting, no notes.
+ */
+export async function appendDisplayRowToSheet(
+  data: GSheetDisplayData,
+  geoId: string,
+  spreadsheetId: string
+): Promise<void> {
+  const sheets = getSheets();
+
+  // Resolve actual tab name (fallback to first sheet)
+  let sheetTabName = SHEET_NAME;
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+    sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+  } catch { /* keep SHEET_NAME */ }
+
+  // Find next empty row
+  const [colAResp, colACResp] = await Promise.all([
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetTabName}!A:A` }),
+    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetTabName}!AC:AC` }),
+  ]);
+  const nextRow = Math.max(
+    (colAResp.data.values || []).length,
+    (colACResp.data.values || []).length
+  ) + 1;
+
+  // Build A-AC row (29 cols), fill only A-P (0-15) and AC (28)
+  const rowData: string[] = new Array(29).fill("");
+  rowData[GSHEET_COLUMNS.A_BLASTED_FORMAT] = data.blastedFormat;
+  rowData[GSHEET_COLUMNS.B_TYPE] = data.type;
+  rowData[GSHEET_COLUMNS.C_AREA] = data.area;
+  rowData[GSHEET_COLUMNS.D_CITY] = data.city;
+  rowData[GSHEET_COLUMNS.E_LOT_AREA] = data.lotArea;
+  rowData[GSHEET_COLUMNS.F_FLOOR_AREA] = data.floorArea;
+  rowData[GSHEET_COLUMNS.G_PRICE] = data.price;
+  rowData[GSHEET_COLUMNS.H_SALE_OR_LEASE] = data.saleOrLease;
+  rowData[GSHEET_COLUMNS.I_WITH_INCOME] = data.withIncome;
+  rowData[GSHEET_COLUMNS.J_DIRECT_COBROKER] = data.directCobroker;
+  rowData[GSHEET_COLUMNS.K_OWNER_BROKER] = data.ownerBroker;
+  rowData[GSHEET_COLUMNS.L_AWAY] = data.away;
+  rowData[GSHEET_COLUMNS.M_DATE_RECEIVED] = data.dateReceived;
+  rowData[GSHEET_COLUMNS.N_DATE_RESORTED] = data.dateResorted;
+  rowData[GSHEET_COLUMNS.O_AVAILABLE] = data.available;
+  rowData[GSHEET_COLUMNS.P_LISTING_OWNERSHIP] = data.listingOwnership;
+  rowData[GSHEET_COLUMNS.AC_GEO_ID] = geoId;
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetTabName}!A${nextRow}:AC${nextRow}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [rowData] },
+  });
+  console.log(`✅ Backup row appended for ${geoId} (row ${nextRow}, cols A-P + AC)`);
+}
+
 // ============================================================================
 // LEGACY FUNCTIONS - For backward compatibility with other parts of the app
 // These use a different column structure and are kept for compatibility

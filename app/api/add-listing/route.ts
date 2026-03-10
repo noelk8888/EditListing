@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { addNewGSheetRow, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { addNewGSheetRow, appendDisplayRowToSheet, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -175,7 +175,7 @@ export async function POST(request: Request) {
       console.warn("⚠️ BACKUP_SPREADSHEET_ID not set — backup skipped");
     } else {
       try {
-        await addNewGSheetRow(displayData, newGeoId, syncData, undefined, backupSpreadsheetId);
+        await appendDisplayRowToSheet(displayData, newGeoId, backupSpreadsheetId);
         console.log("✅ Backup GSheet row added for GEO ID:", newGeoId);
       } catch (err) {
         backupError = err instanceof Error ? err.message : String(err);
