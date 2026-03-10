@@ -761,6 +761,12 @@ export default function AddListingPage() {
 
         const differs = (a: string, b: string) =>
           (a || "").trim().toLowerCase() !== (b || "").trim().toLowerCase();
+        const differsPrice = (a: string, b: string) => {
+          const na = parseFloat((a || "").replace(/,/g, ""));
+          const nb = parseFloat((b || "").replace(/,/g, ""));
+          if (!isNaN(na) && !isNaN(nb)) return Math.abs(na - nb) > 0.01;
+          return differs(a, b);
+        };
 
         const hasConflict =
           differs(workingBlasted, bd.blastedFormat) ||
@@ -768,7 +774,7 @@ export default function AddListingPage() {
           differs(searchResult.city || "", bd.city) ||
           differs((searchResult.lot_area ?? "").toString(), bd.lotArea) ||
           differs((searchResult.floor_area ?? "").toString(), bd.floorArea) ||
-          differs((searchResult.price ?? "").toString(), bd.price) ||
+          differsPrice((searchResult.price ?? "").toString(), bd.price) ||
           differs(searchResult.status || "", bd.available);
 
         setBackupStatus(hasConflict ? "conflict" : "match");

@@ -6,6 +6,14 @@ import * as path from "path";
 const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
 const SHEET_NAME = "Sheet1";
 
+// Format a numeric string as X,XXX,XXX.XX for GSheet display (Col AS, AU, etc.)
+const formatPriceForSheet = (val: string): string => {
+  if (!val) return "";
+  const num = parseFloat(val.replace(/,/g, ""));
+  if (isNaN(num)) return val;
+  return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 console.log("🚀 GOOGLE-SHEETS.TS v4 (FOOLPROOF) LOADED");
 
 // GSheet Column Mapping (A-P = Display columns, Z-BO = Supabase sync columns)
@@ -729,7 +737,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     data.floorArea,        // AP (16)
     data.status,           // AQ (17)
     data.type,             // AR (18)
-    data.salePrice,        // AS (19)
+    formatPriceForSheet(data.salePrice),        // AS (19)
     data.saleSqm,          // AT (20)
     data.leasePrice,       // AU (21)
     data.leaseSqm,         // AV (22)
@@ -1177,7 +1185,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     rowData[GSHEET_COLUMNS.AP_FLOOR_AREA] = syncData.floorArea || "";
     rowData[GSHEET_COLUMNS.AQ_STATUS] = syncData.status || "";
     rowData[GSHEET_COLUMNS.AR_TYPE] = syncData.type || "";
-    rowData[GSHEET_COLUMNS.AS_SALE_PRICE] = syncData.salePrice || "";
+    rowData[GSHEET_COLUMNS.AS_SALE_PRICE] = formatPriceForSheet(syncData.salePrice || "");
     rowData[GSHEET_COLUMNS.AT_SALE_SQM] = syncData.saleSqm || "";
     rowData[GSHEET_COLUMNS.AU_LEASE_PRICE] = syncData.leasePrice || "";
     rowData[GSHEET_COLUMNS.AV_LEASE_SQM] = syncData.leaseSqm || "";
