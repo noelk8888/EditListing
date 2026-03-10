@@ -2753,6 +2753,29 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
 
               {/* Compact Form Grid */}
               <div className="grid grid-cols-3 gap-x-6 gap-y-2">
+                {/* Status radio buttons span full width — above Type */}
+                <div className="col-span-3 flex items-center gap-4 flex-wrap">
+                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Status</Label>
+                  <span className="text-xs min-w-[100px] font-medium">
+                    {editStatus || "—"}
+                  </span>
+                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                    <div key={status} className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        id={`review-status-top-${status}`}
+                        name="review-status"
+                        checked={editStatus === status}
+                        onChange={() => handleInputChange(setEditStatus)(status)}
+                        className="h-3 w-3 cursor-pointer"
+                      />
+                      <label htmlFor={`review-status-top-${status}`} className="text-xs cursor-pointer whitespace-nowrap">
+                        {status}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Type checkboxes span full width */}
                 <div className="col-span-3 flex items-center gap-6 flex-wrap">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Type</Label>
@@ -2882,28 +2905,6 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                   />
                 </div>
 
-                {/* Status radio buttons span full width */}
-                <div className="col-span-3 flex items-center gap-4 flex-wrap">
-                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Status</Label>
-                  <span className="text-xs min-w-[100px] font-medium">
-                    {editStatus || "—"}
-                  </span>
-                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
-                    <div key={status} className="flex items-center gap-1">
-                      <input
-                        type="radio"
-                        id={`review-status-${status}`}
-                        name="review-status"
-                        checked={editStatus === status}
-                        onChange={() => handleInputChange(setEditStatus)(status)}
-                        className="h-3 w-3 cursor-pointer"
-                      />
-                      <label htmlFor={`review-status-${status}`} className="text-xs cursor-pointer whitespace-nowrap">
-                        {status}
-                      </label>
-                    </div>
-                  ))}
-                </div>
               </div>
 
               {/* MORE INFO Section */}
