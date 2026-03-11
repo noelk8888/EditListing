@@ -770,10 +770,9 @@ export default function AddListingPage() {
 
         const hasConflict =
           differs(workingBlasted, bd.blastedFormat) ||
-          differs(searchResult.area || "", bd.area) ||
           differs(searchResult.city || "", bd.city) ||
-          differs((searchResult.lot_area ?? "").toString(), bd.lotArea) ||
-          differs((searchResult.floor_area ?? "").toString(), bd.floorArea) ||
+          differsPrice((searchResult.lot_area ?? "").toString(), bd.lotArea) ||
+          differsPrice((searchResult.floor_area ?? "").toString(), bd.floorArea) ||
           differsPrice((searchResult.price ?? "").toString(), bd.price) ||
           differs(searchResult.status || "", bd.available);
 
@@ -1809,14 +1808,15 @@ Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
                         </thead>
                         <tbody>
                           {[
-                            { label: "Status", working: available || searchResult.status || "", backup: backupData.available },
-                            { label: "Area", working: editArea, backup: backupData.area },
-                            { label: "City", working: editCity, backup: backupData.city },
-                            { label: "Lot Area", working: editLotArea, backup: backupData.lotArea },
-                            { label: "Floor Area", working: editFloorArea, backup: backupData.floorArea },
-                            { label: "Price", working: editPrice, backup: backupData.price },
-                          ].map(({ label, working, backup }) => {
-                            const diff = working.trim().toLowerCase() !== backup.trim().toLowerCase();
+                            { label: "Status", working: available || searchResult.status || "", backup: backupData.available, numeric: false },
+                            { label: "City", working: editCity, backup: backupData.city, numeric: false },
+                            { label: "Lot Area", working: editLotArea, backup: backupData.lotArea, numeric: true },
+                            { label: "Floor Area", working: editFloorArea, backup: backupData.floorArea, numeric: true },
+                            { label: "Price", working: editPrice, backup: backupData.price, numeric: true },
+                          ].map(({ label, working, backup, numeric }) => {
+                            const diff = numeric
+                              ? (() => { const na = parseFloat((working || "").replace(/,/g, "")); const nb = parseFloat((backup || "").replace(/,/g, "")); return (!isNaN(na) && !isNaN(nb)) ? Math.abs(na - nb) > 0.01 : working.trim().toLowerCase() !== backup.trim().toLowerCase(); })()
+                              : working.trim().toLowerCase() !== backup.trim().toLowerCase();
                             return (
                               <tr key={label} className={diff ? "bg-red-50" : ""}>
                                 <td className="border border-orange-300 px-2 py-1 font-medium">{label}</td>
