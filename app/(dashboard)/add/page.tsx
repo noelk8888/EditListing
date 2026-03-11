@@ -877,6 +877,16 @@ export default function AddListingPage() {
     }
   };
 
+  // Save empty string if only the auto-prefix was filled with no actual name
+  const cleanOwnerBroker = (val: string): string => {
+    const stripped = val.replace(/^(Owner|Cobroker) - /i, "").trim();
+    return stripped ? val.trim() : "";
+  };
+  const cleanListingOwnership = (val: string): string => {
+    const stripped = val.replace(/^Sales Associate\s*/i, "").trim();
+    return stripped ? val.trim() : "";
+  };
+
   // When Direct/CoBroker selection changes, auto-prefix ownerBroker field
   const handleDirectOrCobrokerChange = (v: string) => {
     handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "");
@@ -980,9 +990,9 @@ export default function AddListingPage() {
           agricultural: agricultural ? "AGRICULTURAL" : "",
           with_income: withIncome,
           direct_or_broker: directOrCobroker,
-          owner_broker: ownerBroker,
+          owner_broker: cleanOwnerBroker(ownerBroker),
           how_many_away: howManyAway,
-          listing_ownership: listingOwnership,
+          listing_ownership: cleanListingOwnership(listingOwnership),
           sale_or_lease: saleOrLease,
           date_received: dateReceived,
           date_updated: dateUpdated,
@@ -1129,9 +1139,9 @@ export default function AddListingPage() {
           agricultural: agricultural ? "AGRICULTURAL" : "",
           with_income: withIncome,
           direct_or_broker: directOrCobroker,
-          owner_broker: ownerBroker,
+          owner_broker: cleanOwnerBroker(ownerBroker),
           how_many_away: howManyAway,
-          listing_ownership: listingOwnership,
+          listing_ownership: cleanListingOwnership(listingOwnership),
           sale_or_lease: saleOrLease,
           date_received: dateReceived || new Date().toISOString().split("T")[0],
           date_updated: dateUpdated || new Date().toISOString().split("T")[0],
