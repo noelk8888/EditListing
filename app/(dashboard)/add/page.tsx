@@ -1519,16 +1519,16 @@ export default function AddListingPage() {
           <CardContent className="space-y-4">
             <div className="relative">
               <Textarea
-                placeholder={`*FOR SALE/LEASE*
-Unit 0907 SMDC Blue Residences, Katipunan Ave., Brgy. Loyola Heights, Quezon City
-Semi Furnished Studio Unit
-Floor Area: 23.12 sqm
-Corner Unit, No parking slot
-Lease Price: 19,500/month
-Price: P4,500,000 gross negotiable
-CASH BUYER ONLY
+                placeholder={`*FOR SALE* G01333
+9 Greenview Compound, Brgy. Bagong Lipunan ng Crame, Quezon City
+Residential Vacant Lot
+Lot Area: 451 sqm
+Orientation Facing: East
+Clean Tile under Individual
+Zoning Classification: R2
+Price: P72,160,000 (P160k/sqm) gross
 Direct to owner
-Photos: https://photos.app.goo.gl/ZVu4EMZiPJkZnrXq6`}
+Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 rows={12}
