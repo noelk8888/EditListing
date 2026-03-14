@@ -1159,6 +1159,13 @@ export default function AddListingPage() {
           comments: comments,
           photo_link: photosLink,
           geo_id: undefined, // always let server generate the correct highest+1
+          // A-series batch: pass source sheet + row so GEO ID is written back to COL AC
+          ...(batchActive && batchGeoSeries === "A" && batchRows[batchIndex] ? {
+            col_q: batchRows[batchIndex].colQ,
+            col_r: batchRows[batchIndex].colR,
+            batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
+            batch_row_number: batchRows[batchIndex].rowNumber,
+          } : {}),
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,

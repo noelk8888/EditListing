@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { addNewGSheetRow, appendDisplayRowToSheet, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { addNewGSheetRow, appendDisplayRowToSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -59,6 +59,10 @@ export async function POST(request: Request) {
       send_telegram,
       telegram_post_message,
       telegram_groups,
+      col_q,
+      col_r,
+      batch_source_sheet_id,
+      batch_row_number,
     } = body;
 
     console.log("=== ADDING NEW LISTING ===");
@@ -114,6 +118,8 @@ export async function POST(request: Request) {
       dateResorted: date_updated || new Date().toISOString().split("T")[0],
       available: status || "AVAILABLE",
       listingOwnership: listing_ownership || "",
+      colQ: col_q || "",
+      colR: col_r || "",
     };
 
     // syncData uses geo_id as placeholder — addNewGSheetRow will use the actual geoId for AA/AC
@@ -165,6 +171,15 @@ export async function POST(request: Request) {
     // Single GSheet append — A-BO all written at once, no second lookup
     const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
+
+    // Write GEO ID back to batch source sheet (A-series batch only)
+    if (batch_source_sheet_id && batch_row_number) {
+      try {
+        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, newGeoId);
+      } catch (err) {
+        console.warn("⚠️ Batch source GEO ID writeback failed:", err instanceof Error ? err.message : err);
+      }
+    }
 
     // Mirror to 2nd Backup GSheet
     const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;

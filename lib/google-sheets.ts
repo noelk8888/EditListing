@@ -92,7 +92,7 @@ export const GSHEET_COLUMNS = {
 // Which cells to annotate with an "Updated by" note, and by whom
 export type NoteConfig = { updatedBy: string; cols: Set<number> };
 
-// Interface for batch row data (col A-P display columns + col AC GEO ID)
+// Interface for batch row data (col A-R display columns + col AC GEO ID)
 export interface BatchRowData {
   rowNumber: number;  // 1-indexed sheet row
   colA: string;       // A - BLASTED FORMAT (raw listing text)
@@ -111,6 +111,8 @@ export interface BatchRowData {
   colN: string;       // N - Date Resorted/Updated
   colO: string;       // O - AVAILABLE/Status
   colP: string;       // P - LISTING OWNERSHIP
+  colQ: string;       // Q - custom col
+  colR: string;       // R - custom col
   colAC: string;      // AC - GEO ID (lookup key)
 }
 
@@ -132,6 +134,8 @@ export interface GSheetDisplayData {
   dateResorted: string;       // N
   available: string;          // O
   listingOwnership: string;   // P
+  colQ?: string;              // Q - custom col
+  colR?: string;              // R - custom col
 }
 
 // Interface for full row data (A-BO)
@@ -1442,7 +1446,7 @@ export async function appendDisplayRowToSheet(
     (colACResp.data.values || []).length
   ) + 1;
 
-  // Build A-AC row (29 cols), fill only A-P (0-15) and AC (28)
+  // Build A-AC row (29 cols), fill A-P (0-15), Q (16), R (17), and AC (28)
   const rowData: string[] = new Array(29).fill("");
   rowData[GSHEET_COLUMNS.A_BLASTED_FORMAT] = data.blastedFormat;
   rowData[GSHEET_COLUMNS.B_TYPE] = data.type;
@@ -1460,6 +1464,8 @@ export async function appendDisplayRowToSheet(
   rowData[GSHEET_COLUMNS.N_DATE_RESORTED] = data.dateResorted;
   rowData[GSHEET_COLUMNS.O_AVAILABLE] = data.available;
   rowData[GSHEET_COLUMNS.P_LISTING_OWNERSHIP] = data.listingOwnership;
+  rowData[16] = data.colQ || "";  // Q - custom col
+  rowData[17] = data.colR || "";  // R - custom col
   rowData[GSHEET_COLUMNS.AC_GEO_ID] = geoId;
 
   await sheets.spreadsheets.values.update({
@@ -1468,7 +1474,7 @@ export async function appendDisplayRowToSheet(
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [rowData] },
   });
-  console.log(`✅ Backup row appended for ${geoId} (row ${nextRow}, cols A-P + AC)`);
+  console.log(`✅ Backup row appended for ${geoId} (row ${nextRow}, cols A-R + AC)`);
 }
 
 // ============================================================================
@@ -1703,7 +1709,7 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
     const batchResponse = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: spreadsheetId_,
       ranges: [
-        `${SHEET_NAME}!A${startRow}:P${endRow}`,
+        `${SHEET_NAME}!A${startRow}:R${endRow}`,
         `${SHEET_NAME}!AC${startRow}:AC${endRow}`,
       ],
     });
@@ -1718,7 +1724,7 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
     // Sheet has fewer columns than AC — retry without AC
     const fallback = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: spreadsheetId_,
-      ranges: [`${SHEET_NAME}!A${startRow}:P${endRow}`],
+      ranges: [`${SHEET_NAME}!A${startRow}:R${endRow}`],
     });
     const vr = fallback.data.valueRanges || [];
     apRows = (vr[0]?.values || []) as string[][];
@@ -1730,7 +1736,7 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
   const results: BatchRowData[] = [];
   for (let i = 0; i < count; i++) {
     const rowNum = startRow + i;
-    // A-P row (16 columns, indices 0-15)
+    // A-R row (18 columns, indices 0-17)
     const apIdx = rowNum - apStart;
     const row = (apIdx >= 0 && apIdx < apRows.length) ? apRows[apIdx] : [];
     // AC column
@@ -1755,10 +1761,35 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
       colN: row[13] || "",  // N - Date Updated
       colO: row[14] || "",  // O - Status
       colP: row[15] || "",  // P - Listing Ownership
+      colQ: row[16] || "",  // Q - custom col
+      colR: row[17] || "",  // R - custom col
       colAC: ac,            // AC - GEO ID
     });
   }
   return results;
+}
+
+/** Write the assigned GEO ID back to COL AC of a specific row in the batch source sheet. */
+export async function writeBatchSourceGeoId(
+  spreadsheetId: string,
+  rowNumber: number,
+  geoId: string
+): Promise<void> {
+  const sheets = getSheets();
+  let sheetTabName = SHEET_NAME;
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+    sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+  } catch { /* keep SHEET_NAME */ }
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `${sheetTabName}!AC${rowNumber}`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: [[geoId]] },
+  });
+  console.log(`✅ Wrote GEO ID ${geoId} to batch source sheet row ${rowNumber} COL AC`);
 }
 
 export async function deleteListing(id: string, overrideSpreadsheetId?: string): Promise<boolean> {
