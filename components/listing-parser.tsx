@@ -68,16 +68,20 @@ export function ListingParser({ onParsed }: ListingParserProps) {
       <CardContent className="space-y-4">
         <div className="relative">
           <Textarea
-            placeholder={`*FOR SALE*
-P. Dela Cruz St., Sitio Gitna Brgy. Nagkaisang Nayon, Quezon City
-Lot Area: 15,430 sqm
-Price: P617,200,000 (P40k/sqm) gross negotiable
+            placeholder={`*FOR SALE* G01333
+9 Greenview Compound, Brgy. Bagong Lipunan ng Crame, Quezon City
+Residential Vacant Lot
+Lot Area: 451 sqm
+Orientation Facing: East
+Clean Tile under Individual
+Zoning Classification: R2
+Price: P72,160,000 (P160k/sqm) gross
 Direct to owner
-Photos: https://photos.app.goo.gl/example`}
+Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={10}
-            className="resize-none font-mono text-sm"
+            className="resize-none font-mono text-sm placeholder:text-gray-400"
           />
           <Button
             variant="ghost"
