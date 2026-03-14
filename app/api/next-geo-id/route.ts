@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { generateNextGeoId } from "@/lib/google-sheets";
 
 export const dynamic = "force-dynamic"; // never cache — GEO IDs must always be fresh
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const nextGeoId = await generateNextGeoId();
+    const series = req.nextUrl.searchParams.get("series") || undefined;
+    const nextGeoId = await generateNextGeoId(series ?? undefined);
     return NextResponse.json({ geoId: nextGeoId });
   } catch (error) {
     console.error("Error generating GEO ID:", error);

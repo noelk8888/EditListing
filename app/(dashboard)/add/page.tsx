@@ -133,6 +133,7 @@ export default function AddListingPage() {
   const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
+  const [batchGeoSeries, setBatchGeoSeries] = useState<"G" | "A">("G");
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
   const [batchIndex, setBatchIndex] = useState(0);
   const [batchLoading, setBatchLoading] = useState(false);
@@ -495,16 +496,16 @@ export default function AddListingPage() {
 
       // If no match found, suggest next GEO ID
       if (!data.result) {
-        // If we just saved a listing this session, derive the next ID locally (avoids race condition)
+        // If we just saved a listing this session with the same series, derive the next ID locally (avoids race condition)
         const lastMatch = lastAssignedGeoId.match(/^([A-Z])(\d+)$/);
-        if (lastMatch) {
+        if (lastMatch && lastMatch[1].toUpperCase() === batchGeoSeries) {
           const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
           setSuggestedGeoId(next);
           setNewGeoId(next);
         } else {
-          // First new listing this session — must query the sheet
+          // First new listing this session or different series — must query the sheet
           try {
-            const geoRes = await fetch("/api/next-geo-id", { cache: "no-store" });
+            const geoRes = await fetch(`/api/next-geo-id?series=${batchGeoSeries}`, { cache: "no-store" });
             const geoData = await geoRes.json();
             if (geoData.geoId) {
               setSuggestedGeoId(geoData.geoId);
@@ -1462,6 +1463,21 @@ export default function AddListingPage() {
                 onChange={e => setBatchEndRow(e.target.value)}
                 className="h-8 w-24 text-sm"
               />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0">GEO Series</Label>
+              <div className="flex rounded-md border overflow-hidden h-8">
+                <button
+                  type="button"
+                  onClick={() => setBatchGeoSeries("G")}
+                  className={`px-3 text-xs font-mono font-semibold transition-colors ${batchGeoSeries === "G" ? "bg-foreground text-background" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                >G</button>
+                <button
+                  type="button"
+                  onClick={() => setBatchGeoSeries("A")}
+                  className={`px-3 text-xs font-mono font-semibold border-l transition-colors ${batchGeoSeries === "A" ? "bg-foreground text-background" : "bg-background text-muted-foreground hover:text-foreground"}`}
+                >A</button>
+              </div>
             </div>
             <Button
               size="sm"

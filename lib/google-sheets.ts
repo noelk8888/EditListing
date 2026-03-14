@@ -421,9 +421,9 @@ export async function findRowByGeoId(geoId: string): Promise<number | null> {
 
 /**
  * Generate the next GEO ID by finding the highest existing ID and adding 1
- * Format: G##### (e.g., G11497 → G11498)
+ * @param series - optional letter prefix to restrict search (e.g. "G" or "A"). Defaults to highest overall.
  */
-export async function generateNextGeoId(): Promise<string> {
+export async function generateNextGeoId(series?: string): Promise<string> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
 
@@ -445,13 +445,15 @@ export async function generateNextGeoId(): Promise<string> {
   // Rejects typos like G111245 (6 digits) and false positives like P150000 (price).
   const GEO_RE = /^([A-Z])(\d{4,5})$/;
 
+  const targetPrefix = series?.toUpperCase();
   let maxNumber = 0;
-  let prefix = "G";
+  let prefix = targetPrefix || "G";
 
   const check = (raw: string) => {
     const s = raw.trim();
     const match = s.match(GEO_RE);
     if (match) {
+      if (targetPrefix && match[1].toUpperCase() !== targetPrefix) return;
       const num = parseInt(match[2], 10);
       if (num > maxNumber) { maxNumber = num; prefix = match[1].toUpperCase(); }
     }
@@ -462,7 +464,7 @@ export async function generateNextGeoId(): Promise<string> {
   for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl); }
 
   const nextGeoId = `${prefix}${maxNumber + 1}`;
-  console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber}, scanned AC+AA+A)`);
+  console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber}, scanned AC+AA+A, series=${targetPrefix || "any"})`);
   return nextGeoId;
 }
 
