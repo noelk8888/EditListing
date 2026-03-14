@@ -166,5 +166,10 @@ export async function getUserPermissions(
     }
   }
 
+  // noelkiu@gmail.com always has batch_review access
+  if (email.toLowerCase() === "noelkiu@gmail.com") {
+    perms.batch_review = true;
+  }
+
   return perms;
 }
