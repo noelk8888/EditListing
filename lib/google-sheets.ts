@@ -81,6 +81,12 @@ export const GSHEET_COLUMNS = {
   BM_AMENITIES: 64,         // BM - amenities
   BN_CORNER: 65,            // BN - corner
   BO_COMPOUND: 66,          // BO - compound
+  BP_LUXE_POST: 67,         // BP - LUXE REALTY post link
+  BQ_NEXIA_POST: 68,        // BQ - NEXIA post link
+  BR_ADOLF_POST: 69,        // BR - ADOLF post link
+  BS_PCO_POST: 70,          // BS - PCO post link
+  BT_SLOO_POST: 71,         // BT - SLOO post link
+  BU_TAOKE_POST: 72,        // BU - TAOKE post link
 };
 
 // Which cells to annotate with an "Updated by" note, and by whom
