@@ -1159,7 +1159,7 @@ export default function AddListingPage() {
           compound: compound,
           comments: comments,
           photo_link: photosLink,
-          geo_id: undefined, // always let server generate the correct highest+1
+          geo_id: (batchActive && batchGeoSeries === "A" && newGeoId) ? newGeoId : undefined,
           // A-series batch: pass source sheet + row so GEO ID is written back to COL AC
           ...(batchActive && batchGeoSeries === "A" && batchRows[batchIndex] ? {
             col_q: batchRows[batchIndex].colQ,
