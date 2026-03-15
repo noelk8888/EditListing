@@ -62,6 +62,7 @@ export async function POST(request: Request) {
       col_q,
       col_r,
       batch_source_sheet_id,
+      batch_source_sheet_gid,
       batch_row_number,
     } = body;
 
@@ -173,19 +174,24 @@ export async function POST(request: Request) {
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
     // Write GEO ID back to batch source sheet (A-series batch only)
+    let writebackError: string | null = null;
     if (batch_source_sheet_id && batch_row_number) {
       try {
-        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, newGeoId);
+        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, newGeoId, batch_source_sheet_gid || undefined);
       } catch (err) {
-        console.warn("⚠️ Batch source GEO ID writeback failed:", err instanceof Error ? err.message : err);
+        writebackError = err instanceof Error ? err.message : String(err);
+        console.error("❌ Batch source GEO ID writeback failed:", writebackError);
       }
     }
 
-    // Mirror to 2nd Backup GSheet
+    // Mirror to 2nd Backup GSheet — skip when batch source sheet is active (only 1 secondary sheet active at a time)
     const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;
     let backupError: string | null = null;
     let backupSkipped = false;
-    if (!backupSpreadsheetId) {
+    if (batch_source_sheet_id) {
+      backupSkipped = true;
+      console.log("⏭️ Backup write skipped — batch source sheet is the active secondary sheet");
+    } else if (!backupSpreadsheetId) {
       backupSkipped = true;
       console.warn("⚠️ BACKUP_SPREADSHEET_ID not set — backup skipped");
     } else {
@@ -269,7 +275,8 @@ export async function POST(request: Request) {
       success: true,
       geoId: newGeoId,
       data: data?.[0],
-      backupError: backupError ?? (backupSkipped ? "BACKUP_SPREADSHEET_ID not configured in Vercel env" : undefined),
+      writebackError: writebackError ?? undefined,
+      backupError: backupError ?? (backupSkipped ? undefined : undefined),
     });
   } catch (err) {
     console.error("API error:", err);

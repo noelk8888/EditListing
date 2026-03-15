@@ -1165,6 +1165,7 @@ export default function AddListingPage() {
             col_q: batchRows[batchIndex].colQ,
             col_r: batchRows[batchIndex].colR,
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
+            batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
             batch_row_number: batchRows[batchIndex].rowNumber,
           } : {}),
           send_telegram: telegramPostEnabled,

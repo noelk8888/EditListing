@@ -1773,14 +1773,21 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
 export async function writeBatchSourceGeoId(
   spreadsheetId: string,
   rowNumber: number,
-  geoId: string
+  geoId: string,
+  sheetGid?: string
 ): Promise<void> {
   const sheets = getSheets();
   let sheetTabName = SHEET_NAME;
   try {
     const meta = await sheets.spreadsheets.get({ spreadsheetId });
-    const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
-    sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+    if (sheetGid) {
+      const gidNum = parseInt(sheetGid, 10);
+      const byGid = meta.data.sheets?.find((s: any) => s.properties?.sheetId === gidNum);
+      sheetTabName = byGid?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+    } else {
+      const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+      sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+    }
   } catch { /* keep SHEET_NAME */ }
 
   await sheets.spreadsheets.values.update({
