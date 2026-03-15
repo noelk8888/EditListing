@@ -322,10 +322,10 @@ export async function POST(request: Request) {
       };
 
       // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-      await updateSyncColumns(id, syncData, summary || "", noteConfig);
+      await updateSyncColumns(id, syncData, summary || "", noteConfig, batch_source_sheet_id || undefined);
       console.log("✅ GSheet columns A + Z-BO updated successfully");
 
-      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig);
+      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, batch_source_sheet_id || undefined);
       if (gsheetUpdated) {
         console.log("✅ GSheet columns B-P updated successfully");
       } else {

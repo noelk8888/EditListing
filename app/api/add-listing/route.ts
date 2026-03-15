@@ -170,7 +170,7 @@ export async function POST(request: Request) {
     };
 
     // Single GSheet append — A-BO all written at once, no second lookup
-    const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
+    const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined, batch_source_sheet_id || undefined);
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
     // Write GEO ID back to Shadow GSheet MAIN tab COL AC

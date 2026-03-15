@@ -776,9 +776,9 @@ export async function syncPairedColumns(
 /**
  * Update Supabase sync columns Z-BO for a listing by GEO ID
  */
-export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig): Promise<boolean> {
+export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string): Promise<boolean> {
   const sheets = getSheets();
-  const spreadsheetId = process.env.SPREADSHEET_ID;
+  const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
 
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");
@@ -786,8 +786,10 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
 
   // Ensure enough columns for Z-BO (67 cols)
   await ensureSheetDimensions(sheets, spreadsheetId, 67);
-  let rowNumber = await findRowByGeoId(geoId);
-  if (!rowNumber && fallbackText) {
+  let rowNumber = overrideSpreadsheetId
+    ? await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId)
+    : await findRowByGeoId(geoId);
+  if (!rowNumber && fallbackText && !overrideSpreadsheetId) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
     rowNumber = await findRowNumberByColAText(fallbackText);
   }
@@ -927,9 +929,9 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
 /**
  * Update display columns A-P for a listing by GEO ID
  */
-export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, noteConfig?: NoteConfig): Promise<boolean> {
+export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string): Promise<boolean> {
   const sheets = getSheets();
-  const spreadsheetId = process.env.SPREADSHEET_ID;
+  const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
 
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");
@@ -938,8 +940,10 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
   // Ensure enough columns for BO (up to col 67)
   await ensureSheetDimensions(sheets, spreadsheetId, 67);
 
-  let rowNumber = await findRowByGeoId(geoId);
-  if (!rowNumber && fallbackText) {
+  let rowNumber = overrideSpreadsheetId
+    ? await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId)
+    : await findRowByGeoId(geoId);
+  if (!rowNumber && fallbackText && !overrideSpreadsheetId) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
     rowNumber = await findRowNumberByColAText(fallbackText);
   }
