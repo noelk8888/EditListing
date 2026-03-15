@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const TABLE_NAME = "KIU Properties";
 
 // Select columns for all queries
-const SELECT_COLUMNS = `"GEO ID", "PHOTO", "MAIN", "REGION", "PROVINCE", "CITY", "BARANGAY", "AREA", "BUILDING", "LOT AREA", "FLOOR AREA", "STATUS", "TYPE", "Extracted Sale Price", "Extracted Lease Price", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "WITH INCOME", "DIRECT OR BROKER", "NAME", "AWAY", "LISTING OWNERSHIP", "DATE RECV", "DATE UPDATED", "FB LINK", "MAP LINK", "Sale Price/Sqm", "Lease Price/Sqm", "LAT LONG", "LAT", "LONG", "COMMENTS", "SPONSOR START", "SPONSOR END", "bedrooms", "toilet", "garage", "amenities", "corner", "compound"`;
+const SELECT_COLUMNS = `"GEO ID", "PHOTO", "MAIN", "REGION", "PROVINCE", "CITY", "BARANGAY", "AREA", "BUILDING", "LOT AREA", "FLOOR AREA", "STATUS", "TYPE", "Extracted Sale Price", "Extracted Lease Price", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "WITH INCOME", "DIRECT OR BROKER", "NAME", "AWAY", "LISTING OWNERSHIP", "DATE RECV", "DATE UPDATED", "FB LINK", "MAP LINK", "Sale Price/Sqm", "Lease Price/Sqm", "LAT LONG", "LAT", "LONG", "COMMENTS", "MONTHLY DUES", "SPONSOR START", "SPONSOR END", "bedrooms", "toilet", "garage", "amenities", "corner", "compound"`;
 
 interface SupabaseResult {
   "GEO ID": string | null;
@@ -59,6 +59,7 @@ interface SupabaseResult {
   "amenities": string | null;
   "corner": string | null;
   "compound": string | null;
+  "MONTHLY DUES": string | null;
 }
 
 // Extract a MAP LINK URL from listing text (COL A or COL AA).
@@ -182,6 +183,7 @@ function supabaseToResult(row: SupabaseResult) {
     corner: row["corner"] || null,
     compound: row["compound"] || null,
     comments: row["COMMENTS"] || null,
+    monthly_dues: row["MONTHLY DUES"] || null,
     sponsor_start: row["SPONSOR START"] || null,
     sponsor_end: row["SPONSOR END"] || null,
   };
@@ -229,7 +231,7 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow): ReturnType<
     how_many_away: gsheetRow.away || gsheetRow.supabaseAway || null,
     listing_ownership: gsheetRow.listingOwnership || gsheetRow.supabaseListingOwnership || null,
     sale_or_lease: saleOrLease,
-    date_received: normalizeGSheetDate(gsheetRow.dateReceived || gsheetRow.supabaseDateRecv),
+    date_received: normalizeGSheetDate(gsheetRow.dateReceived),
     date_updated: normalizeGSheetDate(gsheetRow.dateResorted || gsheetRow.supabaseDateUpdated),
     available: gsheetRow.available || gsheetRow.supabaseStatus || null,
     fb_link: gsheetRow.supabaseFbLink || null,
@@ -247,6 +249,7 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow): ReturnType<
     corner: gsheetRow.supabaseCorner || null,
     compound: gsheetRow.supabaseCompound || null,
     comments: gsheetRow.supabaseComments || null,
+    monthly_dues: gsheetRow.supabaseMonthlyDues || null,
     sponsor_start: gsheetRow.supabaseSponsorStart || null,
     sponsor_end: gsheetRow.supabaseSponsorEnd || null,
   };
@@ -271,7 +274,7 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
     console.log("  GSheet dateReceived (M):", gsheetRow.dateReceived);
     console.log("  GSheet directCobroker (J):", gsheetRow.directCobroker);
     console.log("  GSheet ownerBroker (K):", gsheetRow.ownerBroker);
-    console.log("  GSheet supabaseDateRecv (BB):", gsheetRow.supabaseDateRecv);
+    console.log("  GSheet supabaseMonthlyDues (BB):", gsheetRow.supabaseMonthlyDues);
 
     // Helper: use first non-empty value
     const fallback = <T>(supabaseVal: T, gsheetVal: string | undefined): T | string => {
@@ -290,8 +293,8 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
       ...result,
       // Summary: Supabase MAIN ↔ GSheet COL AA → COL A fallback
       summary: fallback(result.summary, gsheetSummary),
-      // Date received: Supabase DATE RECV ↔ GSheet M (dateReceived) or BB (supabaseDateRecv)
-      date_received: fallback(result.date_received, normalizeGSheetDate(gsheetRow.dateReceived || gsheetRow.supabaseDateRecv) || ""),
+      // Date received: Supabase DATE RECV ↔ GSheet M (dateReceived)
+      date_received: fallback(result.date_received, normalizeGSheetDate(gsheetRow.dateReceived) || ""),
       // Direct/Cobroker: Supabase DIRECT OR BROKER ↔ GSheet J (directCobroker) or AY (supabaseDirectBroker)
       direct_or_broker: fallback(result.direct_or_broker, gsheetRow.directCobroker || gsheetRow.supabaseDirectBroker),
       // Owner/Broker name: Supabase NAME ↔ GSheet K (ownerBroker) or AZ (supabaseName)
@@ -310,6 +313,8 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
       barangay: fallback(result.barangay, gsheetRow.area || gsheetRow.supabaseBarangay),
       // Area: Supabase AREA ↔ GSheet AI
       area: fallback(result.area, gsheetRow.supabaseArea),
+      // Monthly dues: GSheet BB (supabaseMonthlyDues)
+      monthly_dues: fallback(result.monthly_dues, gsheetRow.supabaseMonthlyDues),
     };
   } catch (gsheetError) {
     console.error("GSheet fallback error:", gsheetError);

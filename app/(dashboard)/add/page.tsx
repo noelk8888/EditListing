@@ -87,9 +87,8 @@ export default function AddListingPage() {
   const [amenities, setAmenities] = useState("");
   const [corner, setCorner] = useState("");
   const [compound, setCompound] = useState("");
+  const [monthlyDues, setMonthlyDues] = useState("");
   const [comments, setComments] = useState("");
-  const [sponsorStart, setSponsorStart] = useState("");
-  const [sponsorEnd, setSponsorEnd] = useState("");
 
   // Editable listing fields (from search result)
   const [editSummary, setEditSummary] = useState("");
@@ -130,8 +129,8 @@ export default function AddListingPage() {
   // === BATCH MODE STATE ===
   type BatchRow = { rowNumber: number; colA: string; colB: string; colC: string; colD: string; colE: string; colF: string; colG: string; colH: string; colI: string; colJ: string; colK: string; colL: string; colM: string; colN: string; colO: string; colP: string; colQ: string; colR: string; colAC: string };
   const [batchMode, setBatchMode] = useState(false);      // setup panel open
-  // Shadow GSheet — active sheet being processed in Batch Review
-  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1yZBEpaO_NE4fUFOVhgoSEfC-UxyephQgs3C6hX5cM2k/edit?gid=1380358340#gid=1380358340");
+  // SOURCE GSheet — read-only source for Batch Review listings
+  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
   const batchGeoSeries = "G";
@@ -395,9 +394,8 @@ export default function AddListingPage() {
     setAmenities("");
     setCorner("");
     setCompound("");
+    setMonthlyDues("");
     setComments("");
-    setSponsorStart("");
-    setSponsorEnd("");
   };
 
   const goToStep = (targetStep: Step, overrideText?: string) => {
@@ -472,9 +470,8 @@ export default function AddListingPage() {
     setAmenities("");
     setCorner("");
     setCompound("");
+    setMonthlyDues("");
     setComments("");
-    setSponsorStart("");
-    setSponsorEnd("");
     setSuggestedGeoId("");
     setNewGeoId("");
     setGeoIdConfirmed(false);
@@ -781,9 +778,9 @@ export default function AddListingPage() {
       setAmenities(searchResult.amenities || "");
       setCorner(searchResult.corner || "");
       setCompound(searchResult.compound || "");
+      setMonthlyDues(searchResult.monthly_dues || "");
       setComments(searchResult.comments || "");
-      setSponsorStart(searchResult.sponsor_start || "");
-      setSponsorEnd(searchResult.sponsor_end || "");
+
     }
   }, [searchResult]);
 
@@ -1066,9 +1063,9 @@ export default function AddListingPage() {
           amenities: amenities,
           corner: corner,
           compound: compound,
+          monthly_dues: monthlyDues,
           comments: comments,
-          sponsor_start: sponsorStart,
-          sponsor_end: sponsorEnd,
+
           photo_link: photosLink,
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
@@ -1222,6 +1219,7 @@ export default function AddListingPage() {
           amenities: amenities,
           corner: corner,
           compound: compound,
+          monthly_dues: monthlyDues,
           comments: comments,
           photo_link: photosLink,
           geo_id: undefined,
@@ -1358,9 +1356,8 @@ export default function AddListingPage() {
     setAmenities("");
     setCorner("");
     setCompound("");
+    setMonthlyDues("");
     setComments("");
-    setSponsorStart("");
-    setSponsorEnd("");
     setSearchResult(null);
     setSearchPerformed(false);
     setListingId("");
@@ -2321,7 +2318,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <Input value={garage} onChange={(e) => handleInputChange(setGarage)(e.target.value)} className="h-8 text-sm" />
                     </div>
 
-                    {/* Row 9: amenities, corner, compound */}
+                    {/* Row 9: amenities, corner, compound, monthly dues */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Amenities</Label>
                       <Input value={amenities} onChange={(e) => handleInputChange(setAmenities)(e.target.value)} className="h-8 text-sm" />
@@ -2334,19 +2331,15 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Compound</Label>
                       <Input value={compound} onChange={(e) => handleInputChange(setCompound)(e.target.value)} className="h-8 text-sm" />
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Monthly Dues</Label>
+                      <Input value={monthlyDues} onChange={(e) => handleInputChange(setMonthlyDues)(e.target.value)} className="h-8 text-sm" placeholder="e.g. 5,000/month" />
+                    </div>
 
                     {/* Row 10: COMMENTS, SPONSOR START, SPONSOR END */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
                       <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor Start</Label>
-                      <Input type="date" value={sponsorStart} onChange={(e) => handleInputChange(setSponsorStart)(e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor End</Label>
-                      <Input type="date" value={sponsorEnd} onChange={(e) => handleInputChange(setSponsorEnd)(e.target.value)} className="h-8 text-sm" />
                     </div>
                   </div>
                 </div>
@@ -2596,7 +2589,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Garage</Label>
                       <Input value={garage} onChange={(e) => handleInputChange(setGarage)(e.target.value)} className="h-8 text-sm" />
                     </div>
-                    {/* Row 8: AMENITIES, CORNER, COMPOUND */}
+                    {/* Row 8: AMENITIES, CORNER, COMPOUND, MONTHLY DUES */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Amenities</Label>
                       <Input value={amenities} onChange={(e) => handleInputChange(setAmenities)(e.target.value)} className="h-8 text-sm" />
@@ -2609,18 +2602,14 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Compound</Label>
                       <Input value={compound} onChange={(e) => handleInputChange(setCompound)(e.target.value)} className="h-8 text-sm" />
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Monthly Dues</Label>
+                      <Input value={monthlyDues} onChange={(e) => handleInputChange(setMonthlyDues)(e.target.value)} className="h-8 text-sm" placeholder="e.g. 5,000/month" />
+                    </div>
                     {/* Row 9: COMMENTS, SPONSOR START, SPONSOR END */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
                       <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor Start</Label>
-                      <Input type="date" value={sponsorStart} onChange={(e) => handleInputChange(setSponsorStart)(e.target.value)} className="h-8 text-sm" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor End</Label>
-                      <Input type="date" value={sponsorEnd} onChange={(e) => handleInputChange(setSponsorEnd)(e.target.value)} className="h-8 text-sm" />
                     </div>
                   </div>
                 </div>
@@ -3115,7 +3104,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     <Input value={garage} onChange={(e) => handleInputChange(setGarage)(e.target.value)} className="h-8 text-sm" />
                   </div>
 
-                  {/* Row 8: amenities, corner, compound */}
+                  {/* Row 8: amenities, corner, compound, monthly dues */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Amenities</Label>
                     <Input value={amenities} onChange={(e) => handleInputChange(setAmenities)(e.target.value)} className="h-8 text-sm" />
@@ -3128,18 +3117,14 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Compound</Label>
                     <Input value={compound} onChange={(e) => handleInputChange(setCompound)(e.target.value)} className="h-8 text-sm" />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Monthly Dues</Label>
+                    <Input value={monthlyDues} onChange={(e) => handleInputChange(setMonthlyDues)(e.target.value)} className="h-8 text-sm" placeholder="e.g. 5,000/month" />
+                  </div>
                   {/* Row 9: comments, sponsor start, sponsor end */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
                     <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor Start</Label>
-                    <Input type="date" value={sponsorStart} onChange={(e) => handleInputChange(setSponsorStart)(e.target.value)} className="h-8 text-sm" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Sponsor End</Label>
-                    <Input type="date" value={sponsorEnd} onChange={(e) => handleInputChange(setSponsorEnd)(e.target.value)} className="h-8 text-sm" />
                   </div>
                 </div>
               </div>

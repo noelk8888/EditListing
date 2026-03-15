@@ -67,7 +67,7 @@ export const GSHEET_COLUMNS = {
   AY_DIRECT_BROKER: 50,     // AY - DIRECT OR BROKER
   AZ_NAME: 51,              // AZ - NAME
   BA_AWAY: 52,              // BA - AWAY
-  BB_DATE_RECV: 53,         // BB - DATE RECV
+  BB_MONTHLY_DUES: 53,      // BB - MONTHLY DUES
   BC_DATE_UPDATED: 54,      // BC - DATE UPDATED
   BD_LISTING_OWNERSHIP: 55, // BD - LISTING OWNERSHIP
   BE_LAT_LONG: 56,          // BE - LAT LONG
@@ -154,7 +154,7 @@ export interface GSheetFullRow extends GSheetDisplayData {
   supabaseDirectBroker: string; // AY
   supabaseName: string;       // AZ
   supabaseAway: string;       // BA
-  supabaseDateRecv: string;   // BB
+  supabaseMonthlyDues: string; // BB
   supabaseDateUpdated: string; // BC
   supabaseStatus: string;     // AQ
   supabaseListingOwnership: string; // BD
@@ -512,7 +512,7 @@ function parseGSheetRow(row: string[]): GSheetFullRow {
     supabaseDirectBroker: row[GSHEET_COLUMNS.AY_DIRECT_BROKER] || "",
     supabaseName: row[GSHEET_COLUMNS.AZ_NAME] || "",
     supabaseAway: row[GSHEET_COLUMNS.BA_AWAY] || "",
-    supabaseDateRecv: row[GSHEET_COLUMNS.BB_DATE_RECV] || "",
+    supabaseMonthlyDues: row[GSHEET_COLUMNS.BB_MONTHLY_DUES] || "",
     supabaseDateUpdated: row[GSHEET_COLUMNS.BC_DATE_UPDATED] || "",
     supabaseStatus: row[GSHEET_COLUMNS.AQ_STATUS] || "",
     supabaseListingOwnership: row[GSHEET_COLUMNS.BD_LISTING_OWNERSHIP] || "",
@@ -692,7 +692,8 @@ export interface GSheetSyncData {
   directBroker: string;     // AY
   name: string;             // AZ
   away: string;             // BA
-  dateRecv: string;         // BB
+  monthlyDues: string;      // BB
+  dateRecv: string;         // display col M sync only (not written to BB)
   dateUpdated: string;      // BC
   listingOwnership: string; // BD
   latLong: string;          // BE
@@ -720,6 +721,7 @@ export interface PairedColumnData {
   directBroker: string;
   ownerBroker: string;
   away: string;
+  monthlyDues: string;
   dateRecv: string;
   dateUpdated: string;
   listingOwnership: string;
@@ -763,7 +765,7 @@ export async function syncPairedColumns(
           // Sync cols: AO:AQ (lotArea, floorArea, status)
           { range: `${SHEET_NAME}!AO${rowNumber}:AQ${rowNumber}`, values: [[data.lotArea, data.floorArea, data.status]] },
           // Sync cols: AX:BD (withIncome → listingOwnership)
-          { range: `${SHEET_NAME}!AX${rowNumber}:BD${rowNumber}`, values: [[data.withIncome, data.directBroker, data.ownerBroker, data.away, data.dateRecv, data.dateUpdated, data.listingOwnership]] },
+          { range: `${SHEET_NAME}!AX${rowNumber}:BD${rowNumber}`, values: [[data.withIncome, data.directBroker, data.ownerBroker, data.away, data.monthlyDues, data.dateUpdated, data.listingOwnership]] },
         ],
       },
     })
@@ -828,7 +830,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     data.directBroker,     // AY (25)
     data.name,             // AZ (26)
     data.away,             // BA (27)
-    data.dateRecv,         // BB (28)
+    data.monthlyDues,      // BB (28)
     data.dateUpdated,      // BC (29)
     data.listingOwnership, // BD (30)
     data.latLong,          // BE (31)
@@ -1206,7 +1208,7 @@ export function applyFallbackLogic(gsheetRow: GSheetFullRow): GSheetDisplayData 
     directCobroker: fallback(gsheetRow.directCobroker, gsheetRow.supabaseDirectBroker),
     ownerBroker: fallback(gsheetRow.ownerBroker, gsheetRow.supabaseName),
     away: fallback(gsheetRow.away, gsheetRow.supabaseAway),
-    dateReceived: fallback(gsheetRow.dateReceived, gsheetRow.supabaseDateRecv),
+    dateReceived: gsheetRow.dateReceived || "",
     dateResorted: fallback(gsheetRow.dateResorted, gsheetRow.supabaseDateUpdated),
     available: fallback(gsheetRow.available, gsheetRow.supabaseStatus),
     listingOwnership: fallback(gsheetRow.listingOwnership, gsheetRow.supabaseListingOwnership),
@@ -1300,7 +1302,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     rowData[GSHEET_COLUMNS.AY_DIRECT_BROKER] = syncData.directBroker || "";
     rowData[GSHEET_COLUMNS.AZ_NAME] = syncData.name || "";
     rowData[GSHEET_COLUMNS.BA_AWAY] = syncData.away || "";
-    rowData[GSHEET_COLUMNS.BB_DATE_RECV] = syncData.dateRecv || "";
+    rowData[GSHEET_COLUMNS.BB_MONTHLY_DUES] = syncData.monthlyDues || "";
     rowData[GSHEET_COLUMNS.BC_DATE_UPDATED] = syncData.dateUpdated || "";
     rowData[GSHEET_COLUMNS.BD_LISTING_OWNERSHIP] = syncData.listingOwnership || "";
     rowData[GSHEET_COLUMNS.BE_LAT_LONG] = syncData.latLong || "";

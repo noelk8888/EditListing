@@ -57,6 +57,7 @@ export async function POST(request: Request) {
       corner,
       compound,
       comments,
+      monthly_dues,
       sponsor_start,
       sponsor_end,
       photo_link,
@@ -149,6 +150,7 @@ export async function POST(request: Request) {
         "corner": corner || null,
         "compound": compound || null,
         "COMMENTS": comments || null,
+        "MONTHLY DUES": monthly_dues || null,
         "SPONSOR START": sponsor_start || null,
         "SPONSOR END": sponsor_end || null,
         "PHOTO": photo_link || null,
@@ -205,6 +207,7 @@ export async function POST(request: Request) {
         "corner": corner || null,
         "compound": compound || null,
         "COMMENTS": comments || null,
+        "MONTHLY DUES": monthly_dues || null,
       });
       if (insertError) {
         console.error("Supabase insert error:", insertError);
@@ -305,6 +308,7 @@ export async function POST(request: Request) {
         directBroker: direct_or_broker || "",
         name: owner_broker || "",
         away: how_many_away || "",
+        monthlyDues: monthly_dues || "",
         dateRecv: date_received || "",
         dateUpdated: date_updated || "",
         listingOwnership: listing_ownership || "",
@@ -322,10 +326,10 @@ export async function POST(request: Request) {
       };
 
       // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-      await updateSyncColumns(id, syncData, summary || "", noteConfig, batch_source_sheet_id || undefined);
+      await updateSyncColumns(id, syncData, summary || "", noteConfig);
       console.log("✅ GSheet columns A + Z-BO updated successfully");
 
-      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, batch_source_sheet_id || undefined);
+      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig);
       if (gsheetUpdated) {
         console.log("✅ GSheet columns B-P updated successfully");
       } else {

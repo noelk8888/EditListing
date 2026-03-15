@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       directBroker:     str(record["DIRECT OR BROKER"]),
       ownerBroker:      str(record["NAME"]),
       away:             str(record["AWAY"]),
+      monthlyDues:      str(record["MONTHLY DUES"]),
       dateRecv:         str(record["DATE RECV"]),
       dateUpdated:      str(record["DATE UPDATED"]),
       listingOwnership: str(record["LISTING OWNERSHIP"]),

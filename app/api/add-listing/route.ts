@@ -55,6 +55,7 @@ export async function POST(request: Request) {
       compound,
       comments,
       photo_link,
+      monthly_dues,
       geo_id,
       send_telegram,
       telegram_post_message,
@@ -153,6 +154,7 @@ export async function POST(request: Request) {
       directBroker: direct_or_broker || "",
       name: owner_broker || "",
       away: how_many_away || "",
+      monthlyDues: monthly_dues || "",
       dateRecv: date_received || new Date().toISOString().split("T")[0],
       dateUpdated: date_updated || new Date().toISOString().split("T")[0],
       listingOwnership: listing_ownership || "",
@@ -170,7 +172,7 @@ export async function POST(request: Request) {
     };
 
     // Single GSheet append — A-BO all written at once, no second lookup
-    const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined, batch_source_sheet_id || undefined);
+    const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
     // Write GEO ID back to Shadow GSheet MAIN tab COL AC
@@ -185,14 +187,11 @@ export async function POST(request: Request) {
       }
     }
 
-    // Mirror to 2nd Backup GSheet — skip when batch source sheet is active (only 1 secondary sheet active at a time)
+    // Mirror to COPY GSheet (BACKUP_SPREADSHEET_ID) — always runs for both regular and batch mode
     const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;
     let backupError: string | null = null;
     let backupSkipped = false;
-    if (batch_source_sheet_id) {
-      backupSkipped = true;
-      console.log("⏭️ Backup write skipped — batch source sheet is the active secondary sheet");
-    } else if (!backupSpreadsheetId) {
+    if (!backupSpreadsheetId) {
       backupSkipped = true;
       console.warn("⚠️ BACKUP_SPREADSHEET_ID not set — backup skipped");
     } else {
@@ -249,6 +248,7 @@ export async function POST(request: Request) {
       corner: corner || null,
       compound: compound || null,
       COMMENTS: comments || null,
+      "MONTHLY DUES": monthly_dues || null,
     }).select();
 
     if (error) {
