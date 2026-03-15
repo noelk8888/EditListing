@@ -1232,7 +1232,7 @@ export default function AddListingPage() {
           monthly_dues: monthlyDues,
           comments: comments,
           photo_link: photosLink,
-          geo_id: undefined,
+          geo_id: (geoIdConfirmed && newGeoId) ? newGeoId : undefined,
           // batch: always pass source sheet + row so GEO ID is written back to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
             col_q: batchRows[batchIndex].colQ,

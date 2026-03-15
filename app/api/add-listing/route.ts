@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { addNewGSheetRow, appendDisplayRowToSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { addNewGSheetRow, appendDisplayRowToSheet, writeBatchSourceGeoId, updateSyncColumns, updateDisplayColumns, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -172,18 +172,36 @@ export async function POST(request: Request) {
       compound: compound || "",
     };
 
-    // Single GSheet write — A-BO all written at once
-    // When batch_source_tab_name is set (Sheet2 batch), write in-place to the source row
-    const newGeoId = await addNewGSheetRow(
-      displayData,
-      geo_id || undefined,
-      syncData,
-      updatedBy || undefined,
-      undefined,
-      batch_source_tab_name || undefined,
-      (batch_source_tab_name && batch_row_number) ? batch_row_number : undefined,
-    );
-    console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
+    // GSheet write:
+    // - If geo_id is a confirmed override (existing ID from text), try to update the existing row first.
+    //   If the row isn't found in GSheet, fall back to appending a new row.
+    // - When batch_source_tab_name is set (Sheet2 batch), write in-place to the source row.
+    // - Otherwise, append a new row.
+    let newGeoId: string;
+    if (geo_id && !batch_source_tab_name) {
+      // Override GEO ID: try update first (in case the row exists in GSheet but not Supabase)
+      const updatedInGSheet = await updateSyncColumns(geo_id, syncData, summary || "", undefined).catch(() => false);
+      if (updatedInGSheet) {
+        await updateDisplayColumns(geo_id, displayData, summary || "", undefined).catch(() => {});
+        console.log(`✅ GSheet row found and updated in-place for override GEO ID: ${geo_id}`);
+      } else {
+        // Row not in GSheet — append as new with the specified GEO ID
+        await addNewGSheetRow(displayData, geo_id, syncData, updatedBy || undefined);
+        console.log(`✅ GSheet row appended with override GEO ID: ${geo_id}`);
+      }
+      newGeoId = geo_id;
+    } else {
+      newGeoId = await addNewGSheetRow(
+        displayData,
+        geo_id || undefined,
+        syncData,
+        updatedBy || undefined,
+        undefined,
+        batch_source_tab_name || undefined,
+        (batch_source_tab_name && batch_row_number) ? batch_row_number : undefined,
+      );
+    }
+    console.log("✅ GSheet write done, GEO ID:", newGeoId);
 
     // Write GEO ID back to Source GSheet — skip when batch_source_tab_name is set
     // (because addNewGSheetRow already wrote the GEO ID to the source row directly)
@@ -220,9 +238,9 @@ export async function POST(request: Request) {
 
     const mainWithGeoId = newGeoId + "\n" + (summary || "");
 
-    // Step 2: Add to Supabase with the same GEO ID
+    // Step 2: Add to Supabase — upsert when geo_id is an override so we don't fail if it already exists
 
-    const { data, error } = await supabase.from(TABLE_NAME).insert({
+    const supabaseRecord = {
       "GEO ID": newGeoId,
       MAIN: mainWithGeoId,
       PHOTO: photo_link || null,
@@ -263,17 +281,25 @@ export async function POST(request: Request) {
       compound: compound || null,
       COMMENTS: comments || null,
       "MONTHLY DUES": monthly_dues || null,
-    }).select();
+    };
+
+    // Use upsert when an override GEO ID was confirmed — handles the case where the
+    // record already exists in Supabase (updates it) or doesn't (inserts it).
+    const supabaseOp = geo_id
+      ? supabase.from(TABLE_NAME).upsert(supabaseRecord, { onConflict: '"GEO ID"' }).select()
+      : supabase.from(TABLE_NAME).insert(supabaseRecord).select();
+
+    const { data, error } = await supabaseOp;
 
     if (error) {
-      console.error("Supabase insert error:", error);
+      console.error("Supabase insert/upsert error:", error);
       return NextResponse.json(
         { error: "Failed to add listing to Supabase", details: error.message },
         { status: 500 }
       );
     }
 
-    console.log("✅ Supabase row added for GEO ID:", newGeoId);
+    console.log(`✅ Supabase ${geo_id ? "upserted" : "inserted"} for GEO ID:`, newGeoId);
 
     // Send Telegram notifications if requested
     if (send_telegram) {
