@@ -1780,26 +1780,28 @@ export async function writeBatchSourceGeoId(
   sheetGid?: string
 ): Promise<void> {
   const sheets = getSheets();
-  let sheetTabName = SHEET_NAME;
+  let sheetTabName = "MAIN"; // always target the MAIN tab of the Shadow GSheet
   try {
     const meta = await sheets.spreadsheets.get({ spreadsheetId });
-    if (sheetGid) {
+    const mainTab = meta.data.sheets?.find((s: any) => s.properties?.title === "MAIN");
+    if (mainTab) {
+      sheetTabName = "MAIN";
+    } else if (sheetGid) {
       const gidNum = parseInt(sheetGid, 10);
       const byGid = meta.data.sheets?.find((s: any) => s.properties?.sheetId === gidNum);
       sheetTabName = byGid?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
     } else {
-      const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
-      sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+      sheetTabName = meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
     }
-  } catch { /* keep SHEET_NAME */ }
+  } catch { /* keep "MAIN" */ }
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${sheetTabName}!AA${rowNumber}`,
+    range: `${sheetTabName}!AC${rowNumber}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [[geoId]] },
   });
-  console.log(`✅ Wrote GEO ID ${geoId} to batch source sheet row ${rowNumber} COL AA (MAIN)`);
+  console.log(`✅ Wrote GEO ID ${geoId} to batch source sheet MAIN tab row ${rowNumber} COL AC`);
 }
 
 export async function deleteListing(id: string, overrideSpreadsheetId?: string): Promise<boolean> {
