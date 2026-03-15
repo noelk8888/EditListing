@@ -52,6 +52,7 @@ export interface SupabaseListing {
   corner: string | null;
   compound: string | null;
   comments: string | null;
+  monthly_dues: string | null;
   sponsor_start: string | null;
   sponsor_end: string | null;
 }
