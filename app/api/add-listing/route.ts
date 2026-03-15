@@ -178,7 +178,7 @@ export async function POST(request: Request) {
     console.log("=== WRITEBACK CHECK ===", { batch_source_sheet_id, batch_row_number, newGeoId });
     if (batch_source_sheet_id && batch_row_number) {
       try {
-        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, newGeoId, batch_source_sheet_gid || undefined);
+        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, newGeoId, batch_source_sheet_gid || undefined, summary || undefined);
       } catch (err) {
         writebackError = err instanceof Error ? err.message : String(err);
         console.error("❌ Batch source GEO ID writeback failed:", writebackError);

@@ -1772,15 +1772,50 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
   return results;
 }
 
-/** Write the assigned GEO ID back to COL AC of a specific row in the batch source sheet. */
+/** Write the assigned GEO ID back to COL AC of the MAIN tab row that matches sourceText.
+ *  Since Sheet1 row numbers differ from MAIN tab row numbers, we search MAIN!A:A for the
+ *  listing content and write to the found row. Falls back to rowNumber if no match found. */
 export async function writeBatchSourceGeoId(
   spreadsheetId: string,
   rowNumber: number,
   geoId: string,
-  sheetGid?: string
+  sheetGid?: string,
+  sourceText?: string
 ): Promise<void> {
   const sheets = getSheets();
-  let sheetTabName = "MAIN"; // always target the MAIN tab of the Shadow GSheet
+
+  // Primary path: content-search in MAIN tab to find the correct row
+  if (sourceText && sourceText.trim()) {
+    try {
+      const colAResponse = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `MAIN!A:A`,
+      });
+      const colAValues = (colAResponse.data.values || []) as string[][];
+      const firstLine = sourceText.trim().split('\n')[0].trim().toLowerCase();
+      const foundIdx = colAValues.findIndex((row) => {
+        const cellFirstLine = (row[0] || "").trim().split('\n')[0].trim().toLowerCase();
+        return cellFirstLine.length > 10 && cellFirstLine === firstLine;
+      });
+      if (foundIdx >= 0) {
+        const mainRow = foundIdx + 1; // 1-indexed
+        await sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `MAIN!AC${mainRow}`,
+          valueInputOption: "USER_ENTERED",
+          requestBody: { values: [[geoId]] },
+        });
+        console.log(`✅ Content match: wrote GEO ID ${geoId} to MAIN!AC${mainRow} (Sheet1 row was ${rowNumber})`);
+        return;
+      }
+      console.warn(`⚠️ No MAIN tab row matched source text first line: "${firstLine.substring(0, 40)}". Falling back to row ${rowNumber}.`);
+    } catch (err) {
+      console.warn(`⚠️ MAIN tab content search failed:`, err instanceof Error ? err.message : err);
+    }
+  }
+
+  // Fallback: write using the row number directly (works when row numbers match)
+  let sheetTabName = "MAIN";
   try {
     const meta = await sheets.spreadsheets.get({ spreadsheetId });
     const mainTab = meta.data.sheets?.find((s: any) => s.properties?.title === "MAIN");
@@ -1801,7 +1836,7 @@ export async function writeBatchSourceGeoId(
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [[geoId]] },
   });
-  console.log(`✅ Wrote GEO ID ${geoId} to batch source sheet MAIN tab row ${rowNumber} COL AC`);
+  console.log(`✅ Wrote GEO ID ${geoId} to ${sheetTabName}!AC${rowNumber} (row-number fallback)`);
 }
 
 export async function deleteListing(id: string, overrideSpreadsheetId?: string): Promise<boolean> {

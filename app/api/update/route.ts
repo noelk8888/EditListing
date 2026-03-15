@@ -352,7 +352,7 @@ export async function POST(request: Request) {
     let writebackError: string | null = null;
     if (batch_source_sheet_id && batch_row_number) {
       try {
-        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, id, batch_source_sheet_gid || undefined);
+        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, id, batch_source_sheet_gid || undefined, summary || undefined);
         console.log(`✅ Batch writeback: wrote ${id} to MAIN!AC${batch_row_number}`);
       } catch (err) {
         writebackError = err instanceof Error ? err.message : String(err);
