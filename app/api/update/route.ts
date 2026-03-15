@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       batch_source_sheet_id,
       batch_source_sheet_gid,
       batch_row_number,
+      batch_source_tab_name,
     } = body;
 
     if (!id) {
@@ -326,22 +327,26 @@ export async function POST(request: Request) {
       };
 
       // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-      await updateSyncColumns(id, syncData, summary || "", noteConfig);
+      await updateSyncColumns(id, syncData, summary || "", noteConfig, undefined, batch_source_tab_name || undefined);
       console.log("✅ GSheet columns A + Z-BO updated successfully");
 
-      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig);
+      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, batch_source_tab_name || undefined);
       if (gsheetUpdated) {
         console.log("✅ GSheet columns B-P updated successfully");
       } else {
         console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
       }
 
-      // Always sync A-P to 2nd backup sheet if configured
-      const backupId = process.env.BACKUP_SPREADSHEET_ID;
-      if (backupId) {
-        await updateDisplayColumnsInSheet(id, displayData, backupId).catch((err) =>
-          console.warn("⚠️ Backup sync failed (non-fatal):", err)
-        );
+      // Sync A-P to COPY GSheet — skip when batch_source_tab_name is set (Sheet2 data stays in Sheet2 only)
+      if (!batch_source_tab_name) {
+        const backupId = process.env.BACKUP_SPREADSHEET_ID;
+        if (backupId) {
+          await updateDisplayColumnsInSheet(id, displayData, backupId).catch((err) =>
+            console.warn("⚠️ Backup sync failed (non-fatal):", err)
+          );
+        }
+      } else {
+        console.log("⏭️ COPY GSheet sync skipped — Sheet2 batch mode");
       }
     } catch (gsheetError) {
       const msg = gsheetError instanceof Error ? gsheetError.message : String(gsheetError);
@@ -352,9 +357,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Write GEO ID back to Shadow GSheet MAIN tab COL AC (batch review update path)
+    // Write GEO ID back to Source GSheet — skip when batch_source_tab_name is set
+    // (Sheet2 batch: GEO ID is already in the source row via updateSyncColumns)
     let writebackError: string | null = null;
-    if (batch_source_sheet_id && batch_row_number) {
+    if (!batch_source_tab_name && batch_source_sheet_id && batch_row_number) {
       try {
         await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, id, batch_source_sheet_gid || undefined, summary || undefined);
         console.log(`✅ Batch writeback: wrote ${id} to MAIN!AC${batch_row_number}`);

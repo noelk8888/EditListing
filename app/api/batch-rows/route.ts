@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRowRange } from "@/lib/google-sheets";
+import { getRowRange, getSheetTabNameByGid } from "@/lib/google-sheets";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -24,16 +24,29 @@ export async function GET(request: NextRequest) {
     }
 
     let spreadsheetId: string | undefined;
+    let sheetGid: number | undefined;
+
     if (sheetUrl) {
-      const match = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-      if (!match) {
+      const idMatch = sheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+      if (!idMatch) {
         return NextResponse.json({ error: "Invalid Google Sheets URL" }, { status: 400 });
       }
-      spreadsheetId = match[1];
+      spreadsheetId = idMatch[1];
+
+      const gidMatch = sheetUrl.match(/[?&#]gid=(\d+)/);
+      if (gidMatch) {
+        sheetGid = parseInt(gidMatch[1], 10);
+      }
     }
 
-    const rows = await getRowRange(startRow, endRow, spreadsheetId);
-    return NextResponse.json({ rows });
+    // Look up tab name from gid (if provided)
+    let tabName: string | null = null;
+    if (spreadsheetId && sheetGid !== undefined) {
+      tabName = await getSheetTabNameByGid(spreadsheetId, sheetGid);
+    }
+
+    const rows = await getRowRange(startRow, endRow, spreadsheetId, tabName ?? undefined);
+    return NextResponse.json({ rows, tabName });
   } catch (error) {
     console.error("batch-rows error:", error);
     return NextResponse.json(

@@ -139,6 +139,7 @@ export default function AddListingPage() {
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchActive, setBatchActive] = useState(false);      // processing in progress
   const [batchSkips, setBatchSkips] = useState<number[]>([]);
+  const [batchSourceTabName, setBatchSourceTabName] = useState<string | null>(null);
   const [batchPaused, setBatchPaused] = useState(false);
   const [flashOn, setFlashOn] = useState(false);
   const [flashDismissed, setFlashDismissed] = useState(false);
@@ -492,25 +493,32 @@ export default function AddListingPage() {
       setMatchedBy(data.matchedBy || null);
       setSearchPerformed(true);
 
-      // If no match found, suggest next GEO ID
+      // If no match found, suggest GEO ID
       if (!data.result) {
-        // If we just saved a listing this session with the same series, derive the next ID locally (avoids race condition)
-        const lastMatch = lastAssignedGeoId.match(/^([A-Z])(\d+)$/);
-        if (lastMatch && lastMatch[1].toUpperCase() === batchGeoSeries) {
-          const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
-          setSuggestedGeoId(next);
-          setNewGeoId(next);
+        // If the pasted text already contains a GEO ID (e.g. "G10642" as first line),
+        // preserve it — don't overwrite with a brand new ID
+        if (listingId) {
+          setSuggestedGeoId(listingId);
+          setNewGeoId(listingId);
         } else {
-          // First new listing this session or different series — must query the sheet
-          try {
-            const geoRes = await fetch(`/api/next-geo-id?series=${batchGeoSeries}`, { cache: "no-store" });
-            const geoData = await geoRes.json();
-            if (geoData.geoId) {
-              setSuggestedGeoId(geoData.geoId);
-              setNewGeoId(geoData.geoId);
+          // If we just saved a listing this session with the same series, derive the next ID locally (avoids race condition)
+          const lastMatch = lastAssignedGeoId.match(/^([A-Z])(\d+)$/);
+          if (lastMatch && lastMatch[1].toUpperCase() === batchGeoSeries) {
+            const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
+            setSuggestedGeoId(next);
+            setNewGeoId(next);
+          } else {
+            // First new listing this session or different series — must query the sheet
+            try {
+              const geoRes = await fetch(`/api/next-geo-id?series=${batchGeoSeries}`, { cache: "no-store" });
+              const geoData = await geoRes.json();
+              if (geoData.geoId) {
+                setSuggestedGeoId(geoData.geoId);
+                setNewGeoId(geoData.geoId);
+              }
+            } catch {
+              // Non-critical — silently ignore
             }
-          } catch {
-            // Non-critical — silently ignore
           }
         }
       }
@@ -558,6 +566,7 @@ export default function AddListingPage() {
       setBatchRows([]);
       setBatchIndex(0);
       setBatchSkips([]);
+      setBatchSourceTabName(null);
       setRawText("");
       setStep("paste");
       setError(null);
@@ -1076,6 +1085,7 @@ export default function AddListingPage() {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
             batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
             batch_row_number: batchRows[batchIndex].rowNumber,
+            batch_source_tab_name: batchSourceTabName || undefined,
           } : {}),
         }),
       });
@@ -1230,6 +1240,7 @@ export default function AddListingPage() {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
             batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
             batch_row_number: batchRows[batchIndex].rowNumber,
+            batch_source_tab_name: batchSourceTabName || undefined,
           } : {}),
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
@@ -1289,6 +1300,7 @@ export default function AddListingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to fetch rows");
       setBatchRows(data.rows);
+      setBatchSourceTabName(data.tabName || null);
       setBatchIndex(0);
       setBatchSkips([]);
       setBatchActive(true);
@@ -1305,6 +1317,7 @@ export default function AddListingPage() {
     setBatchRows([]);
     setBatchIndex(0);
     setBatchSkips([]);
+    setBatchSourceTabName(null);
     setRawText("");
     setStep("paste");
     setError(null);
@@ -1740,7 +1753,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     No existing listing found
                   </p>
                   <p className="mt-2 text-2xl font-semibold text-green-600">
-                    This appears to be new!
+                    {listingId ? `ID ${listingId} not in database — verify below` : "This appears to be new!"}
                   </p>
                 </div>
                 {/* GEO ID confirm + Extract */}

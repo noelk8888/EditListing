@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       batch_source_sheet_id,
       batch_source_sheet_gid,
       batch_row_number,
+      batch_source_tab_name,
     } = body;
 
     console.log("=== ADDING NEW LISTING ===");
@@ -171,14 +172,24 @@ export async function POST(request: Request) {
       compound: compound || "",
     };
 
-    // Single GSheet append — A-BO all written at once, no second lookup
-    const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
+    // Single GSheet write — A-BO all written at once
+    // When batch_source_tab_name is set (Sheet2 batch), write in-place to the source row
+    const newGeoId = await addNewGSheetRow(
+      displayData,
+      geo_id || undefined,
+      syncData,
+      updatedBy || undefined,
+      undefined,
+      batch_source_tab_name || undefined,
+      (batch_source_tab_name && batch_row_number) ? batch_row_number : undefined,
+    );
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
-    // Write GEO ID back to Shadow GSheet MAIN tab COL AC
+    // Write GEO ID back to Source GSheet — skip when batch_source_tab_name is set
+    // (because addNewGSheetRow already wrote the GEO ID to the source row directly)
     let writebackError: string | null = null;
-    console.log("=== WRITEBACK CHECK ===", { batch_source_sheet_id, batch_row_number, newGeoId });
-    if (batch_source_sheet_id && batch_row_number) {
+    console.log("=== WRITEBACK CHECK ===", { batch_source_sheet_id, batch_row_number, batch_source_tab_name, newGeoId });
+    if (!batch_source_tab_name && batch_source_sheet_id && batch_row_number) {
       try {
         await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, newGeoId, batch_source_sheet_gid || undefined, summary || undefined);
       } catch (err) {
@@ -187,11 +198,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // Mirror to COPY GSheet (BACKUP_SPREADSHEET_ID) — always runs for both regular and batch mode
+    // Mirror to COPY GSheet — skip when batch_source_tab_name is set (Sheet2 data stays in Sheet2 only)
     const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;
     let backupError: string | null = null;
     let backupSkipped = false;
-    if (!backupSpreadsheetId) {
+    if (batch_source_tab_name) {
+      backupSkipped = true;
+      console.log("⏭️ COPY GSheet skipped — Sheet2 batch mode");
+    } else if (!backupSpreadsheetId) {
       backupSkipped = true;
       console.warn("⚠️ BACKUP_SPREADSHEET_ID not set — backup skipped");
     } else {

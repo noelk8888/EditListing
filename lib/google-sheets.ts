@@ -778,9 +778,10 @@ export async function syncPairedColumns(
 /**
  * Update Supabase sync columns Z-BO for a listing by GEO ID
  */
-export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string): Promise<boolean> {
+export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string, sheetTabName?: string): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
+  const tabName = sheetTabName || SHEET_NAME;
 
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");
@@ -788,10 +789,15 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
 
   // Ensure enough columns for Z-BO (67 cols)
   await ensureSheetDimensions(sheets, spreadsheetId, 67);
-  let rowNumber = overrideSpreadsheetId
-    ? await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId)
-    : await findRowByGeoId(geoId);
-  if (!rowNumber && fallbackText && !overrideSpreadsheetId) {
+  let rowNumber: number | null;
+  if (sheetTabName) {
+    rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
+  } else if (overrideSpreadsheetId) {
+    rowNumber = await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId);
+  } else {
+    rowNumber = await findRowByGeoId(geoId);
+  }
+  if (!rowNumber && fallbackText && !overrideSpreadsheetId && !sheetTabName) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
     rowNumber = await findRowNumberByColAText(fallbackText);
   }
@@ -866,20 +872,20 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
         valueInputOption: "USER_ENTERED",
         data: [
           {
-            range: `${SHEET_NAME}!A${rowNumber}`,
+            range: `${tabName}!A${rowNumber}`,
             values: [[blastedFormatToWrite]],
           },
           {
-            range: `${SHEET_NAME}!Z${rowNumber}:BO${rowNumber}`,
+            range: `${tabName}!Z${rowNumber}:BO${rowNumber}`,
             values: [rowData],
           },
           // Keep paired display cols (E:F, I:P) in sync with their Z-BO counterparts (AO:AQ, AX:BD)
           {
-            range: `${SHEET_NAME}!E${rowNumber}:F${rowNumber}`,
+            range: `${tabName}!E${rowNumber}:F${rowNumber}`,
             values: [[data.lotArea, data.floorArea]],
           },
           {
-            range: `${SHEET_NAME}!I${rowNumber}:P${rowNumber}`,
+            range: `${tabName}!I${rowNumber}:P${rowNumber}`,
             values: [[data.withIncome, data.directBroker, data.name, data.away, data.dateRecv, data.dateUpdated, data.status, data.listingOwnership]],
           },
         ],
@@ -892,7 +898,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     try {
       const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
       const sheet = spreadsheet.data.sheets?.find(
-        (s) => s.properties?.title === SHEET_NAME
+        (s) => s.properties?.title === tabName
       );
       const sheetId = sheet?.properties?.sheetId;
       if (sheetId !== undefined) {
@@ -931,9 +937,10 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
 /**
  * Update display columns A-P for a listing by GEO ID
  */
-export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string): Promise<boolean> {
+export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string, sheetTabName?: string): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
+  const tabName = sheetTabName || SHEET_NAME;
 
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");
@@ -942,10 +949,15 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
   // Ensure enough columns for BO (up to col 67)
   await ensureSheetDimensions(sheets, spreadsheetId, 67);
 
-  let rowNumber = overrideSpreadsheetId
-    ? await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId)
-    : await findRowByGeoId(geoId);
-  if (!rowNumber && fallbackText && !overrideSpreadsheetId) {
+  let rowNumber: number | null;
+  if (sheetTabName) {
+    rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
+  } else if (overrideSpreadsheetId) {
+    rowNumber = await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId);
+  } else {
+    rowNumber = await findRowByGeoId(geoId);
+  }
+  if (!rowNumber && fallbackText && !overrideSpreadsheetId && !sheetTabName) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
     rowNumber = await findRowNumberByColAText(fallbackText);
   }
@@ -982,16 +994,16 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
         valueInputOption: "USER_ENTERED",
         data: [
           {
-            range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
+            range: `${tabName}!A${rowNumber}:P${rowNumber}`,
             values: [rowData],
           },
           // Keep paired sync cols (AO:AQ, AX:BD) in sync with their display counterparts (E:F, I:P)
           {
-            range: `${SHEET_NAME}!AO${rowNumber}:AQ${rowNumber}`,
+            range: `${tabName}!AO${rowNumber}:AQ${rowNumber}`,
             values: [[data.lotArea, data.floorArea, data.available]],
           },
           {
-            range: `${SHEET_NAME}!AX${rowNumber}:BD${rowNumber}`,
+            range: `${tabName}!AX${rowNumber}:BD${rowNumber}`,
             values: [[data.withIncome, data.directCobroker, data.ownerBroker, data.away, data.dateReceived, data.dateResorted, data.listingOwnership]],
           },
         ],
@@ -1004,7 +1016,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     // Get sheet ID
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
     const sheet = spreadsheet.data.sheets?.find(
-      (s) => s.properties?.title === SHEET_NAME
+      (s) => s.properties?.title === tabName
     );
     const sheetId = sheet?.properties?.sheetId;
 
@@ -1065,14 +1077,15 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 /**
  * Find a row number by GEO ID in any spreadsheet (strict Col AC match, no fallback).
  */
-async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string): Promise<number | null> {
+async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string, sheetTabName?: string): Promise<number | null> {
+  const tabName = sheetTabName || SHEET_NAME;
   const sheets = getSheets();
   await ensureSheetDimensions(sheets, spreadsheetId, 29);
 
   const acResponse = await runWithExpansion(sheets, spreadsheetId, 29, () =>
     sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${SHEET_NAME}!AC2:AC`,
+      range: `${tabName}!AC2:AC`,
     })
   );
 
@@ -1231,7 +1244,7 @@ export async function getDisplayDataByGeoId(geoId: string): Promise<GSheetDispla
  * Writes to columns A-P (display) and Z-BO (Supabase sync columns)
  * Returns the generated GEO ID
  */
-export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: string, syncData?: GSheetSyncData, updatedBy?: string, overrideSpreadsheetId?: string): Promise<string> {
+export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: string, syncData?: GSheetSyncData, updatedBy?: string, overrideSpreadsheetId?: string, sheetTabName?: string, targetRowNumber?: number): Promise<string> {
   const sheets = getSheets();
   const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
 
@@ -1318,31 +1331,44 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     rowData[GSHEET_COLUMNS.BO_COMPOUND] = syncData.compound || "";
   }
 
-  // Resolve the actual sheet tab name (fallback to first sheet if "Sheet1" not found)
-  let sheetTabName = SHEET_NAME;
-  if (overrideSpreadsheetId) {
+  // Resolve the actual sheet tab name
+  let resolvedTabName: string;
+  if (sheetTabName) {
+    // Explicitly provided (e.g., "Sheet2" for batch mode)
+    resolvedTabName = sheetTabName;
+  } else if (overrideSpreadsheetId) {
+    // Override spreadsheet — resolve from metadata
+    resolvedTabName = SHEET_NAME;
     try {
       const meta = await sheets.spreadsheets.get({ spreadsheetId });
       const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
-      sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+      resolvedTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
     } catch { /* keep SHEET_NAME as fallback */ }
+  } else {
+    resolvedTabName = SHEET_NAME;
   }
 
-  // Find the next empty row by checking the last row with data in col A and col AC.
-  // Using values.update with an explicit range avoids the Sheets API table-detection
-  // bug where append() can start writing at col BE instead of col A.
-  const [colAResp, colACResp] = await Promise.all([
-    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetTabName}!A:A` }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: `${sheetTabName}!AC:AC` }),
-  ]);
-  const rowsInColA = (colAResp.data.values || []).length;
-  const rowsInColAC = (colACResp.data.values || []).length;
-  const nextRow = Math.max(rowsInColA, rowsInColAC) + 1;
+  // Determine target row: use provided row number (Sheet2 batch in-place) or find next empty row
+  let nextRow: number;
+  if (targetRowNumber) {
+    nextRow = targetRowNumber;
+  } else {
+    // Find the next empty row by checking the last row with data in col A and col AC.
+    // Using values.update with an explicit range avoids the Sheets API table-detection
+    // bug where append() can start writing at col BE instead of col A.
+    const [colAResp, colACResp] = await Promise.all([
+      sheets.spreadsheets.values.get({ spreadsheetId, range: `${resolvedTabName}!A:A` }),
+      sheets.spreadsheets.values.get({ spreadsheetId, range: `${resolvedTabName}!AC:AC` }),
+    ]);
+    const rowsInColA = (colAResp.data.values || []).length;
+    const rowsInColAC = (colACResp.data.values || []).length;
+    nextRow = Math.max(rowsInColA, rowsInColAC) + 1;
+  }
 
   // Write with an explicit A{n}:BO{n} reference — col A is always index 0
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${sheetTabName}!A${nextRow}:BO${nextRow}`,
+    range: `${resolvedTabName}!A${nextRow}:BO${nextRow}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [rowData],
@@ -1355,7 +1381,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   try {
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
     const sheet = spreadsheet.data.sheets?.find(
-      (s) => s.properties?.title === sheetTabName
+      (s) => s.properties?.title === resolvedTabName
     );
     const sheetId = sheet?.properties?.sheetId;
 
@@ -1398,7 +1424,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   if (updatedBy) {
     try {
       const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-      const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === sheetTabName);
+      const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === resolvedTabName);
       const sheetId = sheet?.properties?.sheetId;
       if (sheetId !== undefined) {
         const now = new Date().toLocaleString("en-PH", {
@@ -1692,7 +1718,22 @@ export async function updateListing(id: string, listing: Listing): Promise<Listi
   return { ...listing, id };
 }
 
-export async function getRowRange(startRow: number, endRow: number, spreadsheetId?: string): Promise<BatchRowData[]> {
+/**
+ * Look up a sheet tab name by its numeric gid (sheetId).
+ * Returns null if the gid is not found.
+ */
+export async function getSheetTabNameByGid(spreadsheetId: string, gid: number): Promise<string | null> {
+  const sheets = getSheets();
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const found = meta.data.sheets?.find((s: any) => s.properties?.sheetId === gid);
+    return found?.properties?.title ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getRowRange(startRow: number, endRow: number, spreadsheetId?: string, sheetTabName?: string): Promise<BatchRowData[]> {
   if (startRow < 2) throw new Error("startRow must be >= 2 (row 1 is the header)");
   if (endRow < startRow) throw new Error("endRow must be >= startRow");
   if (endRow - startRow > 499) throw new Error("Range too large (max 500 rows)");
@@ -1700,6 +1741,8 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
   const sheets = getSheets();
   const spreadsheetId_ = spreadsheetId || process.env.SPREADSHEET_ID;
   if (!spreadsheetId_) throw new Error("SPREADSHEET_ID not configured");
+
+  const tabName = sheetTabName || SHEET_NAME;
 
   // Fetch A-P as a contiguous range (all 16 display columns in one call) + AC separately
   let apRows: string[][] = [];
@@ -1718,8 +1761,8 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
     const batchResponse = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: spreadsheetId_,
       ranges: [
-        `${SHEET_NAME}!A${startRow}:R${endRow}`,
-        `${SHEET_NAME}!AC${startRow}:AC${endRow}`,
+        `${tabName}!A${startRow}:R${endRow}`,
+        `${tabName}!AC${startRow}:AC${endRow}`,
       ],
     });
     const vr = batchResponse.data.valueRanges || [];
@@ -1733,7 +1776,7 @@ export async function getRowRange(startRow: number, endRow: number, spreadsheetI
     // Sheet has fewer columns than AC — retry without AC
     const fallback = await sheets.spreadsheets.values.batchGet({
       spreadsheetId: spreadsheetId_,
-      ranges: [`${SHEET_NAME}!A${startRow}:R${endRow}`],
+      ranges: [`${tabName}!A${startRow}:R${endRow}`],
     });
     const vr = fallback.data.valueRanges || [];
     apRows = (vr[0]?.values || []) as string[][];
