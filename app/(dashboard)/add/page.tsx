@@ -134,7 +134,7 @@ export default function AddListingPage() {
   const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1yZBEpaO_NE4fUFOVhgoSEfC-UxyephQgs3C6hX5cM2k/edit?gid=1380358340#gid=1380358340");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
-  const [batchGeoSeries, setBatchGeoSeries] = useState<"G" | "A">("G");
+  const [batchGeoSeries, setBatchGeoSeries] = useState<"G" | "A">("A");
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
   const [batchIndex, setBatchIndex] = useState(0);
   const [batchLoading, setBatchLoading] = useState(false);
