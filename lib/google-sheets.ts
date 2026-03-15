@@ -467,7 +467,10 @@ export async function generateNextGeoId(series?: string): Promise<string> {
   for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl); }
   for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl); }
 
-  const nextGeoId = `${prefix}${maxNumber + 1}`;
+  const nextNum = maxNumber + 1;
+  // A-series: always 5 digits (A00001–A99999). G-series: no padding (existing format).
+  const formattedNum = (targetPrefix === "A") ? String(nextNum).padStart(5, "0") : String(nextNum);
+  const nextGeoId = `${prefix}${formattedNum}`;
   console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber}, scanned AC+AA+A, series=${targetPrefix || "any"})`);
   return nextGeoId;
 }
