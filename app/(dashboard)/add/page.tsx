@@ -555,8 +555,63 @@ export default function AddListingPage() {
     }
 
     if (idx >= batchRows.length) {
-      alert(`Batch complete! Processed rows. Skipped ${batchSkips.length + newSkips.length} empty rows.`);
+      alert(`Batch complete! Skipped ${batchSkips.length + newSkips.length} empty rows.`);
+      // Full reset — same as handleDone
       setBatchActive(false);
+      setBatchRows([]);
+      setBatchIndex(0);
+      setBatchSkips([]);
+      setRawText("");
+      setStep("paste");
+      setError(null);
+      setSearchResult(null);
+      setSearchPerformed(false);
+      setListingId("");
+      setPhotosLink("");
+      setPreviewLines("");
+      setResidential(false);
+      setCommercial(false);
+      setIndustrial(false);
+      setAgricultural(false);
+      setWithIncome("");
+      setDirectOrCobroker("");
+      setOwnerBroker("");
+      setHowManyAway("");
+      setListingOwnership("");
+      setSaleOrLease("");
+      setDateReceived("");
+      setDateUpdated("");
+      setAvailable("");
+      setEditSummary("");
+      setEditArea("");
+      setEditBarangay("");
+      setEditCity("");
+      setEditLotArea("");
+      setEditFloorArea("");
+      setEditPrice("");
+      setEditLeasePrice("");
+      setEditRegion("");
+      setEditProvince("");
+      setEditBuilding("");
+      setEditType("");
+      setEditStatus("");
+      setMapLink("");
+      setSalePricePerSqm("");
+      setLeasePricePerSqm("");
+      setLat("");
+      setLong("");
+      setBedrooms("");
+      setToilet("");
+      setGarage("");
+      setAmenities("");
+      setCorner("");
+      setCompound("");
+      setComments("");
+      setNewGeoId("");
+      setSuggestedGeoId("");
+      setGeoIdConfirmed(false);
+      setLastAssignedGeoId("");
+      router.push("/");
       return;
     }
 
