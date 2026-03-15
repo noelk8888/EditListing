@@ -1795,11 +1795,11 @@ export async function writeBatchSourceGeoId(
 
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${sheetTabName}!AC${rowNumber}`,
+    range: `${sheetTabName}!AA${rowNumber}`,
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [[geoId]] },
   });
-  console.log(`✅ Wrote GEO ID ${geoId} to batch source sheet row ${rowNumber} COL AC`);
+  console.log(`✅ Wrote GEO ID ${geoId} to batch source sheet row ${rowNumber} COL AA (MAIN)`);
 }
 
 export async function deleteListing(id: string, overrideSpreadsheetId?: string): Promise<boolean> {
