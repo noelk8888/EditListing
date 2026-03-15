@@ -1074,6 +1074,12 @@ export default function AddListingPage() {
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,
           write_to_backup: backupStatus === "match" || (backupStatus === "conflict" && conflictResolved),
+          // batch writeback: write existing GEO ID to Shadow GSheet MAIN tab COL AC
+          ...(batchActive && batchRows[batchIndex] ? {
+            batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
+            batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
+            batch_row_number: batchRows[batchIndex].rowNumber,
+          } : {}),
         }),
       });
 
@@ -1089,7 +1095,11 @@ export default function AddListingPage() {
 
       // Success
       if (batchActive) {
-        setError(null);
+        if (result.writebackError) {
+          setError(`⚠️ Listing updated, but Shadow GSheet writeback failed: ${result.writebackError}`);
+        } else {
+          setError(null);
+        }
         setBatchIndex(prev => prev + 1);
       } else {
         alert(`✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`);

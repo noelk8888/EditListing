@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, GSheetDisplayData, GSheetSyncData, NoteConfig } from "@/lib/google-sheets";
+import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -63,6 +63,9 @@ export async function POST(request: Request) {
       send_telegram,
       telegram_post_message,
       telegram_groups,
+      batch_source_sheet_id,
+      batch_source_sheet_gid,
+      batch_row_number,
     } = body;
 
     if (!id) {
@@ -345,6 +348,18 @@ export async function POST(request: Request) {
       );
     }
 
+    // Write GEO ID back to Shadow GSheet MAIN tab COL AC (batch review update path)
+    let writebackError: string | null = null;
+    if (batch_source_sheet_id && batch_row_number) {
+      try {
+        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, id, batch_source_sheet_gid || undefined);
+        console.log(`✅ Batch writeback: wrote ${id} to MAIN!AC${batch_row_number}`);
+      } catch (err) {
+        writebackError = err instanceof Error ? err.message : String(err);
+        console.error("❌ Batch writeback failed:", writebackError);
+      }
+    }
+
     // Send Telegram notifications only when checkbox is checked
     if (send_telegram) {
       const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
@@ -358,6 +373,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       supabaseUpdated,
+      writebackError: writebackError ?? undefined,
       warning: supabaseUpdated ? undefined : `GEO ID ${id} not found in Supabase — only GSheet was updated`,
     });
   } catch (err) {
