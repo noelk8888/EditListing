@@ -134,7 +134,7 @@ export default function AddListingPage() {
   const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1yZBEpaO_NE4fUFOVhgoSEfC-UxyephQgs3C6hX5cM2k/edit?gid=1380358340#gid=1380358340");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
-  const [batchGeoSeries, setBatchGeoSeries] = useState<"G" | "A">("A");
+  const batchGeoSeries = "G";
   const [batchRows, setBatchRows] = useState<BatchRow[]>([]);
   const [batchIndex, setBatchIndex] = useState(0);
   const [batchLoading, setBatchLoading] = useState(false);
@@ -1224,7 +1224,7 @@ export default function AddListingPage() {
           compound: compound,
           comments: comments,
           photo_link: photosLink,
-          geo_id: (batchActive && batchGeoSeries === "A" && newGeoId) ? newGeoId : undefined,
+          geo_id: undefined,
           // batch: always pass source sheet + row so GEO ID is written back to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
             col_q: batchRows[batchIndex].colQ,
@@ -1542,21 +1542,6 @@ export default function AddListingPage() {
                 onChange={e => setBatchEndRow(e.target.value)}
                 className="h-8 w-24 text-sm"
               />
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-xs shrink-0">GEO Series</Label>
-              <div className="flex rounded-md border overflow-hidden h-8">
-                <button
-                  type="button"
-                  onClick={() => setBatchGeoSeries("G")}
-                  className={`px-3 text-xs font-mono font-semibold transition-colors ${batchGeoSeries === "G" ? "bg-foreground text-background" : "bg-background text-muted-foreground hover:text-foreground"}`}
-                >G</button>
-                <button
-                  type="button"
-                  onClick={() => setBatchGeoSeries("A")}
-                  className={`px-3 text-xs font-mono font-semibold border-l transition-colors ${batchGeoSeries === "A" ? "bg-foreground text-background" : "bg-background text-muted-foreground hover:text-foreground"}`}
-                >A</button>
-              </div>
             </div>
             <Button
               size="sm"
