@@ -1160,8 +1160,8 @@ export default function AddListingPage() {
           comments: comments,
           photo_link: photosLink,
           geo_id: (batchActive && batchGeoSeries === "A" && newGeoId) ? newGeoId : undefined,
-          // A-series batch: pass source sheet + row so GEO ID is written back to COL AC
-          ...(batchActive && batchGeoSeries === "A" && batchRows[batchIndex] ? {
+          // batch: always pass source sheet + row so GEO ID is written back to Shadow GSheet MAIN tab COL AC
+          ...(batchActive && batchRows[batchIndex] ? {
             col_q: batchRows[batchIndex].colQ,
             col_r: batchRows[batchIndex].colR,
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",

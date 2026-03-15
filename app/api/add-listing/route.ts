@@ -173,8 +173,9 @@ export async function POST(request: Request) {
     const newGeoId = await addNewGSheetRow(displayData, geo_id || undefined, syncData, updatedBy || undefined);
     console.log("✅ GSheet row added (A-BO) with GEO ID:", newGeoId);
 
-    // Write GEO ID back to batch source sheet (A-series batch only)
+    // Write GEO ID back to Shadow GSheet MAIN tab COL AC
     let writebackError: string | null = null;
+    console.log("=== WRITEBACK CHECK ===", { batch_source_sheet_id, batch_row_number, newGeoId });
     if (batch_source_sheet_id && batch_row_number) {
       try {
         await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, newGeoId, batch_source_sheet_gid || undefined);
