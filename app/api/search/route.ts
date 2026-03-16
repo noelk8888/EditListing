@@ -74,6 +74,7 @@ function extractMapLink(text: string | null | undefined): string | null {
 function toPhilippinesDate(isoString: string | null): string | null {
   if (!isoString) return null;
   const utcDate = new Date(isoString);
+  if (isNaN(utcDate.getTime())) return null;
   // Add 8 hours for Philippines timezone
   const phDate = new Date(utcDate.getTime() + (8 * 60 * 60 * 1000));
   return phDate.toISOString().split('T')[0];
