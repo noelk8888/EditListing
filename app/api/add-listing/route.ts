@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { addNewGSheetRow, appendDisplayRowToSheet, writeBatchSourceGeoId, updateSyncColumns, updateDisplayColumns, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { addNewGSheetRow, appendDisplayRowToSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -172,35 +172,17 @@ export async function POST(request: Request) {
       compound: compound || "",
     };
 
-    // GSheet write:
-    // - If geo_id is a confirmed override (existing ID from text), try to update the existing row first.
-    //   If the row isn't found in GSheet, fall back to appending a new row.
-    // - When batch_source_tab_name is set (Sheet2 batch), write in-place to the source row.
-    // - Otherwise, append a new row.
-    let newGeoId: string;
-    if (geo_id && !batch_source_tab_name) {
-      // Override GEO ID: try update first (in case the row exists in GSheet but not Supabase)
-      const updatedInGSheet = await updateSyncColumns(geo_id, syncData, summary || "", undefined).catch(() => false);
-      if (updatedInGSheet) {
-        await updateDisplayColumns(geo_id, displayData, summary || "", undefined).catch(() => {});
-        console.log(`✅ GSheet row found and updated in-place for override GEO ID: ${geo_id}`);
-      } else {
-        // Row not in GSheet — append as new with the specified GEO ID
-        await addNewGSheetRow(displayData, geo_id, syncData, updatedBy || undefined);
-        console.log(`✅ GSheet row appended with override GEO ID: ${geo_id}`);
-      }
-      newGeoId = geo_id;
-    } else {
-      newGeoId = await addNewGSheetRow(
-        displayData,
-        geo_id || undefined,
-        syncData,
-        updatedBy || undefined,
-        undefined,
-        batch_source_tab_name || undefined,
-        (batch_source_tab_name && batch_row_number) ? batch_row_number : undefined,
-      );
-    }
+    // GSheet write — append a new row (with override GEO ID if confirmed, or generate a new one)
+    // When batch_source_tab_name is set (Sheet2 batch), write in-place to the source row.
+    const newGeoId = await addNewGSheetRow(
+      displayData,
+      geo_id || undefined,
+      syncData,
+      updatedBy || undefined,
+      undefined,
+      batch_source_tab_name || undefined,
+      (batch_source_tab_name && batch_row_number) ? batch_row_number : undefined,
+    );
     console.log("✅ GSheet write done, GEO ID:", newGeoId);
 
     // Write GEO ID back to Source GSheet — skip when batch_source_tab_name is set
