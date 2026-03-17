@@ -359,8 +359,11 @@ export async function POST(request: Request) {
         console.log("NAME (owner):", data[0]["NAME"]);
         console.log("AWAY:", data[0]["AWAY"]);
         console.log("LISTING OWNERSHIP:", data[0]["LISTING OWNERSHIP"]);
-        const result = await applyGSheetFallback(supabaseToResult(data[0] as SupabaseResult));
-        const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+        const baseResult = supabaseToResult(data[0] as SupabaseResult);
+        const [result, sourceTab] = await Promise.all([
+          applyGSheetFallback(baseResult),
+          findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
+        ]);
         return NextResponse.json({ result, matchedBy: "listingId", sourceTab });
       }
       console.log("No match by GEO ID in Supabase, trying GSheet...");
@@ -396,8 +399,11 @@ export async function POST(request: Request) {
         console.error("Supabase error:", error);
       } else if (data && data.length > 0) {
         console.log("Found by PHOTO:", data[0]["GEO ID"]);
-        const result = await applyGSheetFallback(supabaseToResult(data[0] as SupabaseResult));
-        const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+        const baseResult = supabaseToResult(data[0] as SupabaseResult);
+        const [result, sourceTab] = await Promise.all([
+          applyGSheetFallback(baseResult),
+          findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
+        ]);
         return NextResponse.json({ result, matchedBy: "photoLink", sourceTab });
       }
       console.log("No match by PHOTO");
@@ -447,8 +453,11 @@ export async function POST(request: Request) {
               // Require at least 80% of lines to match
               if (matchRatio >= 0.8) {
                 console.log("Found match with Strategy A:", row["GEO ID"]);
-                const result = await applyGSheetFallback(supabaseToResult(row as SupabaseResult));
-                const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+                const baseResult = supabaseToResult(row as SupabaseResult);
+                const [result, sourceTab] = await Promise.all([
+                  applyGSheetFallback(baseResult),
+                  findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
+                ]);
                 return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
             }
@@ -483,8 +492,11 @@ export async function POST(request: Request) {
               // Require at least 80% of lines to match
               if (matchRatio >= 0.8) {
                 console.log("Found match with Strategy B:", row["GEO ID"]);
-                const result = await applyGSheetFallback(supabaseToResult(row as SupabaseResult));
-                const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+                const baseResult2 = supabaseToResult(row as SupabaseResult);
+                const [result, sourceTab] = await Promise.all([
+                  applyGSheetFallback(baseResult2),
+                  findGeoIdSourceTab(baseResult2.id).catch(() => "Sheet1"),
+                ]);
                 return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
             }

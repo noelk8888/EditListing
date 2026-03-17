@@ -274,10 +274,18 @@ export function getAuth() {
   });
 }
 
+// Singleton: reuse the same sheets client across calls in this process instance
+let _sheetsClient: ReturnType<typeof google.sheets> | null = null;
+
 export function getSheets() {
+  if (_sheetsClient) return _sheetsClient;
   const auth = getAuth();
-  return google.sheets({ version: "v4", auth });
+  _sheetsClient = google.sheets({ version: "v4", auth });
+  return _sheetsClient;
 }
+
+// Cache: track the max verified column count per spreadsheetId to skip redundant metadata calls
+const _ensuredCols = new Map<string, number>();
 
 /**
  * Ensure the sheet has at least minCols columns.
@@ -285,6 +293,9 @@ export function getSheets() {
  * Our app requires columns Z-BO (up to column 67).
  */
 export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number) {
+  // Skip the API call if we've already verified this sheet has enough columns
+  const verified = _ensuredCols.get(spreadsheetId) ?? 0;
+  if (verified >= minCols) return;
   const logPath = "/tmp/gsheet_debug.log";
   const log = (msg: string) => {
     console.log(msg);
@@ -328,6 +339,8 @@ export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, 
     } else {
       log(`No expansion needed or sheetId missing. sheetId: ${sheetId}, currentCols: ${currentCols}`);
     }
+    // Mark this spreadsheet as verified for at least minCols columns
+    _ensuredCols.set(spreadsheetId, Math.max(verified, minCols));
   } catch (err: any) {
     const errMsg = err?.response?.data?.error?.message || err?.message || String(err);
     log(`ERROR in ensureSheetDimensions: ${errMsg}`);
