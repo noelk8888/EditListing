@@ -85,18 +85,31 @@ export async function POST(request: Request) {
       String(a ?? "").trim() !== String(b ?? "").trim();
 
     const noteCols = new Set<number>();
-    if (updatedBy && current) {
-      if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
-      if (diff(status, current["STATUS"])) { noteCols.add(14); noteCols.add(42); } // O, AQ
+    const changeTypes: string[] = [];
+    if (current) {
+      if (diff(price, current["Extracted Sale Price"]) || diff(lease_price, current["Extracted Lease Price"])) changeTypes.push("PRICE");
+      if (diff(status, current["STATUS"])) changeTypes.push("STATUS");
+      if (diff(listing_ownership, current["LISTING OWNERSHIP"])) changeTypes.push("LISTING");
+      if (diff(comments, current["COMMENTS"])) changeTypes.push("COMMENTS");
       const latChanged = diff(lat, current["LAT"]);
       const longChanged = diff(long, current["LONG"]);
-      if (latChanged || longChanged) noteCols.add(56); // BE
-      if (latChanged) noteCols.add(57); // BF
-      if (longChanged) noteCols.add(58); // BG
-      if (diff(comments, current["COMMENTS"])) noteCols.add(48); // AW
+      if (latChanged || longChanged) changeTypes.push("LOCATION");
+    }
+    if (updatedBy && current) {
+      if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
+      if (changeTypes.includes("STATUS")) { noteCols.add(14); noteCols.add(42); } // O, AQ
+      if (changeTypes.includes("LOCATION")) { noteCols.add(56); } // BE
+      if (diff(lat, current?.["LAT"])) noteCols.add(57); // BF
+      if (diff(long, current?.["LONG"])) noteCols.add(58); // BG
+      if (changeTypes.includes("COMMENTS")) noteCols.add(48); // AW
     }
     const noteConfig: NoteConfig | undefined =
       updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;
+
+    // BC value: plain date + change suffix (e.g. "2026-03-17 | PRICE/STATUS")
+    const bcDateUpdated = date_updated
+      ? (changeTypes.length > 0 ? `${date_updated} | ${changeTypes.join("/")}` : date_updated)
+      : "";
 
     // Always derive MAP LINK from lat/long when available; otherwise keep existing map_link
     const derivedMapLink =
@@ -312,6 +325,7 @@ export async function POST(request: Request) {
         monthlyDues: monthly_dues || "",
         dateRecv: date_received || "",
         dateUpdated: date_updated || "",
+        bcDateUpdated: bcDateUpdated || undefined,
         listingOwnership: listing_ownership || "",
         latLong: latLongCombined,
         lat: lat || "",

@@ -707,7 +707,8 @@ export interface GSheetSyncData {
   away: string;             // BA
   monthlyDues: string;      // BB
   dateRecv: string;         // display col M sync only (not written to BB)
-  dateUpdated: string;      // BC
+  dateUpdated: string;      // N (plain date, no suffix)
+  bcDateUpdated?: string;   // BC (date + change suffix e.g. "2026-03-17 | PRICE")
   listingOwnership: string; // BD
   latLong: string;          // BE
   lat: string;              // BF
@@ -849,8 +850,8 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     data.directBroker,     // AY (25)
     data.name,             // AZ (26)
     data.away,             // BA (27)
-    data.monthlyDues,      // BB (28)
-    data.dateUpdated,      // BC (29)
+    data.monthlyDues,                              // BB (28)
+    data.bcDateUpdated ?? data.dateUpdated,        // BC (29) — annotated if bcDateUpdated set
     data.listingOwnership, // BD (30)
     data.latLong,          // BE (31)
     data.lat,              // BF (32)
@@ -1572,42 +1573,6 @@ export async function appendDisplayRowToSheet(
 
 import { Listing } from "@/types/listing";
 
-const LEGACY_COLUMN_MAP = {
-  region: 0,
-  province: 1,
-  city: 2,
-  barangay: 3,
-  area: 4,
-  building: 5,
-  residential: 6,
-  commercial: 7,
-  industrial: 8,
-  agricultural: 9,
-  lotArea: 10,
-  floorArea: 11,
-  status: 12,
-  type: 13,
-  salePrice: 14,
-  salePricePerSqm: 15,
-  leasePrice: 16,
-  leasePricePerSqm: 17,
-  lat: 18,
-  long: 19,
-  bedrooms: 20,
-  toilets: 21,
-  garage: 22,
-  amenities: 23,
-  corner: 24,
-  compound: 25,
-  photos: 26,
-  rawListing: 27,
-  id: 28,
-  withIncome: 29,
-  directOrCobroker: 30,
-  ownerBroker: 31,
-  howManyAway: 32,
-  listingOwnership: 33,
-};
 
 function rowToListing(row: string[], rowIndex: number): Listing {
   return {
