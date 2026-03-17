@@ -1109,31 +1109,33 @@ async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string, sheet
 
 /**
  * Find which tab in the WORKING GSheet a GEO ID lives in.
- * Checks Sheet1 first (fast path). If not found, checks all other tabs.
- * Returns the tab title (e.g. "Sheet1", "Sheet2") or "Sheet1" as default.
+ * Checks non-Sheet1 tabs FIRST (COL AC only) so Sheet2 wins over any Sheet1
+ * COL A legacy entry. Falls back to Sheet1 COL AC, then defaults to Sheet1.
  */
 export async function findGeoIdSourceTab(geoId: string): Promise<string> {
   const spreadsheetId = process.env.SPREADSHEET_ID;
   if (!spreadsheetId) return SHEET_NAME;
 
-  // Fast path: check Sheet1 first (most listings live here)
-  const sheet1Row = await findRowByGeoId(geoId);
-  if (sheet1Row) return SHEET_NAME;
-
-  // Check other tabs
   try {
     const sheets = getSheets();
     const meta = await sheets.spreadsheets.get({ spreadsheetId });
-    const otherTabs = (meta.data.sheets || [])
+    const allTabs = (meta.data.sheets || [])
       .map((s: any) => s.properties?.title as string)
-      .filter((title: string) => title && title !== SHEET_NAME);
+      .filter((title: string) => !!title);
 
-    for (const tabName of otherTabs) {
+    // Check non-Sheet1 tabs first — COL AC only (strict match).
+    // This ensures a Sheet2 listing is detected even if the same GEO ID also
+    // appears in Sheet1's COL A (legacy blasted-format first line).
+    for (const tabName of allTabs.filter((t) => t !== SHEET_NAME)) {
       const row = await findRowByGeoIdInSheet(geoId, spreadsheetId, tabName);
       if (row) return tabName;
     }
+
+    // Fall back to Sheet1 — COL AC only (no COL A fallback)
+    const sheet1Row = await findRowByGeoIdInSheet(geoId, spreadsheetId, SHEET_NAME);
+    if (sheet1Row) return SHEET_NAME;
   } catch {
-    // fallthrough
+    // fallthrough to default
   }
 
   return SHEET_NAME;
