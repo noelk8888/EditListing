@@ -797,9 +797,9 @@ export default function AddListingPage() {
     }
   }, [searchResult]);
 
-  // Fetch 2nd backup row and detect conflict whenever a listing is loaded
+  // Fetch 2nd backup row and detect conflict whenever a listing is loaded (SUPERADMIN only)
   useEffect(() => {
-    if (!searchResult) {
+    if (!searchResult || !permissions.sheet2) {
       setBackupStatus("idle");
       setBackupData(null);
       setConflictResolved(false);
@@ -1882,16 +1882,16 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     </Button>
                   )}
                 </div>
-                {/* Backup: no-match warning */}
-                {backupStatus === "not-found" && (
+                {/* Backup: no-match warning (SUPERADMIN only) */}
+                {permissions.sheet2 === true && backupStatus === "not-found" && (
                   <div className="flex items-start gap-2 rounded-md border border-yellow-400 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
                     <span className="mt-0.5 shrink-0">⚠️</span>
                     <span>GEO ID <strong>{searchResult.id}</strong> not found in 2nd Backup sheet. Updates will only write to the Working GSheet.</span>
                   </div>
                 )}
 
-                {/* Backup: conflict resolution */}
-                {backupStatus === "conflict" && !conflictResolved && backupData && (
+                {/* Backup: conflict resolution (SUPERADMIN only) */}
+                {permissions.sheet2 === true && backupStatus === "conflict" && !conflictResolved && backupData && (
                   <div className="rounded-md border border-orange-400 bg-orange-50 px-4 py-3 text-sm text-orange-900">
                     <div className="mb-2 font-semibold text-orange-800">⚡ Conflict detected — Working GSheet and 2nd Backup have different data</div>
                     <div className="mb-3 overflow-x-auto">

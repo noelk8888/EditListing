@@ -14,7 +14,8 @@ export type Feature =
   | "view_geo_id"
   | "view_photos"
   | "export_data"
-  | "manage_users";
+  | "manage_users"
+  | "sheet2";
 
 export const ALL_FEATURES: Feature[] = [
   "add_listing",
@@ -30,6 +31,7 @@ export const ALL_FEATURES: Feature[] = [
   "view_photos",
   "export_data",
   "manage_users",
+  "sheet2",
 ];
 
 export const FEATURE_LABELS: Record<Feature, string> = {
@@ -46,6 +48,7 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   view_photos:    "View Photos",
   export_data:    "Export Data",
   manage_users:   "Manage Users",
+  sheet2:         "Sheet2 Features (Superadmin only)",
 };
 
 export const FEATURE_GROUPS: { label: string; features: Feature[] }[] = [
@@ -87,6 +90,7 @@ export const ROLE_DEFAULTS: Record<"ADMIN" | "EDITOR", Record<Feature, boolean>>
     view_photos:    true,
     export_data:    true,
     manage_users:   true,
+    sheet2:         false,
   },
   EDITOR: {
     add_listing:    false,
@@ -102,6 +106,7 @@ export const ROLE_DEFAULTS: Record<"ADMIN" | "EDITOR", Record<Feature, boolean>>
     view_photos:    true,
     export_data:    false,
     manage_users:   false,
+    sheet2:         false,
   },
 };
 
