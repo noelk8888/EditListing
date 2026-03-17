@@ -1010,14 +1010,20 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
             range: `${tabName}!A${rowNumber}:P${rowNumber}`,
             values: [rowData],
           },
-          // Keep paired sync cols (AO:AQ, AX:BD) in sync with their display counterparts (E:F, I:P)
+          // Keep paired sync cols (AO:AQ, AX:BA, BC:BD) in sync with their display counterparts (E:F, I:P)
+          // NOTE: BB (col 53) = MONTHLY DUES — NOT written here; only updateSyncColumns writes BB.
+          //       Skipping BB prevents overwriting monthly dues with dateReceived on every update.
           {
             range: `${tabName}!AO${rowNumber}:AQ${rowNumber}`,
             values: [[data.lotArea, data.floorArea, data.available]],
           },
           {
-            range: `${tabName}!AX${rowNumber}:BD${rowNumber}`,
-            values: [[data.withIncome, data.directCobroker, data.ownerBroker, data.away, data.dateReceived, data.dateResorted, data.listingOwnership]],
+            range: `${tabName}!AX${rowNumber}:BA${rowNumber}`,
+            values: [[data.withIncome, data.directCobroker, data.ownerBroker, data.away]],
+          },
+          {
+            range: `${tabName}!BC${rowNumber}:BD${rowNumber}`,
+            values: [[data.dateResorted, data.listingOwnership]],
           },
         ],
       },
