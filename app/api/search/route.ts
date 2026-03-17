@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getRowByGeoId, findRowByColAText, generateNextGeoId, GSheetFullRow } from "@/lib/google-sheets";
+import { getRowByGeoId, findRowByColAText, generateNextGeoId, findGeoIdSourceTab, GSheetFullRow } from "@/lib/google-sheets";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -360,7 +360,8 @@ export async function POST(request: Request) {
         console.log("AWAY:", data[0]["AWAY"]);
         console.log("LISTING OWNERSHIP:", data[0]["LISTING OWNERSHIP"]);
         const result = await applyGSheetFallback(supabaseToResult(data[0] as SupabaseResult));
-        return NextResponse.json({ result, matchedBy: "listingId" });
+        const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+        return NextResponse.json({ result, matchedBy: "listingId", sourceTab });
       }
       console.log("No match by GEO ID in Supabase, trying GSheet...");
       // --- Strategy 1b: GSheet fallback by GEO ID ---
@@ -369,7 +370,8 @@ export async function POST(request: Request) {
         if (gsheetRow) {
           console.log("Found in GSheet by GEO ID:", listingId);
           const result = gsheetRowToResult(listingId, gsheetRow);
-          return NextResponse.json({ result, matchedBy: "gsheetGeoId" });
+          const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+          return NextResponse.json({ result, matchedBy: "gsheetGeoId", sourceTab });
         }
         console.log("Not found in GSheet either, no GEO ID match");
       } catch (gsheetErr) {
@@ -395,7 +397,8 @@ export async function POST(request: Request) {
       } else if (data && data.length > 0) {
         console.log("Found by PHOTO:", data[0]["GEO ID"]);
         const result = await applyGSheetFallback(supabaseToResult(data[0] as SupabaseResult));
-        return NextResponse.json({ result, matchedBy: "photoLink" });
+        const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+        return NextResponse.json({ result, matchedBy: "photoLink", sourceTab });
       }
       console.log("No match by PHOTO");
     }
@@ -445,7 +448,8 @@ export async function POST(request: Request) {
               if (matchRatio >= 0.8) {
                 console.log("Found match with Strategy A:", row["GEO ID"]);
                 const result = await applyGSheetFallback(supabaseToResult(row as SupabaseResult));
-                return NextResponse.json({ result, matchedBy: "text" });
+                const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+                return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
             }
             console.log("Strategy A: No match found");
@@ -480,7 +484,8 @@ export async function POST(request: Request) {
               if (matchRatio >= 0.8) {
                 console.log("Found match with Strategy B:", row["GEO ID"]);
                 const result = await applyGSheetFallback(supabaseToResult(row as SupabaseResult));
-                return NextResponse.json({ result, matchedBy: "text" });
+                const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+                return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
             }
             console.log("Strategy B: No match found");
@@ -507,7 +512,8 @@ export async function POST(request: Request) {
           }
           console.log("Found in GSheet COL A, GEO ID:", geoId);
           const result = gsheetRowToResult(geoId, gsheetRow);
-          return NextResponse.json({ result, matchedBy: "gsheetColA" });
+          const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+          return NextResponse.json({ result, matchedBy: "gsheetColA", sourceTab });
         }
         console.log("No match in GSheet COL A");
       } catch (gsheetErr) {

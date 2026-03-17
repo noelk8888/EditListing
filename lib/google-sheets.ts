@@ -1095,6 +1095,38 @@ async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string, sheet
 }
 
 /**
+ * Find which tab in the WORKING GSheet a GEO ID lives in.
+ * Checks Sheet1 first (fast path). If not found, checks all other tabs.
+ * Returns the tab title (e.g. "Sheet1", "Sheet2") or "Sheet1" as default.
+ */
+export async function findGeoIdSourceTab(geoId: string): Promise<string> {
+  const spreadsheetId = process.env.SPREADSHEET_ID;
+  if (!spreadsheetId) return SHEET_NAME;
+
+  // Fast path: check Sheet1 first (most listings live here)
+  const sheet1Row = await findRowByGeoId(geoId);
+  if (sheet1Row) return SHEET_NAME;
+
+  // Check other tabs
+  try {
+    const sheets = getSheets();
+    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const otherTabs = (meta.data.sheets || [])
+      .map((s: any) => s.properties?.title as string)
+      .filter((title: string) => title && title !== SHEET_NAME);
+
+    for (const tabName of otherTabs) {
+      const row = await findRowByGeoIdInSheet(geoId, spreadsheetId, tabName);
+      if (row) return tabName;
+    }
+  } catch {
+    // fallthrough
+  }
+
+  return SHEET_NAME;
+}
+
+/**
  * Read Cols A-P from a specific spreadsheet by GEO ID (strict Col AC match).
  * Returns null if not found.
  */

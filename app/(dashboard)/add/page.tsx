@@ -116,6 +116,7 @@ export default function AddListingPage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [listingId, setListingId] = useState("");
   const [matchedBy, setMatchedBy] = useState<string | null>(null);
+  const [sourceTab, setSourceTab] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -405,6 +406,7 @@ export default function AddListingPage() {
       setSearchResult(null);
       setSearchPerformed(false);
       setMatchedBy(null);
+      setSourceTab(null);
       clearEditFields();
     }
     if (targetStep === "paste") {
@@ -426,6 +428,7 @@ export default function AddListingPage() {
     setSearchError(null);
     setSearchResult(null);
     setMatchedBy(null);
+    setSourceTab(null);
     setNewGeoId("");
     setSuggestedGeoId("");
 
@@ -491,6 +494,7 @@ export default function AddListingPage() {
       console.log("Search response:", data);
       setSearchResult(data.result);
       setMatchedBy(data.matchedBy || null);
+      setSourceTab(data.sourceTab && data.sourceTab !== "Sheet1" ? data.sourceTab : null);
       setSearchPerformed(true);
 
       // If no match found, suggest GEO ID
@@ -1087,6 +1091,7 @@ export default function AddListingPage() {
             batch_row_number: batchRows[batchIndex].rowNumber,
             batch_source_tab_name: batchSourceTabName || undefined,
           } : {}),
+          ...(!batchActive && (sourceTab) ? { batch_source_tab_name: sourceTab } : {}),
         }),
       });
 
@@ -1242,6 +1247,7 @@ export default function AddListingPage() {
             batch_row_number: batchRows[batchIndex].rowNumber,
             batch_source_tab_name: batchSourceTabName || undefined,
           } : {}),
+          ...(!batchActive && sourceTab ? { batch_source_tab_name: sourceTab } : {}),
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,
@@ -1375,6 +1381,7 @@ export default function AddListingPage() {
     setSearchPerformed(false);
     setListingId("");
     setMatchedBy(null);
+    setSourceTab(null);
     setUseExistingMain(false);
     setError(null);
 
