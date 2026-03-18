@@ -22,6 +22,18 @@ export async function POST(request: Request) {
   const session = await auth();
   const updatedBy = session?.user?.email || session?.user?.name || "";
 
+  // Fetch fb_group from luxe_listing_users (for BC stamp — internal use only)
+  let userGroup = updatedBy;
+  if (updatedBy) {
+    const { data: userRow } = await supabase
+      .from("luxe_listing_users")
+      .select("fb_group")
+      .eq("email", updatedBy.toLowerCase())
+      .maybeSingle();
+    const fbGroup = (userRow as { fb_group?: string | null } | null)?.fb_group;
+    if (fbGroup) userGroup = fbGroup;
+  }
+
   try {
     const body = await request.json();
     const {
@@ -119,7 +131,7 @@ export async function POST(request: Request) {
       ? (() => {
           const formattedDate = formatDisplayDate(date_updated);
           const suffix = changeTypes.length > 0 ? ` | ${changeTypes.join("/")}` : "";
-          const author = updatedBy ? ` | ${updatedBy}` : "";
+          const author = userGroup ? ` | ${userGroup}` : "";
           return `${formattedDate}${suffix}${author}`;
         })()
       : "";
