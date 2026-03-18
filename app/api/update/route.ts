@@ -10,6 +10,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const TABLE_NAME = "KIU Properties";
 
+function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00"); // force local midnight to avoid timezone shift
+  if (isNaN(d.getTime())) return dateStr;    // return as-is if unparseable
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   const updatedBy = session?.user?.email || session?.user?.name || "";
@@ -106,9 +114,14 @@ export async function POST(request: Request) {
     const noteConfig: NoteConfig | undefined =
       updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;
 
-    // BC value: plain date + change suffix (e.g. "2026-03-17 | PRICE/STATUS")
+    // BC value: "Mmm dd, yyyy | Author | CHANGE_TYPES"
     const bcDateUpdated = date_updated
-      ? (changeTypes.length > 0 ? `${date_updated} | ${changeTypes.join("/")}` : date_updated)
+      ? (() => {
+          const formattedDate = formatDisplayDate(date_updated);
+          const author = updatedBy ? ` | ${updatedBy}` : "";
+          const suffix = changeTypes.length > 0 ? ` | ${changeTypes.join("/")}` : "";
+          return `${formattedDate}${author}${suffix}`;
+        })()
       : "";
 
     // Always derive MAP LINK from lat/long when available; otherwise keep existing map_link
@@ -283,8 +296,8 @@ export async function POST(request: Request) {
         directCobroker: direct_or_broker || "",
         ownerBroker: owner_broker || "",
         away: how_many_away || "",
-        dateReceived: date_received || "",
-        dateResorted: date_updated || "",
+        dateReceived: formatDisplayDate(date_received || ""),
+        dateResorted: formatDisplayDate(date_updated || ""),
         available: status || "",
         listingOwnership: listing_ownership || "",
       };
@@ -323,8 +336,8 @@ export async function POST(request: Request) {
         name: owner_broker || "",
         away: how_many_away || "",
         monthlyDues: monthly_dues || "",
-        dateRecv: date_received || "",
-        dateUpdated: date_updated || "",
+        dateRecv: formatDisplayDate(date_received || ""),
+        dateUpdated: formatDisplayDate(date_updated || ""),
         bcDateUpdated: bcDateUpdated || undefined,
         listingOwnership: listing_ownership || "",
         latLong: latLongCombined,

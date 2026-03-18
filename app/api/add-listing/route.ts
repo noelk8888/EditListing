@@ -10,6 +10,14 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const TABLE_NAME = "KIU Properties";
 
+function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return dateStr;
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   const updatedBy = session?.user?.email || session?.user?.name || "";
@@ -117,8 +125,8 @@ export async function POST(request: Request) {
       directCobroker: direct_or_broker || "",
       ownerBroker: owner_broker || "",
       away: how_many_away || "",
-      dateReceived: date_received || new Date().toISOString().split("T")[0],
-      dateResorted: date_updated || new Date().toISOString().split("T")[0],
+      dateReceived: formatDisplayDate(date_received || new Date().toISOString().split("T")[0]),
+      dateResorted: formatDisplayDate(date_updated || new Date().toISOString().split("T")[0]),
       available: status || "AVAILABLE",
       listingOwnership: listing_ownership || "",
       colQ: col_q || "",
@@ -156,8 +164,8 @@ export async function POST(request: Request) {
       name: owner_broker || "",
       away: how_many_away || "",
       monthlyDues: monthly_dues || "",
-      dateRecv: date_received || new Date().toISOString().split("T")[0],
-      dateUpdated: date_updated || new Date().toISOString().split("T")[0],
+      dateRecv: formatDisplayDate(date_received || new Date().toISOString().split("T")[0]),
+      dateUpdated: formatDisplayDate(date_updated || new Date().toISOString().split("T")[0]),
       listingOwnership: listing_ownership || "",
       latLong: latLongCombined,
       lat: lat || "",
