@@ -114,13 +114,13 @@ export async function POST(request: Request) {
     const noteConfig: NoteConfig | undefined =
       updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;
 
-    // BC value: "Mmm dd, yyyy | Author | CHANGE_TYPES"
+    // BC value: "Mmm dd, yyyy | CHANGE_TYPES | Group"
     const bcDateUpdated = date_updated
       ? (() => {
           const formattedDate = formatDisplayDate(date_updated);
-          const author = updatedBy ? ` | ${updatedBy}` : "";
           const suffix = changeTypes.length > 0 ? ` | ${changeTypes.join("/")}` : "";
-          return `${formattedDate}${author}${suffix}`;
+          const author = updatedBy ? ` | ${updatedBy}` : "";
+          return `${formattedDate}${suffix}${author}`;
         })()
       : "";
 
