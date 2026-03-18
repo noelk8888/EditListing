@@ -1022,9 +1022,11 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
             range: `${tabName}!AX${rowNumber}:BA${rowNumber}`,
             values: [[data.withIncome, data.directCobroker, data.ownerBroker, data.away]],
           },
+          // NOTE: BC (col 55) = DATE UPDATED (annotated) — NOT written here; only updateSyncColumns writes BC.
+          //       Skipping BC prevents overwriting the annotated stamp (e.g. "2026-03-17 | COMMENTS").
           {
-            range: `${tabName}!BC${rowNumber}:BD${rowNumber}`,
-            values: [[data.dateResorted, data.listingOwnership]],
+            range: `${tabName}!BD${rowNumber}`,
+            values: [[data.listingOwnership]],
           },
         ],
       },
