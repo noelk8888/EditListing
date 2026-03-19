@@ -1468,9 +1468,8 @@ export default function AddListingPage() {
             <div className="flex items-center gap-2 shrink-0">
               <Button
                 size="sm"
-                variant={batchAutoReview ? "secondary" : "outline"}
                 onClick={() => setBatchAutoReview(!batchAutoReview)}
-                className={`h-7 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "border-slate-500 text-slate-300 hover:text-white hover:bg-slate-700"}`}
+                className={`h-7 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"}`}
               >
                 {batchAutoReview ? "▶ AUTO" : "✋ MANUAL"}
               </Button>
@@ -1580,6 +1579,13 @@ export default function AddListingPage() {
               ) : (
                 <>Start Batch ({Math.max(0, parseInt(batchEndRow || "0") - parseInt(batchStartRow || "0") + 1)} rows)</>
               )}
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => setBatchAutoReview(!batchAutoReview)}
+              className={`h-8 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"}`}
+            >
+              {batchAutoReview ? "▶ AUTO" : "✋ MANUAL"}
             </Button>
           </div>
         </div>
