@@ -164,6 +164,7 @@ export default function AddListingPage() {
   const [telegramLine1, setTelegramLine1] = useState("");
   const [telegramLine2, setTelegramLine2] = useState("");
   const [telegramLine3, setTelegramLine3] = useState("");
+  const [telegramLine4, setTelegramLine4] = useState("");
   const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL", "UPDATE LISTING"]);
 
   // === PERMISSIONS ===
@@ -996,7 +997,8 @@ export default function AddListingPage() {
       const today = `${month} ${day}, ${year}`;
       setTelegramLine1(`*Update ${today}*`);
       setTelegramLine2(editStatus || "");
-      setTelegramLine3([ownerBroker, listingOwnership].filter(Boolean).join(" - "));
+      setTelegramLine3(ownerBroker);
+      setTelegramLine4(listingOwnership || "");
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
@@ -1017,7 +1019,7 @@ export default function AddListingPage() {
 
   const handleTelegramConfirm = () => {
     setShowTelegramModal(false);
-    const msg = [telegramLine1, telegramLine2, telegramLine3].filter(Boolean).join("\n");
+    const msg = [telegramLine1, telegramLine2, telegramLine3, telegramLine4].filter(Boolean).join("\n");
     if (searchResult) {
       confirmUpdate(msg);
     } else {
@@ -1170,7 +1172,8 @@ export default function AddListingPage() {
       const today = now.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
       setTelegramLine1(`*New Listing ${today}*`);
       setTelegramLine2(editStatus || "");
-      setTelegramLine3([ownerBroker, listingOwnership].filter(Boolean).join(" - "));
+      setTelegramLine3(ownerBroker);
+      setTelegramLine4(listingOwnership || "");
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
@@ -3320,6 +3323,15 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   value={telegramLine3}
                   onChange={e => setTelegramLine3(e.target.value)}
                   className="text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 4 (Listing Ownership)</Label>
+                <Input
+                  value={telegramLine4}
+                  onChange={e => setTelegramLine4(e.target.value)}
+                  className="text-sm"
+                  placeholder="Listing ownership (optional)"
                 />
               </div>
             </div>
