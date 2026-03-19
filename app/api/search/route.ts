@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getRowByGeoId, findRowByColAText, generateNextGeoId, findGeoIdSourceTab, GSheetFullRow } from "@/lib/google-sheets";
+import { auth } from "@/lib/auth";
+import { getUserPermissions } from "@/lib/permissions";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -10,7 +12,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const TABLE_NAME = "KIU Properties";
 
 // Select columns for all queries
-const SELECT_COLUMNS = `"GEO ID", "PHOTO", "MAIN", "REGION", "PROVINCE", "CITY", "BARANGAY", "AREA", "BUILDING", "LOT AREA", "FLOOR AREA", "STATUS", "TYPE", "Extracted Sale Price", "Extracted Lease Price", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "WITH INCOME", "DIRECT OR BROKER", "NAME", "AWAY", "LISTING OWNERSHIP", "DATE RECV", "DATE UPDATED", "FB LINK", "MAP LINK", "Sale Price/Sqm", "Lease Price/Sqm", "LAT LONG", "LAT", "LONG", "COMMENTS", "MONTHLY DUES", "SPONSOR START", "SPONSOR END", "bedrooms", "toilet", "garage", "amenities", "corner", "compound"`;
+const SELECT_COLUMNS = `"GEO ID", "PHOTO", "MAIN", "REGION", "PROVINCE", "CITY", "BARANGAY", "AREA", "BUILDING", "LOT AREA", "FLOOR AREA", "STATUS", "TYPE", "Extracted Sale Price", "Extracted Lease Price", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "WITH INCOME", "DIRECT OR BROKER", "NAME", "AWAY", "LISTING OWNERSHIP", "DATE RECV", "DATE UPDATED", "FB LINK", "MAP LINK", "Sale Price/Sqm", "Lease Price/Sqm", "LAT LONG", "LAT", "LONG", "COMMENTS", "MONTHLY DUES", "SPONSOR START", "SPONSOR END", "bedrooms", "toilet", "garage", "amenities", "corner", "compound", "SOURCE_TAB"`;
 
 interface SupabaseResult {
   "GEO ID": string | null;
@@ -325,6 +327,12 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
+    const userEmail = session?.user?.email;
+    const userRole = (session?.user as any)?.role || "EDITOR";
+    const permissions = userEmail ? await getUserPermissions(userEmail, userRole) : null;
+    const isSuperAdmin = permissions?.sheet2 === true;
+
     const { photoLink, listingId, previewText } = await request.json();
 
     console.log("=== SUPABASE SEARCH ===");
@@ -360,10 +368,20 @@ export async function POST(request: Request) {
         console.log("AWAY:", data[0]["AWAY"]);
         console.log("LISTING OWNERSHIP:", data[0]["LISTING OWNERSHIP"]);
         const baseResult = supabaseToResult(data[0] as SupabaseResult);
-        const [result, sourceTab] = await Promise.all([
+        const [result, sourceTabFromGSheet] = await Promise.all([
           applyGSheetFallback(baseResult),
           findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
         ]);
+        
+        // Use SOURCE_TAB from Supabase if present, otherwise fall back to GSheet scan
+        const sourceTab = (data[0] as any)["SOURCE_TAB"] || sourceTabFromGSheet;
+
+        // If it is in Sheet2 and user is NOT SuperAdmin, report as matchedBy: "restricted"
+        // This keeps the Admin unaware but allows the frontend to optionally use the data as a template.
+        if (sourceTab === "Sheet2" && !isSuperAdmin) {
+           return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+        }
+
         return NextResponse.json({ result, matchedBy: "listingId", sourceTab });
       }
       console.log("No match by GEO ID in Supabase, trying GSheet...");
@@ -374,6 +392,11 @@ export async function POST(request: Request) {
           console.log("Found in GSheet by GEO ID:", listingId);
           const result = gsheetRowToResult(listingId, gsheetRow);
           const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+          
+          if (sourceTab === "Sheet2" && !isSuperAdmin) {
+            return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+          }
+
           return NextResponse.json({ result, matchedBy: "gsheetGeoId", sourceTab });
         }
         console.log("Not found in GSheet either, no GEO ID match");
@@ -400,10 +423,16 @@ export async function POST(request: Request) {
       } else if (data && data.length > 0) {
         console.log("Found by PHOTO:", data[0]["GEO ID"]);
         const baseResult = supabaseToResult(data[0] as SupabaseResult);
-        const [result, sourceTab] = await Promise.all([
+        const [result, sourceTabFromGSheet] = await Promise.all([
           applyGSheetFallback(baseResult),
           findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
         ]);
+        const sourceTab = (data[0] as any)["SOURCE_TAB"] || sourceTabFromGSheet;
+
+        if (sourceTab === "Sheet2" && !isSuperAdmin) {
+          return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+        }
+
         return NextResponse.json({ result, matchedBy: "photoLink", sourceTab });
       }
       console.log("No match by PHOTO");
@@ -454,10 +483,16 @@ export async function POST(request: Request) {
               if (matchRatio >= 0.8) {
                 console.log("Found match with Strategy A:", row["GEO ID"]);
                 const baseResult = supabaseToResult(row as SupabaseResult);
-                const [result, sourceTab] = await Promise.all([
+                const [result, sourceTabFromGSheet] = await Promise.all([
                   applyGSheetFallback(baseResult),
                   findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
                 ]);
+                const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
+
+                if (sourceTab === "Sheet2" && !isSuperAdmin) {
+                  return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+                }
+
                 return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
             }
@@ -493,10 +528,16 @@ export async function POST(request: Request) {
               if (matchRatio >= 0.8) {
                 console.log("Found match with Strategy B:", row["GEO ID"]);
                 const baseResult2 = supabaseToResult(row as SupabaseResult);
-                const [result, sourceTab] = await Promise.all([
+                const [result, sourceTabFromGSheet] = await Promise.all([
                   applyGSheetFallback(baseResult2),
                   findGeoIdSourceTab(baseResult2.id).catch(() => "Sheet1"),
                 ]);
+                const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
+
+                if (sourceTab === "Sheet2" && !isSuperAdmin) {
+                  return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+                }
+
                 return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
             }
@@ -525,6 +566,11 @@ export async function POST(request: Request) {
           console.log("Found in GSheet COL A, GEO ID:", geoId);
           const result = gsheetRowToResult(geoId, gsheetRow);
           const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
+          
+          if (sourceTab === "Sheet2" && !isSuperAdmin) {
+            return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+          }
+
           return NextResponse.json({ result, matchedBy: "gsheetColA", sourceTab });
         }
         console.log("No match in GSheet COL A");

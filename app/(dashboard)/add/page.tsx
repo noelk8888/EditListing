@@ -168,6 +168,8 @@ export default function AddListingPage() {
   const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL", "UPDATE LISTING"]);
 
   // === PERMISSIONS ===
+  const [targetTab, setTargetTab] = useState<"Sheet1" | "Sheet2">("Sheet1");
+  const [isPromoting, setIsPromoting] = useState(false);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
@@ -494,13 +496,102 @@ export default function AddListingPage() {
       });
       const data = await response.json();
       console.log("Search response:", data);
-      setSearchResult(data.result);
-      setMatchedBy(data.matchedBy || null);
-      setSourceTab(data.sourceTab && data.sourceTab !== "Sheet1" ? data.sourceTab : null);
+
+      const isRestrictedMatch = data.matchedBy === "restricted";
+
+      // If it is restricted (Sheet2 match for Admin), we keep data.result for populate but HIDE the searchResult UI
+      if (isRestrictedMatch) {
+        setSearchResult(null); // Admin remains "unaware" of the Sheet2 record
+        setMatchedBy(null);
+        setSourceTab(null);
+        console.log(
+          "🕵️ Restricted Sheet2 match found; treating as NEW but populating data."
+        );
+      } else {
+        setSearchResult(data.result);
+        setMatchedBy(data.matchedBy || null);
+        setSourceTab(
+          data.sourceTab && data.sourceTab !== "Sheet1" ? data.sourceTab : null
+        );
+      }
+
       setSearchPerformed(true);
 
-      // If no match found, suggest GEO ID
-      if (!data.result) {
+      // If no match found (or restricted match), suggest GEO ID and populate from the found data if available
+      const shouldPopulateData = !data.result || isRestrictedMatch;
+      if (shouldPopulateData) {
+        // If it was restricted, we can still use data.result as a template
+        const template = data.result;
+        if (template) {
+          // We keep the template data but clear the ID/Summary to ensure it's treated as new
+          setSearchResult(null);
+          // Populate fields from the template
+          setEditSummary(template.summary || "");
+          setOriginalEditSummary(template.summary || "");
+          setEditArea(template.area || "");
+          setEditBarangay(template.barangay || "");
+          setEditCity(template.city || "");
+          setEditLotArea(template.lot_area ? template.lot_area.toString() : "");
+          setEditFloorArea(template.floor_area ? template.floor_area.toString() : "");
+          if (template.sale_or_lease === "Lease") {
+            setEditPrice("");
+            setEditLeasePrice(
+              template.lease_price ? template.lease_price.toString() :
+                template.price ? template.price.toString() : ""
+            );
+          } else {
+            setEditPrice(template.price ? template.price.toString() : "");
+            setEditLeasePrice(template.lease_price ? template.lease_price.toString() : "");
+          }
+          setEditRegion(template.region || "");
+          setEditProvince(template.province || "");
+          setEditBuilding(template.building || "");
+          setEditStatus(normalizeStatus(template.status || ""));
+          setResidential(!!template.residential && template.residential.length > 0);
+          setCommercial(!!template.commercial && template.commercial.length > 0);
+          setIndustrial(!!template.industrial && template.industrial.length > 0);
+          setAgricultural(!!template.agricultural && template.agricultural.length > 0);
+          if (template.sale_or_lease) {
+            const val = template.sale_or_lease.toLowerCase();
+            if (val.includes('sale') && val.includes('lease')) setSaleOrLease('Sale/Lease');
+            else if (val.includes('lease')) setSaleOrLease('Lease');
+            else if (val.includes('sale')) setSaleOrLease('Sale');
+            else setSaleOrLease('');
+          } else {
+            setSaleOrLease('');
+          }
+          setWithIncome(template.with_income || "");
+          if (template.direct_or_broker) {
+            const val = template.direct_or_broker.toLowerCase();
+            if (val.includes('direct')) setDirectOrCobroker('Direct to Owner');
+            else if (val.includes('cobroker') || val.includes('broker')) setDirectOrCobroker('With Cobroker');
+            else setDirectOrCobroker('');
+          } else {
+            setDirectOrCobroker('');
+          }
+          setOwnerBroker(template.owner_broker || '');
+          setHowManyAway(template.how_many_away || '');
+          setListingOwnership(template.listing_ownership || '');
+          setDateReceived(template.date_received || getTodayDate());
+          setDateUpdated(template.date_updated || getTodayDate());
+          setOriginalDateUpdated(template.date_updated || getTodayDate());
+          setAvailable(template.available || "");
+          setMapLink(template.map_link || "");
+          setSalePricePerSqm(template.sale_price_per_sqm ? template.sale_price_per_sqm.toString() : "");
+          setLeasePricePerSqm(template.lease_price_per_sqm ? template.lease_price_per_sqm.toString() : "");
+          setPropertyType(template.property_type || "");
+          setLat(template.lat || "");
+          setLong(template.long || "");
+          setBedrooms(template.bedrooms || "");
+          setToilet(template.toilet || "");
+          setGarage(template.garage || "");
+          setAmenities(template.amenities || "");
+          setCorner(template.corner || "");
+          setCompound(template.compound || "");
+          setMonthlyDues(template.monthly_dues || "");
+          setComments(template.comments || "");
+        }
+
         // If the pasted text already contains a GEO ID (e.g. "G10642" as first line),
         // preserve it — don't overwrite with a brand new ID
         if (listingId) {
@@ -516,7 +607,10 @@ export default function AddListingPage() {
           } else {
             // First new listing this session or different series — must query the sheet
             try {
-              const geoRes = await fetch(`/api/next-geo-id?series=${batchGeoSeries}`, { cache: "no-store" });
+              const geoRes = await fetch(
+                `/api/next-geo-id?series=${batchGeoSeries}`,
+                { cache: "no-store" }
+              );
               const geoData = await geoRes.json();
               if (geoData.geoId) {
                 setSuggestedGeoId(geoData.geoId);
@@ -533,7 +627,7 @@ export default function AddListingPage() {
     } finally {
       setSearching(false);
     }
-  }, [photosLink, listingId, previewLines]);
+  }, [photosLink, listingId, previewLines, lastAssignedGeoId, batchGeoSeries]);
 
   // Keep Map Link in sync with lat/long coordinates
   useEffect(() => {
@@ -561,12 +655,17 @@ export default function AddListingPage() {
       idx++;
     }
     if (newSkips.length > 0) {
-      setBatchSkips(prev => [...prev, ...newSkips]);
-      if (idx !== batchIndex) { setBatchIndex(idx); return; }
+      setBatchSkips((prev) => [...prev, ...newSkips]);
+      if (idx !== batchIndex) {
+        setBatchIndex(idx);
+        return;
+      }
     }
 
     if (idx >= batchRows.length) {
-      alert(`Batch complete! Skipped ${batchSkips.length + newSkips.length} empty rows.`);
+      alert(
+        `Batch complete! Skipped ${batchSkips.length + newSkips.length} empty rows.`
+      );
       // Full reset — same as handleDone
       setBatchActive(false);
       setBatchRows([]);
@@ -628,7 +727,7 @@ export default function AddListingPage() {
     }
 
     const row = batchRows[idx];
-    batchCurrentRowRef.current = row;     // store GSheet data for fallback
+    batchCurrentRowRef.current = row; // store GSheet data for fallback
     setRawText(row.colA);
     goToStep("check", row.colA);
 
@@ -641,10 +740,10 @@ export default function AddListingPage() {
     // Pre-fill additional fields from GSheet columns B-I, O-P
     if (row.colB) {
       const t = row.colB.toLowerCase();
-      if (t.includes('residential')) setResidential(true);
-      if (t.includes('commercial')) setCommercial(true);
-      if (t.includes('industrial')) setIndustrial(true);
-      if (t.includes('agricultural')) setAgricultural(true);
+      if (t.includes("residential")) setResidential(true);
+      if (t.includes("commercial")) setCommercial(true);
+      if (t.includes("industrial")) setIndustrial(true);
+      if (t.includes("agricultural")) setAgricultural(true);
     }
     if (row.colC) setEditArea(row.colC);
     if (row.colD) setEditCity(row.colD);
@@ -653,15 +752,16 @@ export default function AddListingPage() {
     if (row.colG) setEditPrice(row.colG);
     if (row.colH) {
       const h = row.colH.toLowerCase();
-      if (h.includes('sale') && h.includes('lease')) setSaleOrLease('Sale/Lease');
-      else if (h.includes('lease')) setSaleOrLease('Lease');
-      else if (h.includes('sale')) setSaleOrLease('Sale');
+      if (h.includes("sale") && h.includes("lease")) setSaleOrLease("Sale/Lease");
+      else if (h.includes("lease")) setSaleOrLease("Lease");
+      else if (h.includes("sale")) setSaleOrLease("Sale");
     }
     if (row.colI) setWithIncome(row.colI);
     if (row.colJ) {
       const val = row.colJ.toLowerCase();
-      if (val.includes('direct')) setDirectOrCobroker('Direct to Owner');
-      else if (val.includes('cobroker') || val.includes('broker')) setDirectOrCobroker('With Cobroker');
+      if (val.includes("direct")) setDirectOrCobroker("Direct to Owner");
+      else if (val.includes("cobroker") || val.includes("broker"))
+        setDirectOrCobroker("With Cobroker");
     }
     if (row.colK) setOwnerBroker(row.colK);
     if (row.colL) setHowManyAway(row.colL);
@@ -1249,9 +1349,10 @@ export default function AddListingPage() {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
             batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
             batch_row_number: batchRows[batchIndex].rowNumber,
-            batch_source_tab_name: batchSourceTabName || undefined,
-          } : {}),
-          ...(!batchActive && sourceTab ? { batch_source_tab_name: sourceTab } : {}),
+            batch_source_tab_name: batchSourceTabName || targetTab,
+          } : {
+            batch_source_tab_name: targetTab,
+          }),
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,
@@ -1689,7 +1790,40 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
       {/* Step 2: Check if New + Additional Info */}
       {step === "check" && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 items-start">
+            {/* SuperAdmin Target Sheet Picker */}
+            {permissions.sheet2 === true && !batchActive && (
+              <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-3">
+                <Label className="text-blue-900 font-semibold flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Target Destination
+                </Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={targetTab === "Sheet1" ? "default" : "outline"}
+                    className="flex-1"
+                    onClick={() => setTargetTab("Sheet1")}
+                  >
+                    Sheet1 (Public)
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={targetTab === "Sheet2" ? "secondary" : "outline"}
+                    className={`flex-1 ${targetTab === "Sheet2" ? "bg-blue-600 text-white hover:bg-blue-700" : "border-blue-200"}`}
+                    onClick={() => setTargetTab("Sheet2")}
+                  >
+                    Sheet2 (Restricted)
+                  </Button>
+                </div>
+                <p className="text-xs text-blue-700/70">
+                  {targetTab === "Sheet1" 
+                    ? "Listing will be added to the public Sheet1 tab." 
+                    : "Listing will be added to the restricted Sheet2 tab (SuperAdmin only)."}
+                </p>
+              </div>
+            )}
+            
+            <div className="grid grid-cols-2 gap-4 items-start">
             {/* LEFT: Search / Listing Preview */}
             <Card>
               <CardHeader>
@@ -1860,6 +1994,23 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <><Save className="mr-2 h-4 w-4" />Update Existing</>
                     )}
                   </Button>
+                  
+                  {permissions.sheet2 === true && sourceTab === "Sheet2" && (
+                    <Button
+                      variant="outline"
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                      onClick={() => {
+                        if (window.confirm("Are you sure you want to promote this listing to Sheet1? This will assign a NEW GEO ID and delete it from Sheet2.")) {
+                          setTargetTab("Sheet1");
+                          confirmAddNew();
+                        }
+                      }}
+                      disabled={adding}
+                    >
+                      <ArrowRight className="h-4 w-4 mr-2" />
+                      Promote to Sheet1
+                    </Button>
+                  )}
                   {permissions.ai_extract !== false && (
                     <Button onClick={handleExtractData} disabled={loading} variant="default">
                       {loading ? (

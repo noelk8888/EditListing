@@ -142,6 +142,7 @@ export interface GSheetDisplayData {
 export interface GSheetFullRow extends GSheetDisplayData {
   geoId: string;              // AC
   main: string;               // AA
+  rowNumber?: number;         // physical row number
   // Supabase columns (for reading fallback values)
   supabaseCity: string;       // AG
   supabaseBarangay: string;   // AH
@@ -584,6 +585,47 @@ export async function getRowByGeoId(geoId: string): Promise<GSheetFullRow | null
 }
 
 /**
+ * Delete a specific row from a sheet tab.
+ */
+export async function deleteRowFromSheet(
+  spreadsheetId: string,
+  tabName: string,
+  rowNumber: number
+): Promise<void> {
+  const sheets = getSheets();
+
+  // 1. Get sheetId for the tabName
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const sheet = meta.data.sheets?.find((s) => s.properties?.title === tabName);
+  const sheetId = sheet?.properties?.sheetId;
+
+  if (sheetId === undefined) {
+    throw new Error(`Sheet tab "${tabName}" not found in spreadsheet`);
+  }
+
+  // 2. Send deleteDimension request
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex: rowNumber - 1,
+              endIndex: rowNumber,
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  console.log(`✅ Deleted row ${rowNumber} from ${tabName}`);
+}
+
+/**
  * Search COL A (BLASTED FORMAT) for matching text.
  * Used when COL AA (MAIN) is blank but COL A has content — listing is NOT new.
  * Returns the full row data if found (80%+ significant line match).
@@ -621,13 +663,16 @@ export async function findRowNumberByColAText(previewText: string): Promise<numb
   return null;
 }
 
-export async function findRowByColAText(previewText: string): Promise<GSheetFullRow | null> {
+export async function findRowByColAText(
+  previewText: string,
+  overrideSpreadsheetId?: string,
+  overrideTabName?: string
+): Promise<GSheetFullRow | null> {
   const sheets = getSheets();
-  const spreadsheetId = process.env.SPREADSHEET_ID;
+  const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
+  if (!spreadsheetId) throw new Error("SPREADSHEET_ID not configured");
 
-  if (!spreadsheetId) {
-    throw new Error("SPREADSHEET_ID not configured");
-  }
+  const tabName = overrideTabName || SHEET_NAME;
 
   // Build significant lines from preview text (same logic as Supabase text search)
   const lines = previewText.split('\n').filter(l => l.trim());
@@ -642,7 +687,7 @@ export async function findRowByColAText(previewText: string): Promise<GSheetFull
   // Batch read COL A (BLASTED FORMAT) and COL AC (GEO ID) in one request
   const batchResponse = await sheets.spreadsheets.values.batchGet({
     spreadsheetId,
-    ranges: [`${SHEET_NAME}!A2:A`, `${SHEET_NAME}!AC2:AC`],
+    ranges: [`${tabName}!A2:A`, `${tabName}!AC2:AC`],
   });
 
   const colAValues = batchResponse.data.valueRanges?.[0]?.values || [];
@@ -657,17 +702,21 @@ export async function findRowByColAText(previewText: string): Promise<GSheetFull
     const matchRatio = matchCount / significantLines.length;
 
     if (matchRatio >= 0.8) {
-      const geoId = colACValues[i]?.[0] || "";
       const rowNumber = i + 2; // +2 for header and 0-indexing
+      const geoId = colACValues[i]?.[0] || "";
       console.log(`GSheet COL A text match at row ${rowNumber}, GEO ID: ${geoId} (${Math.round(matchRatio * 100)}% match)`);
 
       // Read the full row (A-BO)
       const rowResponse = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `${SHEET_NAME}!A${rowNumber}:BO${rowNumber}`,
+        range: `${tabName}!A${rowNumber}:BO${rowNumber}`,
       });
       const row = rowResponse.data.values?.[0] || [];
-      return parseGSheetRow(row);
+      const parsed = parseGSheetRow(row);
+      if (parsed) {
+        parsed.rowNumber = rowNumber;
+      }
+      return parsed;
     }
   }
 

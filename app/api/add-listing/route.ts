@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { addNewGSheetRow, appendDisplayRowToSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData } from "@/lib/google-sheets";
+import { 
+  addNewGSheetRow, 
+  appendDisplayRowToSheet, 
+  writeBatchSourceGeoId, 
+  GSheetDisplayData, 
+  GSheetSyncData,
+  findRowByColAText,
+  deleteRowFromSheet
+} from "@/lib/google-sheets";
+import { getUserPermissions } from "@/lib/permissions";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -79,6 +88,36 @@ export async function POST(request: Request) {
     console.log("=== ADDING NEW LISTING ===");
     console.log("send_telegram:", send_telegram);
     console.log("telegram_groups:", telegram_groups);
+
+    const userEmail = session?.user?.email;
+    const userRole = (session?.user as any)?.role || "EDITOR";
+    const permissions = userEmail ? await getUserPermissions(userEmail, userRole) : null;
+    const isSuperAdmin = permissions?.sheet2 === true;
+
+    // Determine target tab: SuperAdmins can choose, Admins always use Sheet1
+    const targetTab = batch_source_tab_name || "Sheet1";
+
+    // --- Silent Transfer Logic for Admins ---
+    // If an Admin is adding to Sheet1, check if it secretly exists in Sheet2.
+    if (!isSuperAdmin && targetTab === "Sheet1" && summary) {
+      try {
+        const spreadsheetId = process.env.SPREADSHEET_ID!;
+        // Search Sheet2 (specifically) for a content match
+        const sheet2Match = await findRowByColAText(summary, spreadsheetId, "Sheet2");
+        if (sheet2Match && sheet2Match.rowNumber) {
+          console.log(`🕵️ Silent Transfer: match found in Sheet2 row ${sheet2Match.rowNumber}. Deleting it...`);
+          await deleteRowFromSheet(spreadsheetId, "Sheet2", sheet2Match.rowNumber);
+          
+          // Also cleanup the old GEO ID from Supabase if it had one
+          if (sheet2Match.geoId) {
+            console.log(`🗑️ Cleaning up old GEO ID ${sheet2Match.geoId} from Supabase...`);
+            await supabase.from(TABLE_NAME).delete().eq('"GEO ID"', sheet2Match.geoId);
+          }
+        }
+      } catch (err) {
+        console.warn("⚠️ Silent transfer check/cleanup failed (non-fatal):", err);
+      }
+    }
 
     // Build type string from checkboxes
     const typeValues = [
@@ -188,7 +227,7 @@ export async function POST(request: Request) {
       syncData,
       updatedBy || undefined,
       undefined,
-      batch_source_tab_name || undefined,
+      targetTab,
       (batch_source_tab_name && batch_row_number) ? batch_row_number : undefined,
     );
     console.log("✅ GSheet write done, GEO ID:", newGeoId);
@@ -271,6 +310,7 @@ export async function POST(request: Request) {
       compound: compound || null,
       COMMENTS: comments || null,
       "MONTHLY DUES": monthly_dues || null,
+      "SOURCE_TAB": targetTab,
     };
 
     // Use upsert when an override GEO ID was confirmed — handles the case where the
