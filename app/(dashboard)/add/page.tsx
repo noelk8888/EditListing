@@ -142,6 +142,7 @@ export default function AddListingPage() {
   const [batchSkips, setBatchSkips] = useState<number[]>([]);
   const [batchSourceTabName, setBatchSourceTabName] = useState<string | null>(null);
   const [batchPaused, setBatchPaused] = useState(false);
+  const [batchAutoReview, setBatchAutoReview] = useState(true); // true = auto-skip identical, false = manual review every row
   const [flashOn, setFlashOn] = useState(false);
   const [flashDismissed, setFlashDismissed] = useState(false);
   const [pendingExtractUpdate, setPendingExtractUpdate] = useState(false);
@@ -881,7 +882,7 @@ export default function AddListingPage() {
 
   // BATCH Auto-Advance Logic — mirrors renderDiffText(rawText, editSummary) exactly
   useEffect(() => {
-    if (!batchActive || step !== "check" || !searchResult || searching || batchPaused) return;
+    if (!batchActive || step !== "check" || !searchResult || searching || batchPaused || !batchAutoReview) return;
 
     const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
     const isGeoId = (s: string) => /^[A-Z]\d{4,6}$/.test(s.trim());
@@ -912,7 +913,7 @@ export default function AddListingPage() {
     } else {
       console.log("🛑 Pausing — red fields:", { textDiff, lotDiff, floorDiff, priceDiff });
     }
-  }, [batchActive, step, searchResult, searching, rawText, batchPaused, editLotArea, editFloorArea, editPrice, editLeasePrice, saleOrLease]);
+  }, [batchActive, step, searchResult, searching, rawText, batchPaused, batchAutoReview, editLotArea, editFloorArea, editPrice, editLeasePrice, saleOrLease]);
 
   // Flash toggle for red card warning
   useEffect(() => {
@@ -1465,6 +1466,14 @@ export default function AddListingPage() {
             </div>
             {/* Right cluster */}
             <div className="flex items-center gap-2 shrink-0">
+              <Button
+                size="sm"
+                variant={batchAutoReview ? "secondary" : "outline"}
+                onClick={() => setBatchAutoReview(!batchAutoReview)}
+                className={`h-7 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "border-slate-500 text-slate-300 hover:text-white hover:bg-slate-700"}`}
+              >
+                {batchAutoReview ? "▶ AUTO" : "✋ MANUAL"}
+              </Button>
               <Button
                 size="sm"
                 variant={batchPaused ? "default" : "secondary"}
