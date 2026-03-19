@@ -995,7 +995,7 @@ export default function AddListingPage() {
       const today = `${month} ${day}, ${year}`;
       setTelegramLine1(`*Update ${today}*`);
       setTelegramLine2(editStatus || "");
-      setTelegramLine3(ownerBroker);
+      setTelegramLine3([ownerBroker, listingOwnership].filter(Boolean).join(" - "));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
@@ -1169,7 +1169,7 @@ export default function AddListingPage() {
       const today = now.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
       setTelegramLine1(`*New Listing ${today}*`);
       setTelegramLine2(editStatus || "");
-      setTelegramLine3(ownerBroker);
+      setTelegramLine3([ownerBroker, listingOwnership].filter(Boolean).join(" - "));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
@@ -1687,9 +1687,18 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                 {/* Preview of listing */}
                 <div className="space-y-2">
                   <Label>Listing Preview</Label>
-                  <div className="bg-muted p-3 rounded-md font-mono text-sm whitespace-pre-wrap">
-                    {rawText || "No preview available"}
-                  </div>
+                  {searchPerformed && !searching && !searchResult ? (
+                    <Textarea 
+                      value={rawText}
+                      onChange={(e) => setRawText(e.target.value)}
+                      className="bg-muted font-mono text-sm min-h-[300px]"
+                      placeholder="Paste your listing here..."
+                    />
+                  ) : (
+                    <div className="bg-muted p-3 rounded-md font-mono text-sm whitespace-pre-wrap">
+                      {rawText || "No preview available"}
+                    </div>
+                  )}
                   {listingId && (
                     <p className="text-sm text-muted-foreground">
                       Detected Listing ID: <span className="font-semibold text-foreground">{listingId}</span>
