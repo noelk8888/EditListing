@@ -449,15 +449,25 @@ export async function generateNextGeoId(series?: string): Promise<string> {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Scan 3 columns in parallel:
-  //   AC — dedicated GEO ID column (set by addNewGSheetRow)
-  //   AA — MAIN column (set as "GeoId\n..." by addNewGSheetRow)
-  //   A  — blasted format (old/manual listings put GEO ID on first line)
-  const [acRes, aaRes, aRes] = await Promise.all([
-    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!AC2:AC` }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!AA2:AA` }),
-    sheets.spreadsheets.values.get({ spreadsheetId, range: `${SHEET_NAME}!A2:A` }),
-  ]);
+  // Scan all tabs for AC (dedicated GEO ID column)
+  // Scan Sheet1 for AA/A (legacy blasted format)
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const allTabs = (meta.data.sheets || [])
+    .map((s: any) => s.properties?.title as string)
+    .filter((title: string) => !!title);
+
+  // Build list of ranges to fetch
+  const ranges = [
+    ...allTabs.map(tab => `${tab}!AC2:AC`),
+    `${SHEET_NAME}!AA2:AA`,
+    `${SHEET_NAME}!A2:A`
+  ];
+
+  const response = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId,
+    ranges
+  });
+  const valueRanges = response.data.valueRanges || [];
 
   // Single letter + 4-5 digits only (e.g. G11628).
   // Rejects typos like G111245 (6 digits) and false positives like P150000 (price).
@@ -477,9 +487,19 @@ export async function generateNextGeoId(series?: string): Promise<string> {
     }
   };
 
-  for (const row of (acRes.data.values || [])) { if (row[0]) check(row[0]); }
-  for (const row of (aaRes.data.values || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl); }
-  for (const row of (aRes.data.values  || [])) { const fl = (row[0] || "").split("\n")[0]; if (fl) check(fl); }
+  for (const vr of valueRanges) {
+    if (!vr.values) continue;
+    const isSpecialCol = vr.range?.includes("!AA") || vr.range?.includes("!A");
+    for (const row of vr.values) {
+      if (!row[0]) continue;
+      if (isSpecialCol) {
+        const fl = String(row[0]).split("\n")[0];
+        if (fl) check(fl);
+      } else {
+        check(String(row[0]));
+      }
+    }
+  }
 
   const nextNum = maxNumber + 1;
   // A-series: always 5 digits (A00001–A99999). G-series: no padding (existing format).
@@ -1148,7 +1168,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 /**
  * Find a row number by GEO ID in any spreadsheet (strict Col AC match, no fallback).
  */
-async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string, sheetTabName?: string): Promise<number | null> {
+export async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string, sheetTabName?: string): Promise<number | null> {
   const tabName = sheetTabName || SHEET_NAME;
   const sheets = getSheets();
   await ensureSheetDimensions(sheets, spreadsheetId, 29);
@@ -1358,7 +1378,8 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   }
 
   // Use provided GEO ID or generate a new one
-  const geoId = overrideGeoId || await generateNextGeoId();
+  const series = (sheetTabName === "Sheet2") ? "A" : "G";
+  const geoId = overrideGeoId || await generateNextGeoId(series);
 
   // Build full row (A to BO = 67 columns)
   // A-P = display columns (16)

@@ -95,11 +95,11 @@ export async function POST(request: Request) {
     const isSuperAdmin = permissions?.sheet2 === true;
 
     // Determine target tab: SuperAdmins can choose, Admins always use Sheet1
-    const targetTab = batch_source_tab_name || "Sheet1";
+    const targetTab = isSuperAdmin ? (batch_source_tab_name || "Sheet1") : "Sheet1";
 
-    // --- Silent Transfer Logic for Admins ---
-    // If an Admin is adding to Sheet1, check if it secretly exists in Sheet2.
-    if (!isSuperAdmin && targetTab === "Sheet1" && summary) {
+    // --- Silent Transfer Logic ---
+    // If adding to Sheet1, check if it secretly exists in Sheet2.
+    if (targetTab === "Sheet1" && summary) {
       try {
         const spreadsheetId = process.env.SPREADSHEET_ID!;
         // Search Sheet2 (specifically) for a content match

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig } from "@/lib/google-sheets";
+import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -193,6 +193,7 @@ export async function POST(request: Request) {
         "SPONSOR START": sponsor_start || null,
         "SPONSOR END": sponsor_end || null,
         "PHOTO": photo_link || null,
+        "SOURCE_TAB": batch_source_tab_name || "Sheet1",
       })
       .eq('"GEO ID"', id)
       .select('"GEO ID"');
@@ -362,18 +363,35 @@ export async function POST(request: Request) {
         garage: garage || "",
         amenities: amenities || "",
         corner: corner || "",
-        compound: compound || "",
+        compound: compound,
       };
+      
+      const spreadsheetId = process.env.SPREADSHEET_ID!;
+      const targetTab = batch_source_tab_name || "Sheet1";
+      const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
 
-      // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-      await updateSyncColumns(id, syncData, summary || "", noteConfig, undefined, batch_source_tab_name || undefined);
-      console.log("✅ GSheet columns A + Z-BO updated successfully");
-
-      const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, batch_source_tab_name || undefined);
-      if (gsheetUpdated) {
-        console.log("✅ GSheet columns B-P updated successfully");
+      if (targetTab !== sourceTab) {
+        console.log(`🚀 Promoting/Moving listing ${id} from ${sourceTab} to ${targetTab}...`);
+        // 1. Add to destination sheet with SAME GeoID
+        await addNewGSheetRow(displayData, id, syncData, updatedBy, undefined, targetTab);
+        
+        // 2. Delete from source sheet
+        const oldRow = await findRowByGeoIdInSheet(id, spreadsheetId, sourceTab);
+        if (oldRow) {
+          console.log(`🗑️ Deleting old record from ${sourceTab} row ${oldRow}...`);
+          await deleteRowFromSheet(spreadsheetId, sourceTab, oldRow);
+        }
       } else {
-        console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
+        // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
+        await updateSyncColumns(id, syncData, summary || "", noteConfig, undefined, targetTab);
+        console.log("✅ GSheet columns A + Z-BO updated successfully");
+
+        const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, targetTab);
+        if (gsheetUpdated) {
+          console.log("✅ GSheet columns B-P updated successfully");
+        } else {
+          console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
+        }
       }
 
       // Sync A-P to COPY GSheet — skip when batch_source_tab_name is set (Sheet2 data stays in Sheet2 only)

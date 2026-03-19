@@ -170,6 +170,7 @@ export default function AddListingPage() {
   // === PERMISSIONS ===
   const [targetTab, setTargetTab] = useState<"Sheet1" | "Sheet2">("Sheet1");
   const [isPromoting, setIsPromoting] = useState(false);
+  const [pendingUpdateTab, setPendingUpdateTab] = useState<"Sheet1" | "Sheet2" | null>(null);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
@@ -402,6 +403,7 @@ export default function AddListingPage() {
     setCompound("");
     setMonthlyDues("");
     setComments("");
+    setTargetTab("Sheet2");
   };
 
   const goToStep = (targetStep: Step, overrideText?: string) => {
@@ -483,6 +485,7 @@ export default function AddListingPage() {
     setSuggestedGeoId("");
     setNewGeoId("");
     setGeoIdConfirmed(false);
+    setTargetTab("Sheet2");
 
     try {
       const response = await fetch("/api/search", {
@@ -1087,15 +1090,18 @@ export default function AddListingPage() {
   };
 
   // Directly perform the update without confirmation
-  const handleUpdateExisting = () => {
+  const handleUpdateExisting = (overrideTargetTab?: "Sheet1" | "Sheet2") => {
     if (!searchResult) return;
+    setPendingUpdateTab(overrideTargetTab || null);
+
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, "0");
+    const month = now.toLocaleDateString("en-US", { month: "short" });
+    const year = now.getFullYear();
+    const today = `${month} ${day}, ${year}`;
+
     if (telegramPostEnabled) {
-      const now = new Date();
-      const day = String(now.getDate()).padStart(2, "0");
-      const month = now.toLocaleDateString("en-US", { month: "short" });
-      const year = now.getFullYear();
-      const today = `${month} ${day}, ${year}`;
-      setTelegramLine1(`*Update ${today}*`);
+      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 ${today}*` : `*Update ${today}*`);
       setTelegramLine2(editStatus || "");
       setTelegramLine3(ownerBroker);
       setTelegramLine4(listingOwnership || "");
@@ -1113,7 +1119,7 @@ export default function AddListingPage() {
       setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING"]);
       setShowTelegramModal(true);
     } else {
-      confirmUpdate();
+      confirmUpdate(undefined, overrideTargetTab);
     }
   };
 
@@ -1121,14 +1127,14 @@ export default function AddListingPage() {
     setShowTelegramModal(false);
     const msg = [telegramLine1, telegramLine2, telegramLine3, telegramLine4].filter(Boolean).join("\n");
     if (searchResult) {
-      confirmUpdate(msg);
+      confirmUpdate(msg, pendingUpdateTab || undefined);
     } else {
       confirmAddNew(msg);
     }
   };
 
   // Actually perform the update after confirmation
-  const confirmUpdate = async (telegramMsg?: string) => {
+  const confirmUpdate = async (telegramMsg?: string, overrideTargetTab?: "Sheet1" | "Sheet2") => {
     if (!searchResult) return;
 
     setUpdating(true);
@@ -1192,9 +1198,9 @@ export default function AddListingPage() {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
             batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
             batch_row_number: batchRows[batchIndex].rowNumber,
-            batch_source_tab_name: batchSourceTabName || undefined,
+            batch_source_tab_name: overrideTargetTab || batchSourceTabName || undefined,
           } : {}),
-          ...(!batchActive && (sourceTab) ? { batch_source_tab_name: sourceTab } : {}),
+          ...(!batchActive && (overrideTargetTab || sourceTab) ? { batch_source_tab_name: overrideTargetTab || sourceTab } : {}),
         }),
       });
 
@@ -1293,9 +1299,10 @@ export default function AddListingPage() {
   };
 
   // Add the new listing
-  const confirmAddNew = async (telegramMsg?: string) => {
+  const confirmAddNew = async (telegramMsg?: string, overrideTargetTab?: "Sheet1" | "Sheet2") => {
     setAdding(true);
     setError(null);
+    const finalTargetTab = overrideTargetTab || targetTab;
 
     try {
       const response = await fetch("/api/add-listing", {
@@ -1314,7 +1321,7 @@ export default function AddListingPage() {
           floor_area: editFloorArea ? parseFloat(editFloorArea) : null,
           price: editPrice ? parseFloat(editPrice) : null,
           lease_price: editLeasePrice ? parseFloat(editLeasePrice) : null,
-          summary: rawText, // Use the raw pasted text
+          summary: (overrideTargetTab === "Sheet1" && searchResult) ? (editSummary || rawText) : rawText, // Use editSummary if promoting
           residential: residential ? "RESIDENTIAL" : "",
           commercial: commercial ? "COMMERCIAL" : "",
           industrial: industrial ? "INDUSTRIAL" : "",
@@ -1349,9 +1356,9 @@ export default function AddListingPage() {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
             batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
             batch_row_number: batchRows[batchIndex].rowNumber,
-            batch_source_tab_name: batchSourceTabName || targetTab,
+            batch_source_tab_name: batchSourceTabName || finalTargetTab,
           } : {
-            batch_source_tab_name: targetTab,
+            batch_source_tab_name: finalTargetTab,
           }),
           send_telegram: telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
@@ -1790,8 +1797,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
       {/* Step 2: Check if New + Additional Info */}
       {step === "check" && (
         <div className="space-y-6">
-            {/* SuperAdmin Target Sheet Picker */}
-            {permissions.sheet2 === true && !batchActive && (
+            {/* SuperAdmin Target Sheet Picker - only for NEW listings */}
+            {permissions.sheet2 === true && !batchActive && !searchResult && (
               <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-3">
                 <Label className="text-blue-900 font-semibold flex items-center gap-2">
                   <Plus className="h-4 w-4" />
@@ -1984,7 +1991,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     </label>
                   )}
                   <Button
-                    onClick={handleUpdateExisting}
+                    onClick={() => handleUpdateExisting()}
                     disabled={updating}
                     className="bg-green-600 hover:bg-green-700 text-white"
                   >
@@ -2000,12 +2007,11 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       variant="outline"
                       className="border-blue-300 text-blue-700 hover:bg-blue-50"
                       onClick={() => {
-                        if (window.confirm("Are you sure you want to promote this listing to Sheet1? This will assign a NEW GEO ID and delete it from Sheet2.")) {
-                          setTargetTab("Sheet1");
-                          confirmAddNew();
+                        if (window.confirm("Are you sure you want to promote this listing to Sheet1? This will move it from Sheet2 to Sheet1 while maintaining the SAME GEO ID.")) {
+                          handleUpdateExisting("Sheet1");
                         }
                       }}
-                      disabled={adding}
+                      disabled={updating}
                     >
                       <ArrowRight className="h-4 w-4 mr-2" />
                       Promote to Sheet1
@@ -2847,7 +2853,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
               )}
               {searchResult && (
                 <Button
-                  onClick={handleUpdateExisting}
+                  onClick={() => handleUpdateExisting()}
                   disabled={updating}
                   className="bg-green-600 hover:bg-green-700 text-white"
                 >
