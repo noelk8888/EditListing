@@ -88,6 +88,19 @@ export async function POST(request: Request) {
       batch_source_sheet_gid,
       batch_row_number,
       batch_source_tab_name,
+      col_q,
+      col_r,
+      bp_post,
+      bq_post,
+      br_post,
+      bs_post,
+      bt_post,
+      bu_post,
+      bv_col,
+      bw_col,
+      bx_col,
+      by_col,
+      bz_col,
     } = body;
 
     if (!id) {
@@ -313,6 +326,8 @@ export async function POST(request: Request) {
         dateResorted: formatDisplayDate(date_updated || ""),
         available: status || "",
         listingOwnership: listing_ownership || "",
+        colQ: col_q || "",
+        colR: col_r || "",
       };
 
       // Build lat/long combined for BE column
@@ -364,6 +379,17 @@ export async function POST(request: Request) {
         amenities: amenities || "",
         corner: corner || "",
         compound: compound,
+        bpPost: bp_post || "",
+        bqPost: bq_post || "",
+        brPost: br_post || "",
+        bsPost: bs_post || "",
+        btPost: bt_post || "",
+        buPost: bu_post || "",
+        bvCol: bv_col || "",
+        bwCol: bw_col || "",
+        bxCol: bx_col || "",
+        byCol: by_col || "",
+        bzCol: bz_col || "",
       };
       
       const spreadsheetId = process.env.SPREADSHEET_ID!;

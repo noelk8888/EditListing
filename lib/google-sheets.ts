@@ -790,6 +790,17 @@ export interface GSheetSyncData {
   amenities: string;        // BM
   corner: string;           // BN
   compound: string;         // BO
+  bpPost: string;           // BP (LUXE POST)
+  bqPost: string;           // BQ (NEXIA POST)
+  brPost: string;           // BR (ADOLF POST)
+  bsPost: string;           // BS (PCO POST)
+  btPost: string;           // BT (SLOO POST)
+  buPost: string;           // BU (TAOKE POST)
+  bvCol: string;            // BV
+  bwCol: string;            // BW
+  bxCol: string;            // BX
+  byCol: string;            // BY
+  bzCol: string;            // BZ
 }
 
 /**
@@ -870,8 +881,8 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Ensure enough columns for Z-BO (67 cols)
-  await ensureSheetDimensions(sheets, spreadsheetId, 67);
+  // Ensure enough columns for Z-BZ (78 cols)
+  await ensureSheetDimensions(sheets, spreadsheetId, 78);
   let rowNumber: number | null;
   if (sheetTabName) {
     rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
@@ -889,7 +900,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     return false;
   }
 
-  // Build array for Z-BO (42 columns, indices 25-66 absolute, 0-41 relative)
+  // Build array for Z-BZ (53 columns, indices 25-77 absolute, 0-52 relative)
   const rowData = [
     data.fbLink,           // Z  (0)
     data.main,             // AA (1)
@@ -933,6 +944,17 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     data.amenities,        // BM (39)
     data.corner,           // BN (40)
     data.compound,         // BO (41)
+    data.bpPost || "",     // BP (42)
+    data.bqPost || "",     // BQ (43)
+    data.brPost || "",     // BR (44)
+    data.bsPost || "",     // BS (45)
+    data.btPost || "",     // BT (46)
+    data.buPost || "",     // BU (47)
+    data.bvCol || "",      // BV (48)
+    data.bwCol || "",      // BW (49)
+    data.bxCol || "",      // BX (50)
+    data.byCol || "",      // BY (51)
+    data.bzCol || "",      // BZ (52)
   ];
 
   // Derive blastedFormat: main text without the GEO ID first line
@@ -947,8 +969,8 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
       return data.main;
     })();
 
-  // Batch write: COL A (blastedFormat) + COL Z-BO (sync data) + paired display cols in one API call
-  await runWithExpansion(sheets, spreadsheetId, 67, () =>
+  // Batch write: COL A (blastedFormat) + COL Z-BZ (sync data) + paired display cols in one API call
+  await runWithExpansion(sheets, spreadsheetId, 78, () =>
     sheets.spreadsheets.values.batchUpdate({
       spreadsheetId,
       requestBody: {
@@ -959,7 +981,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
             values: [[blastedFormatToWrite]],
           },
           {
-            range: `${tabName}!Z${rowNumber}:BO${rowNumber}`,
+            range: `${tabName}!Z${rowNumber}:BZ${rowNumber}`,
             values: [rowData],
           },
           // Keep paired display cols (E:F, I:P) in sync with their Z-BO counterparts (AO:AQ, AX:BD)
@@ -1029,8 +1051,8 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Ensure enough columns for BO (up to col 67)
-  await ensureSheetDimensions(sheets, spreadsheetId, 67);
+  // Ensure enough columns for BZ (up to col 78)
+  await ensureSheetDimensions(sheets, spreadsheetId, 78);
 
   let rowNumber: number | null;
   if (sheetTabName) {
@@ -1049,7 +1071,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     return false;
   }
 
-  // Build row array for columns A-P (16 columns)
+  // Build row array for columns A-R (18 columns)
   const rowData = [
     data.blastedFormat,      // A
     data.type,               // B
@@ -1067,6 +1089,8 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     data.dateResorted,       // N
     data.available,          // O
     data.listingOwnership,   // P
+    data.colQ || "",         // Q
+    data.colR || "",         // R
   ];
 
   // Write values: A-P (display) + paired sync cols AO:AQ and AX:BD in one batch
@@ -1077,7 +1101,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
         valueInputOption: "USER_ENTERED",
         data: [
           {
-            range: `${tabName}!A${rowNumber}:P${rowNumber}`,
+            range: `${tabName}!A${rowNumber}:R${rowNumber}`,
             values: [rowData],
           },
           // Keep paired sync cols (AO:AQ, AX:BA, BC:BD) in sync with their display counterparts (E:F, I:P)
@@ -1381,11 +1405,11 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   const series = (sheetTabName === "Sheet2") ? "A" : "G";
   const geoId = overrideGeoId || await generateNextGeoId(series);
 
-  // Build full row (A to BO = 67 columns)
-  // A-P = display columns (16)
-  // Q-Y = empty (9)
-  // Z-BO = Supabase sync columns (42)
-  const rowData: string[] = new Array(67).fill("");
+  // Build full row (A to BZ = 78 columns)
+  // A-R = display columns (18)
+  // S-Y = empty (7)
+  // Z-BZ = Supabase sync columns (53)
+  const rowData: string[] = new Array(78).fill("");
 
   // A-P: Display columns
   rowData[GSHEET_COLUMNS.A_BLASTED_FORMAT] = data.blastedFormat;
@@ -1404,6 +1428,8 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   rowData[GSHEET_COLUMNS.N_DATE_RESORTED] = data.dateResorted;
   rowData[GSHEET_COLUMNS.O_AVAILABLE] = data.available;
   rowData[GSHEET_COLUMNS.P_LISTING_OWNERSHIP] = data.listingOwnership;
+  rowData[16] = data.colQ || ""; // Q
+  rowData[17] = data.colR || ""; // R
 
   // AC: GEO ID (key column) — always use the actual geoId, not syncData.geoId
   rowData[GSHEET_COLUMNS.AC_GEO_ID] = geoId;
@@ -1455,6 +1481,17 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     rowData[GSHEET_COLUMNS.BM_AMENITIES] = syncData.amenities || "";
     rowData[GSHEET_COLUMNS.BN_CORNER] = syncData.corner || "";
     rowData[GSHEET_COLUMNS.BO_COMPOUND] = syncData.compound || "";
+    rowData[GSHEET_COLUMNS.BP_LUXE_POST || 67] = syncData.bpPost || "";
+    rowData[GSHEET_COLUMNS.BQ_NEXIA_POST || 68] = syncData.bqPost || "";
+    rowData[GSHEET_COLUMNS.BR_ADOLF_POST || 69] = syncData.brPost || "";
+    rowData[GSHEET_COLUMNS.BS_PCO_POST || 70] = syncData.bsPost || "";
+    rowData[GSHEET_COLUMNS.BT_SLOO_POST || 71] = syncData.btPost || "";
+    rowData[GSHEET_COLUMNS.BU_TAOKE_POST || 72] = syncData.buPost || "";
+    rowData[73] = syncData.bvCol || ""; // BV
+    rowData[74] = syncData.bwCol || ""; // BW
+    rowData[75] = syncData.bxCol || ""; // BX
+    rowData[76] = syncData.byCol || ""; // BY
+    rowData[77] = syncData.bzCol || ""; // BZ
   }
 
   // Resolve the actual sheet tab name
@@ -1491,10 +1528,10 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     nextRow = Math.max(rowsInColA, rowsInColAC) + 1;
   }
 
-  // Write with an explicit A{n}:BO{n} reference — col A is always index 0
+  // Write with an explicit A{n}:BZ{n} reference — col A is always index 0
   await sheets.spreadsheets.values.update({
     spreadsheetId,
-    range: `${resolvedTabName}!A${nextRow}:BO${nextRow}`,
+    range: `${resolvedTabName}!A${nextRow}:BZ${nextRow}`,
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [rowData],
@@ -1523,7 +1560,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
                   startRowIndex: rowNumber - 1,
                   endRowIndex: rowNumber,
                   startColumnIndex: 0,
-                  endColumnIndex: 67, // A-BO
+                  endColumnIndex: 78, // A-BZ
                 },
                 cell: {
                   userEnteredFormat: {

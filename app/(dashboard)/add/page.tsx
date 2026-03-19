@@ -142,6 +142,7 @@ export default function AddListingPage() {
   const [batchSkips, setBatchSkips] = useState<number[]>([]);
   const [batchSourceTabName, setBatchSourceTabName] = useState<string | null>(null);
   const [batchPaused, setBatchPaused] = useState(false);
+  const [isSendingOnly, setIsSendingOnly] = useState(false);
   const [batchAutoReview, setBatchAutoReview] = useState(false); // true = auto-skip identical, false = manual review every row
   const [flashOn, setFlashOn] = useState(false);
   const [flashDismissed, setFlashDismissed] = useState(false);
@@ -1120,6 +1121,34 @@ export default function AddListingPage() {
       setShowTelegramModal(true);
     } else {
       confirmUpdate(undefined, overrideTargetTab);
+    }
+  };
+
+  const handleSendOnlyTelegram = async () => {
+    setIsSendingOnly(true);
+    setError(null);
+    try {
+      const msg = [telegramLine1, telegramLine2, telegramLine3, telegramLine4].filter(Boolean).join("\n");
+      const response = await fetch("/api/send-telegram-only", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: msg,
+          groups: telegramGroups.length > 0 ? telegramGroups : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send Telegram message");
+      }
+
+      alert("Message sent successfully!");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to send message");
+      alert(err instanceof Error ? err.message : "Failed to send message");
+    } finally {
+      setIsSendingOnly(false);
+      setShowTelegramModal(false);
     }
   };
 
@@ -3493,10 +3522,17 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowTelegramModal(false)}>
+              <Button variant="outline" onClick={() => setShowTelegramModal(false)} disabled={updating || adding || isSendingOnly}>
                 <X className="mr-2 h-4 w-4" />Cancel
               </Button>
-              <Button onClick={handleTelegramConfirm} className="bg-green-600 hover:bg-green-700 text-white">
+              <Button onClick={handleSendOnlyTelegram} disabled={updating || adding || isSendingOnly} className="bg-blue-600 hover:bg-blue-700 text-white">
+                {isSendingOnly ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>
+                ) : (
+                  <><Send className="mr-2 h-4 w-4" />SEND ONLY</>
+                )}
+              </Button>
+              <Button onClick={handleTelegramConfirm} disabled={updating || adding || isSendingOnly} className="bg-green-600 hover:bg-green-700 text-white">
                 <Save className="mr-2 h-4 w-4" />Send & Update
               </Button>
             </div>
