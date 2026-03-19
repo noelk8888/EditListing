@@ -142,7 +142,7 @@ export default function AddListingPage() {
   const [batchSkips, setBatchSkips] = useState<number[]>([]);
   const [batchSourceTabName, setBatchSourceTabName] = useState<string | null>(null);
   const [batchPaused, setBatchPaused] = useState(false);
-  const [batchAutoReview, setBatchAutoReview] = useState(true); // true = auto-skip identical, false = manual review every row
+  const [batchAutoReview, setBatchAutoReview] = useState(false); // true = auto-skip identical, false = manual review every row
   const [flashOn, setFlashOn] = useState(false);
   const [flashDismissed, setFlashDismissed] = useState(false);
   const [pendingExtractUpdate, setPendingExtractUpdate] = useState(false);
