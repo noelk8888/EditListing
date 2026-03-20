@@ -130,6 +130,8 @@ export async function POST(request: Request) {
       const locationChanged = latChanged || longChanged;
       if (locationChanged) changeTypes.push("LOCATION");
     }
+    const locationChanged = current ? (diff(lat, current["LAT"]) || diff(long, current["LONG"])) : (!!lat || !!long);
+
     if (updatedBy && current) {
       if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
       if (changeTypes.includes("STATUS")) { noteCols.add(14); noteCols.add(42); } // O, AQ
@@ -196,6 +198,7 @@ export async function POST(request: Request) {
         "Lease Price/Sqm": lease_price_per_sqm || null,
         "LAT": lat || null,
         "LONG": long || null,
+        "LAT LONG": lat && long ? `${lat}, ${long}` : null,
         "bedrooms": bedrooms || null,
         "toilet": toilet || null,
         "garage": garage || null,
@@ -210,8 +213,9 @@ export async function POST(request: Request) {
         "SOURCE_TAB": batch_source_tab_name || "Sheet1",
         "MAP VERIFIED": location_verified 
             ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
-            : (changeTypes.includes("LOCATION") ? null : (bv_col || null)),
+            : (locationChanged ? null : (bv_col || null)),
       })
+
       .eq('"GEO ID"', id)
       .select('"GEO ID"');
 
@@ -257,6 +261,7 @@ export async function POST(request: Request) {
         "MAP LINK": derivedMapLink || null,
         "LAT": lat || null,
         "LONG": long || null,
+        "LAT LONG": lat && long ? `${lat}, ${long}` : null,
         "bedrooms": bedrooms || null,
         "toilet": toilet || null,
         "garage": garage || null,
@@ -267,8 +272,9 @@ export async function POST(request: Request) {
         "MONTHLY DUES": monthly_dues || null,
         "MAP VERIFIED": location_verified 
             ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
-            : (changeTypes.includes("LOCATION") ? null : (bv_col || null)),
+            : (locationChanged ? null : (bv_col || null)),
       });
+
       if (insertError) {
         console.error("Supabase insert error:", insertError);
         return NextResponse.json({ error: `Supabase insert failed: ${insertError.message}` }, { status: 500 });
@@ -394,7 +400,7 @@ export async function POST(request: Request) {
         buPost: bu_post || "",
         bvCol: location_verified 
           ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
-          : (changeTypes.includes("LOCATION") ? "" : (bv_col || "")),
+          : (locationChanged ? "" : (bv_col || "")),
         bwCol: bw_col || "",
         bxCol: bx_col || "",
         byCol: by_col || "",
@@ -475,6 +481,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       supabaseUpdated,
+      changeTypes,
       writebackError: writebackError ?? undefined,
       warning: supabaseUpdated ? undefined : `GEO ID ${id} not found in Supabase — only GSheet was updated`,
     });

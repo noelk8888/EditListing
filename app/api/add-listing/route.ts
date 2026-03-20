@@ -322,6 +322,7 @@ export async function POST(request: Request) {
       "Extracted Lease Price": lease_price || null,
       "Sale Price/Sqm": sale_price_per_sqm || null,
       "Lease Price/Sqm": lease_price_per_sqm || null,
+      "LAT LONG": lat && long ? `${lat}, ${long}` : null,
       RESIDENTIAL: residential || null,
       COMMERCIAL: commercial || null,
       INDUSTRIAL: industrial || null,
