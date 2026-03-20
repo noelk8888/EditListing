@@ -30,6 +30,7 @@ function formatDisplayDate(dateStr: string): string {
 export async function POST(request: Request) {
   const session = await auth();
   const updatedBy = session?.user?.email || session?.user?.name || "";
+
   try {
     const body = await request.json();
     const {
@@ -345,6 +346,9 @@ export async function POST(request: Request) {
       COMMENTS: comments || null,
       "MONTHLY DUES": monthly_dues || null,
       "SOURCE_TAB": targetTab,
+      "MAP VERIFIED": location_verified 
+        ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split("T")[0])}` 
+        : null,
     };
 
     // Use upsert when an override GEO ID was confirmed — handles the case where the

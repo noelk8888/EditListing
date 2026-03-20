@@ -165,7 +165,6 @@ export async function POST(request: Request) {
       .from(TABLE_NAME)
       .update({
         "REGION": region || null,
-
         "PROVINCE": province || null,
         "CITY": city || null,
         "BARANGAY": barangay || null,
@@ -208,6 +207,9 @@ export async function POST(request: Request) {
         "SPONSOR END": sponsor_end || null,
         "PHOTO": photo_link || null,
         "SOURCE_TAB": batch_source_tab_name || "Sheet1",
+        "MAP VERIFIED": location_verified 
+            ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+            : (bv_col || null),
       })
       .eq('"GEO ID"', id)
       .select('"GEO ID"');
@@ -262,6 +264,9 @@ export async function POST(request: Request) {
         "compound": compound || null,
         "COMMENTS": comments || null,
         "MONTHLY DUES": monthly_dues || null,
+        "MAP VERIFIED": location_verified 
+            ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+            : (bv_col || null),
       });
       if (insertError) {
         console.error("Supabase insert error:", insertError);
@@ -386,7 +391,9 @@ export async function POST(request: Request) {
         bsPost: bs_post || "",
         btPost: bt_post || "",
         buPost: bu_post || "",
-        bvCol: location_verified ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString())}` : (bv_col || ""),
+        bvCol: location_verified 
+          ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+          : (bv_col || ""),
         bwCol: bw_col || "",
         bxCol: bx_col || "",
         byCol: by_col || "",
