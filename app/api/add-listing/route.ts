@@ -83,6 +83,17 @@ export async function POST(request: Request) {
       batch_source_sheet_gid,
       batch_row_number,
       batch_source_tab_name,
+      location_verified,
+      bp_post,
+      bq_post,
+      br_post,
+      bs_post,
+      bt_post,
+      bu_post,
+      bw_col,
+      bx_col,
+      by_col,
+      bz_col,
     } = body;
 
     console.log("=== ADDING NEW LISTING ===");
@@ -93,6 +104,18 @@ export async function POST(request: Request) {
     const userRole = (session?.user as any)?.role || "EDITOR";
     const permissions = userEmail ? await getUserPermissions(userEmail, userRole) : null;
     const isSuperAdmin = permissions?.sheet2 === true;
+
+    // Fetch fb_group from luxe_listing_users (for BC stamp and Location Verified)
+    let userGroup = updatedBy;
+    if (updatedBy) {
+      const { data: userRow } = await supabase
+        .from("luxe_listing_users")
+        .select("fb_group")
+        .eq("email", updatedBy.toLowerCase())
+        .maybeSingle();
+      const fbGroup = (userRow as { fb_group?: string | null } | null)?.fb_group;
+      if (fbGroup) userGroup = fbGroup;
+    }
 
     // Determine target tab: SuperAdmins can choose, Admins always use Sheet1
     const targetTab = isSuperAdmin ? (batch_source_tab_name || "Sheet1") : "Sheet1";
@@ -217,6 +240,17 @@ export async function POST(request: Request) {
       amenities: amenities || "",
       corner: corner || "",
       compound: compound || "",
+      bpPost: bp_post || "",
+      bqPost: bq_post || "",
+      brPost: br_post || "",
+      bsPost: bs_post || "",
+      btPost: bt_post || "",
+      buPost: bu_post || "",
+      bvCol: location_verified ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split("T")[0])}` : "",
+      bwCol: bw_col || "",
+      bxCol: bx_col || "",
+      byCol: by_col || "",
+      bzCol: bz_col || "",
     };
 
     // GSheet write — append a new row (with override GEO ID if confirmed, or generate a new one)

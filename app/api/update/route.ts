@@ -101,6 +101,7 @@ export async function POST(request: Request) {
       bx_col,
       by_col,
       bz_col,
+      location_verified,
     } = body;
 
     if (!id) {
@@ -385,7 +386,7 @@ export async function POST(request: Request) {
         bsPost: bs_post || "",
         btPost: bt_post || "",
         buPost: bu_post || "",
-        bvCol: bv_col || "",
+        bvCol: location_verified ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString())}` : (bv_col || ""),
         bwCol: bw_col || "",
         bxCol: bx_col || "",
         byCol: by_col || "",

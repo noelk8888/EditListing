@@ -81,6 +81,7 @@ export default function AddListingPage() {
   const [propertyType, setPropertyType] = useState("");
   const [lat, setLat] = useState("");
   const [long, setLong] = useState("");
+  const [locationVerified, setLocationVerified] = useState(false);
   const [bedrooms, setBedrooms] = useState("");
   const [toilet, setToilet] = useState("");
   const [garage, setGarage] = useState("");
@@ -396,6 +397,7 @@ export default function AddListingPage() {
     setPropertyType("");
     setLat("");
     setLong("");
+    setLocationVerified(false);
     setBedrooms("");
     setToilet("");
     setGarage("");
@@ -475,6 +477,7 @@ export default function AddListingPage() {
     setPropertyType("");
     setLat("");
     setLong("");
+    setLocationVerified(false);
     setBedrooms("");
     setToilet("");
     setGarage("");
@@ -715,6 +718,7 @@ export default function AddListingPage() {
       setLeasePricePerSqm("");
       setLat("");
       setLong("");
+    setLocationVerified(false);
       setBedrooms("");
       setToilet("");
       setGarage("");
@@ -1208,6 +1212,7 @@ export default function AddListingPage() {
           property_type: propertyType,
           lat: lat,
           long: long,
+          location_verified: locationVerified,
           bedrooms: bedrooms,
           toilet: toilet,
           garage: garage,
@@ -1368,6 +1373,7 @@ export default function AddListingPage() {
           lease_price_per_sqm: leasePricePerSqm ? parseFloat(leasePricePerSqm) : null,
           lat: lat,
           long: long,
+          location_verified: locationVerified,
           bedrooms: bedrooms,
           toilet: toilet,
           garage: garage,
@@ -2533,8 +2539,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat/Long</Label>
-                      <span className="text-xs">{lat && long ? `${lat}, ${long}` : "—"}</span>
+                      <Checkbox id="new-location-verified" checked={locationVerified} onCheckedChange={(checked) => handleInputChange(setLocationVerified)(!!checked)} />
+                      <Label htmlFor="new-location-verified" className="text-sm font-medium leading-none pt-0.5 cursor-pointer">Location Verified</Label>
                     </div>
 
                     {/* Row 8: bedrooms, toilet, garage */}
@@ -2806,8 +2812,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat/Long</Label>
-                      <span className="text-xs">{lat && long ? `${lat}, ${long}` : "—"}</span>
+                      <Checkbox id="edit-location-verified" checked={locationVerified} onCheckedChange={(checked) => handleInputChange(setLocationVerified)(!!checked)} />
+                      <Label htmlFor="edit-location-verified" className="text-sm font-medium leading-none pt-0.5 cursor-pointer">Location Verified</Label>
                     </div>
                     {/* Row 7: BEDROOMS, TOILET, GARAGE */}
                     <div className="flex items-center gap-2">
@@ -3319,8 +3325,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Lat/Long</Label>
-                    <span className="text-xs">{lat && long ? `${lat}, ${long}` : "—"}</span>
+                    <Checkbox id="batch-location-verified" checked={locationVerified} onCheckedChange={(checked) => handleInputChange(setLocationVerified)(!!checked)} />
+                    <Label htmlFor="batch-location-verified" className="text-sm font-medium leading-none pt-0.5 cursor-pointer">Location Verified</Label>
                   </div>
 
                   {/* Row 7: bedrooms, toilet, garage */}
