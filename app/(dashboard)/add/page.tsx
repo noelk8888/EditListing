@@ -1921,11 +1921,18 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   <div className="p-4 rounded-md border border-yellow-500 bg-yellow-50">
                     <div className="flex items-center gap-2 text-yellow-700">
                       <AlertCircle className="h-5 w-5" />
-                      <div>
-                        <span className="font-semibold">
-                          Existing Listing Found!
-                          {matchedBy && <span className="font-normal text-xs ml-2">(matched by {matchedBy})</span>}
-                        </span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">
+                            Existing Listing Found!
+                            {matchedBy && <span className="font-normal text-xs ml-2">(matched by {matchedBy})</span>}
+                          </span>
+                          {searchResult.map_verified && (
+                            <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                              VERIFIED
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm font-normal mt-1">Pre-filled from existing listing - modify if needed</p>
                       </div>
                     </div>
@@ -2546,9 +2553,25 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Long</Label>
                       <Input value={long} onChange={(e) => handleInputChange(setLong)(e.target.value)} className="h-8 text-sm" />
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Checkbox id="new-location-verified" checked={locationVerified} onCheckedChange={(checked) => handleInputChange(setLocationVerified)(!!checked)} />
-                      <Label htmlFor="new-location-verified" className="text-sm font-medium leading-none pt-0.5 cursor-pointer">Location Verified</Label>
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <Checkbox id="new-location-verified" checked={locationVerified} onCheckedChange={(checked) => handleInputChange(setLocationVerified)(!!checked)} />
+                        <Label htmlFor="new-location-verified" className="text-sm font-medium leading-none pt-0.5 cursor-pointer">Location Verified</Label>
+                      </div>
+                      {searchResult.map_verified && (
+                        <div className="flex items-center gap-2 ml-6">
+                          <p className="text-[10px] text-muted-foreground italic">
+                            Current: {searchResult.map_verified}
+                          </p>
+                          <button 
+                            type="button"
+                            onClick={() => setLocationVerified(false)}
+                            className="text-[10px] text-blue-600 hover:text-blue-800 underline font-medium"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Row 8: bedrooms, toilet, garage */}
