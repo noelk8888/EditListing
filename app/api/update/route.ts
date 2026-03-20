@@ -234,11 +234,9 @@ export async function POST(request: Request) {
         "SPONSOR END": sponsor_end || null,
         "PHOTO": photo_link || null,
         "SOURCE_TAB": batch_source_tab_name || "Sheet1",
-        "MAP VERIFIED": locationChanged 
-            ? null 
-            : (location_verified 
-                ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
-                : (bv_col || null)),
+        "MAP VERIFIED": location_verified 
+            ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+            : (bv_col || null),
       })
 
       .eq('"GEO ID"', id)
