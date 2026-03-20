@@ -120,26 +120,38 @@ export async function POST(request: Request) {
 
     const noteCols = new Set<number>();
     const changeTypes: string[] = [];
+
+    // Safe numeric coordinate comparison helper
+    const coordChanged = (val1: any, val2: any) => {
+      const n1 = parseFloat(String(val1 || "").replace(/[^\d.-]/g, ""));
+      const n2 = parseFloat(String(val2 || "").replace(/[^\d.-]/g, ""));
+      if (isNaN(n1) && isNaN(n2)) return false;
+      if (isNaN(n1) || isNaN(n2)) return true;
+      // Round to 6 decimal places to avoid precision mismatches
+      return Math.round(n1 * 1000000) !== Math.round(n2 * 1000000);
+    };
+
     if (current) {
       if (diff(price, current["Extracted Sale Price"]) || diff(lease_price, current["Extracted Lease Price"])) changeTypes.push("PRICE");
       if (diff(status, current["STATUS"])) changeTypes.push("STATUS");
       if (diff(listing_ownership, current["LISTING OWNERSHIP"])) changeTypes.push("LISTING");
       if (diff(comments, current["COMMENTS"])) changeTypes.push("COMMENTS");
       
-      const rawCurrentLat = current["LAT"];
-      const rawCurrentLong = current["LONG"];
-      const latVal = lat || "";
-      const longVal = long || "";
-
-      const latChanged = diff(latVal, rawCurrentLat);
-      const longChanged = diff(longVal, rawCurrentLong);
-      const locationWasChanged = latChanged || longChanged;
-      
+      const locationWasChanged = coordChanged(lat, current["LAT"]) || coordChanged(long, current["LONG"]);
       if (locationWasChanged) changeTypes.push("LOCATION");
     }
+
     const locationChanged = current 
-      ? (diff(lat, current["LAT"]) || diff(long, current["LONG"])) 
+      ? (coordChanged(lat, current["LAT"]) || coordChanged(long, current["LONG"])) 
       : (!!lat || !!long);
+
+    console.log(`📍 Location check for ${id}:`, {
+      incomingLat: lat,
+      dbLat: current?.["LAT"],
+      incomingLong: long,
+      dbLong: current?.["LONG"],
+      locationChanged
+    });
 
     if (updatedBy && current) {
       if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC

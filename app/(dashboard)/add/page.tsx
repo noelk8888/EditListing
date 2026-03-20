@@ -640,8 +640,12 @@ export default function AddListingPage() {
   useEffect(() => {
     if (lat && long) {
       setMapLink(`https://www.google.com/maps/search/?api=1&query=${lat},${long}`);
+      // Auto-clear verification if coordinates change (prevents re-sending old verification)
+      if (searchResult && (lat !== searchResult.lat || long !== searchResult.long)) {
+        setLocationVerified(false);
+      }
     }
-  }, [lat, long]);
+  }, [lat, long, searchResult]);
 
   // Auto-trigger search when entering Step 2
   useEffect(() => {
@@ -903,7 +907,7 @@ export default function AddListingPage() {
       setCompound(searchResult.compound || "");
       setMonthlyDues(searchResult.monthly_dues || "");
       setComments(searchResult.comments || "");
-
+      setLocationVerified(!!searchResult.map_verified);
     }
   }, [searchResult]);
 
@@ -1050,6 +1054,10 @@ export default function AddListingPage() {
     if (!todayToggle) {
       setTodayToggle(true);
       setDateUpdated(getTodayDate());
+    }
+    // Clear location verification if coordinates change manually
+    if (setter === (setLat as any) || setter === (setLong as any)) {
+      setLocationVerified(false);
     }
   };
 

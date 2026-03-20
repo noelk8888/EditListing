@@ -55,6 +55,7 @@ export interface SupabaseListing {
   monthly_dues: string | null;
   sponsor_start: string | null;
   sponsor_end: string | null;
+  map_verified: string | null;
 }
 
 export async function searchListingByPhotoLink(photoLink: string): Promise<SupabaseListing | null> {

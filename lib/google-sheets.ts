@@ -184,6 +184,7 @@ export interface GSheetFullRow extends GSheetDisplayData {
   supabaseAmenities: string;   // BM
   supabaseCorner: string;      // BN
   supabaseCompound: string;    // BO
+  mapVerified: string;         // BV
 }
 
 function cleanPrivateKey(raw: string): string {
@@ -575,6 +576,7 @@ function parseGSheetRow(row: string[]): GSheetFullRow {
     supabaseAmenities: row[GSHEET_COLUMNS.BM_AMENITIES] || "",
     supabaseCorner: row[GSHEET_COLUMNS.BN_CORNER] || "",
     supabaseCompound: row[GSHEET_COLUMNS.BO_COMPOUND] || "",
+    mapVerified: row[73] || "",
   };
 }
 

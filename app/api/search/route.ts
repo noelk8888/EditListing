@@ -12,7 +12,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const TABLE_NAME = "KIU Properties";
 
 // Select columns for all queries
-const SELECT_COLUMNS = `"GEO ID", "PHOTO", "MAIN", "REGION", "PROVINCE", "CITY", "BARANGAY", "AREA", "BUILDING", "LOT AREA", "FLOOR AREA", "STATUS", "TYPE", "Extracted Sale Price", "Extracted Lease Price", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "WITH INCOME", "DIRECT OR BROKER", "NAME", "AWAY", "LISTING OWNERSHIP", "DATE RECV", "DATE UPDATED", "FB LINK", "MAP LINK", "Sale Price/Sqm", "Lease Price/Sqm", "LAT LONG", "LAT", "LONG", "COMMENTS", "MONTHLY DUES", "SPONSOR START", "SPONSOR END", "bedrooms", "toilet", "garage", "amenities", "corner", "compound", "SOURCE_TAB"`;
+const SELECT_COLUMNS = `"GEO ID", "PHOTO", "MAIN", "REGION", "PROVINCE", "CITY", "BARANGAY", "AREA", "BUILDING", "LOT AREA", "FLOOR AREA", "STATUS", "TYPE", "Extracted Sale Price", "Extracted Lease Price", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "WITH INCOME", "DIRECT OR BROKER", "NAME", "AWAY", "LISTING OWNERSHIP", "DATE RECV", "DATE UPDATED", "FB LINK", "MAP LINK", "Sale Price/Sqm", "Lease Price/Sqm", "LAT LONG", "LAT", "LONG", "COMMENTS", "MONTHLY DUES", "SPONSOR START", "SPONSOR END", "bedrooms", "toilet", "garage", "amenities", "corner", "compound", "SOURCE_TAB", "MAP VERIFIED"`;
 
 interface SupabaseResult {
   "GEO ID": string | null;
@@ -62,6 +62,7 @@ interface SupabaseResult {
   "corner": string | null;
   "compound": string | null;
   "MONTHLY DUES": string | null;
+  "MAP VERIFIED": string | null;
 }
 
 // Extract a MAP LINK URL from listing text (COL A or COL AA).
@@ -189,6 +190,7 @@ function supabaseToResult(row: SupabaseResult) {
     monthly_dues: row["MONTHLY DUES"] || null,
     sponsor_start: row["SPONSOR START"] || null,
     sponsor_end: row["SPONSOR END"] || null,
+    map_verified: row["MAP VERIFIED"] || null,
   };
 }
 
@@ -255,6 +257,7 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow): ReturnType<
     monthly_dues: gsheetRow.supabaseMonthlyDues || null,
     sponsor_start: gsheetRow.supabaseSponsorStart || null,
     sponsor_end: gsheetRow.supabaseSponsorEnd || null,
+    map_verified: gsheetRow.mapVerified || null,
   };
 }
 
