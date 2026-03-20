@@ -127,7 +127,8 @@ export async function POST(request: Request) {
       if (diff(comments, current["COMMENTS"])) changeTypes.push("COMMENTS");
       const latChanged = diff(lat, current["LAT"]);
       const longChanged = diff(long, current["LONG"]);
-      if (latChanged || longChanged) changeTypes.push("LOCATION");
+      const locationChanged = latChanged || longChanged;
+      if (locationChanged) changeTypes.push("LOCATION");
     }
     if (updatedBy && current) {
       if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
     const derivedMapLink =
       lat && long
         ? `https://www.google.com/maps/search/?api=1&query=${lat},${long}`
-        : map_link || null;
+        : (lat === "" || long === "" ? null : (map_link || null));
 
     console.log("=== UPDATING LISTING ===");
     console.log("ID:", id);
@@ -209,7 +210,7 @@ export async function POST(request: Request) {
         "SOURCE_TAB": batch_source_tab_name || "Sheet1",
         "MAP VERIFIED": location_verified 
             ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
-            : (bv_col || null),
+            : (changeTypes.includes("LOCATION") ? null : (bv_col || null)),
       })
       .eq('"GEO ID"', id)
       .select('"GEO ID"');
@@ -266,7 +267,7 @@ export async function POST(request: Request) {
         "MONTHLY DUES": monthly_dues || null,
         "MAP VERIFIED": location_verified 
             ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
-            : (bv_col || null),
+            : (changeTypes.includes("LOCATION") ? null : (bv_col || null)),
       });
       if (insertError) {
         console.error("Supabase insert error:", insertError);
@@ -393,7 +394,7 @@ export async function POST(request: Request) {
         buPost: bu_post || "",
         bvCol: location_verified 
           ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
-          : (bv_col || ""),
+          : (changeTypes.includes("LOCATION") ? "" : (bv_col || "")),
         bwCol: bw_col || "",
         bxCol: bx_col || "",
         byCol: by_col || "",

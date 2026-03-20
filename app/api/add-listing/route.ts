@@ -172,7 +172,7 @@ export async function POST(request: Request) {
     const derivedMapLink =
       lat && long
         ? `https://www.google.com/maps/search/?api=1&query=${lat},${long}`
-        : map_link || null;
+        : (lat === "" || long === "" ? null : (map_link || null));
     const latLongCombined = lat && long ? `${lat}, ${long}` : "";
 
     const displayData: GSheetDisplayData = {
