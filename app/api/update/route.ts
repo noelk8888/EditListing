@@ -125,12 +125,21 @@ export async function POST(request: Request) {
       if (diff(status, current["STATUS"])) changeTypes.push("STATUS");
       if (diff(listing_ownership, current["LISTING OWNERSHIP"])) changeTypes.push("LISTING");
       if (diff(comments, current["COMMENTS"])) changeTypes.push("COMMENTS");
-      const latChanged = diff(lat, current["LAT"]);
-      const longChanged = diff(long, current["LONG"]);
-      const locationChanged = latChanged || longChanged;
-      if (locationChanged) changeTypes.push("LOCATION");
+      
+      const rawCurrentLat = current["LAT"];
+      const rawCurrentLong = current["LONG"];
+      const latVal = lat || "";
+      const longVal = long || "";
+
+      const latChanged = diff(latVal, rawCurrentLat);
+      const longChanged = diff(longVal, rawCurrentLong);
+      const locationWasChanged = latChanged || longChanged;
+      
+      if (locationWasChanged) changeTypes.push("LOCATION");
     }
-    const locationChanged = current ? (diff(lat, current["LAT"]) || diff(long, current["LONG"])) : (!!lat || !!long);
+    const locationChanged = current 
+      ? (diff(lat, current["LAT"]) || diff(long, current["LONG"])) 
+      : (!!lat || !!long);
 
     if (updatedBy && current) {
       if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
@@ -140,6 +149,8 @@ export async function POST(request: Request) {
       if (diff(long, current?.["LONG"])) noteCols.add(58); // BG
       if (changeTypes.includes("COMMENTS")) noteCols.add(48); // AW
     }
+
+
     const noteConfig: NoteConfig | undefined =
       updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;
 
