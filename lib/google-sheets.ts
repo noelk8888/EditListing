@@ -440,7 +440,7 @@ export async function findRowByGeoId(geoId: string): Promise<number | null> {
 
 /**
  * Generate the next GEO ID by finding the highest existing ID and adding 1
- * @param series - optional letter prefix to restrict search (e.g. "G" or "A"). Defaults to highest overall.
+ * @param series - optional letter prefix to restrict search (e.g. "G" or "B"). Defaults to highest overall.
  */
 export async function generateNextGeoId(series?: string): Promise<string> {
   const sheets = getSheets();
@@ -1418,7 +1418,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   }
 
   // Use provided GEO ID or generate a new one
-  const series = (sheetTabName === "Sheet2") ? "A" : "G";
+  const series = (sheetTabName === "Sheet2") ? "B" : "G";
   const geoId = overrideGeoId || await generateNextGeoId(series);
 
   // Build full row (A to BZ = 78 columns)
