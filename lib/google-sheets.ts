@@ -392,12 +392,11 @@ export async function runWithExpansion<T>(
 }
 
 /**
- * Find row number by GEO ID (column AC)
+ * Find row number and tab name by GEO ID (column AC) across all tabs
  */
-export async function findRowByGeoId(geoId: string): Promise<number | null> {
+export async function findRowAndTabByGeoId(geoId: string): Promise<{ rowNumber: number; tabName: string } | null> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
-
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");
   }
@@ -422,7 +421,7 @@ export async function findRowByGeoId(geoId: string): Promise<number | null> {
     const acColumn = acResponse.data.values || [];
     const acIndex = acColumn.findIndex((row) => row[0] === geoId);
     if (acIndex !== -1) {
-      return acIndex + 2;
+      return { rowNumber: acIndex + 2, tabName: tabTitle };
     }
 
     // Fallback search in column A for this tab
@@ -436,11 +435,19 @@ export async function findRowByGeoId(geoId: string): Promise<number | null> {
       return firstLine === geoId;
     });
     if (aIndex !== -1) {
-      return aIndex + 2;
+      return { rowNumber: aIndex + 2, tabName: tabTitle };
     }
   }
 
   return null;
+}
+
+/**
+ * Find row number by GEO ID (column AC)
+ */
+export async function findRowByGeoId(geoId: string): Promise<number | null> {
+  const result = await findRowAndTabByGeoId(geoId);
+  return result?.rowNumber ?? null;
 }
 
 /**
@@ -610,15 +617,15 @@ export async function getRowByGeoId(geoId: string): Promise<GSheetFullRow | null
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  const rowNumber = await findRowByGeoId(geoId);
-  if (!rowNumber) {
+  const result = await findRowAndTabByGeoId(geoId);
+  if (!result) {
     return null;
   }
 
-  // Read full row (A to BO)
+  // Read full row from the CORRECT tab resolved during search
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${SHEET_NAME}!A${rowNumber}:BO${rowNumber}`,
+    range: `${result.tabName}!A${result.rowNumber}:BO${result.rowNumber}`,
   });
 
   const row = response.data.values?.[0] || [];
