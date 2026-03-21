@@ -406,7 +406,7 @@ export default function AddListingPage() {
     setCompound("");
     setMonthlyDues("");
     setComments("");
-    setTargetTab("Sheet2");
+    setTargetTab("Sheet1");
   };
 
   const goToStep = (targetStep: Step, overrideText?: string) => {
@@ -489,7 +489,7 @@ export default function AddListingPage() {
     setSuggestedGeoId("");
     setNewGeoId("");
     setGeoIdConfirmed(false);
-    setTargetTab("Sheet2");
+    setTargetTab("Sheet1");
 
     try {
       const response = await fetch("/api/search", {
@@ -607,7 +607,7 @@ export default function AddListingPage() {
         } else {
           // If we just saved a listing this session with the same series, derive the next ID locally (avoids race condition)
           const lastMatch = lastAssignedGeoId.match(/^([A-Z])(\d+)$/);
-          if (lastMatch && lastMatch[1].toUpperCase() === batchGeoSeries) {
+          if (lastMatch && lastMatch[1].toUpperCase() === (targetTab === "Sheet2" ? "B" : "G")) {
             const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
             setSuggestedGeoId(next);
             setNewGeoId(next);
@@ -615,7 +615,7 @@ export default function AddListingPage() {
             // First new listing this session or different series — must query the sheet
             try {
               const geoRes = await fetch(
-                `/api/next-geo-id?series=${batchGeoSeries}`,
+                `/api/next-geo-id?series=${targetTab === "Sheet2" ? "B" : "G"}`,
                 { cache: "no-store" }
               );
               const geoData = await geoRes.json();
@@ -634,7 +634,7 @@ export default function AddListingPage() {
     } finally {
       setSearching(false);
     }
-  }, [photosLink, listingId, previewLines, lastAssignedGeoId, batchGeoSeries]);
+  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab]);
 
   // Keep Map Link in sync with lat/long coordinates
   useEffect(() => {
@@ -1852,7 +1852,24 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     type="button"
                     variant={targetTab === "Sheet1" ? "default" : "outline"}
                     className="flex-1"
-                    onClick={() => setTargetTab("Sheet1")}
+                    onClick={async () => {
+                      setTargetTab("Sheet1");
+                      if (!searchResult && !listingId) {
+                        setSearching(true);
+                        try {
+                          const res = await fetch(`/api/next-geo-id?series=G`, { cache: "no-store" });
+                          const data = await res.json();
+                          if (data.geoId) {
+                            setSuggestedGeoId(data.geoId);
+                            setNewGeoId(data.geoId);
+                          }
+                        } catch (err) {
+                          console.error("Failed to fetch G-series GEO ID:", err);
+                        } finally {
+                          setSearching(false);
+                        }
+                      }
+                    }}
                   >
                     Sheet1 (Public)
                   </Button>
@@ -1860,7 +1877,24 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     type="button"
                     variant={targetTab === "Sheet2" ? "secondary" : "outline"}
                     className={`flex-1 ${targetTab === "Sheet2" ? "bg-blue-600 text-white hover:bg-blue-700" : "border-blue-200"}`}
-                    onClick={() => setTargetTab("Sheet2")}
+                    onClick={async () => {
+                      setTargetTab("Sheet2");
+                      if (!searchResult && !listingId) {
+                        setSearching(true);
+                        try {
+                          const res = await fetch(`/api/next-geo-id?series=B`, { cache: "no-store" });
+                          const data = await res.json();
+                          if (data.geoId) {
+                            setSuggestedGeoId(data.geoId);
+                            setNewGeoId(data.geoId);
+                          }
+                        } catch (err) {
+                          console.error("Failed to fetch A-series GEO ID:", err);
+                        } finally {
+                          setSearching(false);
+                        }
+                      }
+                    }}
                   >
                     Sheet2 (Restricted)
                   </Button>

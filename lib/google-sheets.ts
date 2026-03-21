@@ -476,15 +476,26 @@ export async function generateNextGeoId(series?: string): Promise<string> {
 
   const targetPrefix = series?.toUpperCase();
   let maxNumber = 0;
+  // If no series provided, we'll default to "G" or the most common one found, 
+  // but for Sheet2 we explicitly pass "B".
   let prefix = targetPrefix || "G";
 
   const check = (raw: string) => {
     const s = raw.trim();
     const match = s.match(GEO_RE);
     if (match) {
-      if (targetPrefix && match[1].toUpperCase() !== targetPrefix) return;
+      // Regardless of the series requested, we find the absolute max numeric ID 
+      // across G, A, and B prefixes to ensure uniqueness in the shared pool.
+      const foundPrefix = match[1].toUpperCase();
       const num = parseInt(match[2], 10);
-      if (num > maxNumber) { maxNumber = num; prefix = match[1].toUpperCase(); }
+      
+      if (num > maxNumber) {
+        maxNumber = num;
+        // Only update prefix if we haven't locked it via targetPrefix
+        if (!targetPrefix) {
+          prefix = foundPrefix;
+        }
+      }
     }
   };
 
@@ -503,8 +514,10 @@ export async function generateNextGeoId(series?: string): Promise<string> {
   }
 
   const nextNum = maxNumber + 1;
-  // A-series: always 5 digits (A00001–A99999). G-series: no padding (existing format).
-  const formattedNum = (targetPrefix === "A") ? String(nextNum).padStart(5, "0") : String(nextNum);
+  // B-series (Sheet2): use the shared G-series number.
+  // We match the formatting of the existing G-series (which is often 5 digits but variable)
+  // If the number is < 10000, we'll pad to at least 5 digits to keep them pretty.
+  const formattedNum = String(nextNum).padStart(5, "0");
   const nextGeoId = `${prefix}${formattedNum}`;
   console.log(`Generated next GEO ID: ${nextGeoId} (max was ${prefix}${maxNumber}, scanned AC+AA+A, series=${targetPrefix || "any"})`);
   return nextGeoId;
