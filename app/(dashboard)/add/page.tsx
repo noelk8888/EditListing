@@ -196,7 +196,13 @@ export default function AddListingPage() {
   useEffect(() => {
     fetch("/api/my-permissions")
       .then((r) => r.json())
-      .then((d) => { setPermissions(d.permissions || {}); setPermissionsLoaded(true); })
+      .then((d) => { 
+        setPermissions(d.permissions || {}); 
+        setPermissionsLoaded(true); 
+        if (d.permissions?.sheet2) {
+          setTargetTab("Sheet2");
+        }
+      })
       .catch(() => setPermissionsLoaded(true));
   }, []);
 
@@ -406,7 +412,7 @@ export default function AddListingPage() {
     setCompound("");
     setMonthlyDues("");
     setComments("");
-    setTargetTab("Sheet1");
+    setTargetTab(permissions.sheet2 ? "Sheet2" : "Sheet1");
   };
 
   const goToStep = (targetStep: Step, overrideText?: string) => {
@@ -489,7 +495,7 @@ export default function AddListingPage() {
     setSuggestedGeoId("");
     setNewGeoId("");
     setGeoIdConfirmed(false);
-    setTargetTab("Sheet1");
+    setTargetTab(permissions.sheet2 ? "Sheet2" : "Sheet1");
 
     try {
       const response = await fetch("/api/search", {
