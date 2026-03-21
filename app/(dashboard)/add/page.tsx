@@ -2119,7 +2119,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   {permissions.sheet2 === true && sourceTab === "Sheet2" && (
                     <Button
                       variant="outline"
-                      className="border-red-500 text-red-600 hover:bg-red-50 shadow-md border-2"
+                      className="border-red-600 text-red-600 hover:bg-red-50 shadow-lg border-2 ring-2 ring-red-500 ring-offset-2 transition-all"
                       onClick={() => {
                         const isBSeries = searchResult?.id?.startsWith("B");
                         const msg = isBSeries 
