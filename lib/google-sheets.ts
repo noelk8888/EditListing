@@ -402,37 +402,42 @@ export async function findRowByGeoId(geoId: string): Promise<number | null> {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Ensure AC column (29) exists
-  await ensureSheetDimensions(sheets, spreadsheetId, 29);
+  // 1. Get all tabs in the spreadsheet
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const allTabs = (meta.data.sheets || [])
+    .map((s: any) => s.properties?.title as string)
+    .filter((title: string) => !!title);
 
-  // Primary: search COL AC (GEO ID sync column)
-  const acResponse = await runWithExpansion(sheets, spreadsheetId, 29, () =>
-    sheets.spreadsheets.values.get({
+  // 2. Search all tabs for the GEO ID in column AC
+  for (const tabTitle of allTabs) {
+    // Ensure AC column (29) exists for this tab
+    await ensureSheetDimensions(sheets, spreadsheetId, 29);
+
+    const acResponse = await runWithExpansion(sheets, spreadsheetId, 29, () =>
+      sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${tabTitle}!AC2:AC`,
+      })
+    );
+    const acColumn = acResponse.data.values || [];
+    const acIndex = acColumn.findIndex((row) => row[0] === geoId);
+    if (acIndex !== -1) {
+      return acIndex + 2;
+    }
+
+    // Fallback search in column A for this tab
+    const aResponse = await sheets.spreadsheets.values.get({
       spreadsheetId,
-      range: `${SHEET_NAME}!AC2:AC`,
-    })
-  );
-
-  const acColumn = acResponse.data.values || [];
-  const acIndex = acColumn.findIndex((row) => row[0] === geoId);
-  if (acIndex !== -1) {
-    return acIndex + 2;
-  }
-
-  // Fallback: search COL A (BLASTED FORMAT) for rows where the GEO ID appears on the first line
-  const aResponse = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${SHEET_NAME}!A2:A`,
-  });
-
-  const aColumn = aResponse.data.values || [];
-  const aIndex = aColumn.findIndex((row) => {
-    const firstLine = (row[0] || "").split("\n")[0].trim();
-    return firstLine === geoId;
-  });
-
-  if (aIndex !== -1) {
-    return aIndex + 2;
+      range: `${tabTitle}!A2:A`,
+    });
+    const aColumn = aResponse.data.values || [];
+    const aIndex = aColumn.findIndex((row) => {
+      const firstLine = (row[0] || "").split("\n")[0].trim();
+      return firstLine === geoId;
+    });
+    if (aIndex !== -1) {
+      return aIndex + 2;
+    }
   }
 
   return null;
@@ -2039,41 +2044,42 @@ export async function deleteListing(id: string, overrideSpreadsheetId?: string):
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Resolve actual tab name (for backup sheets with different tab names)
-  let sheetTabName = SHEET_NAME;
-  if (overrideSpreadsheetId) {
-    try {
-      const meta = await sheets.spreadsheets.get({ spreadsheetId });
-      const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
-      sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
-    } catch { /* keep SHEET_NAME */ }
+  // 1. Get all tabs in the spreadsheet
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const allTabs = (meta.data.sheets || [])
+    .map((s: any) => ({
+      title: s.properties?.title as string,
+      sheetId: s.properties?.sheetId as number
+    }))
+    .filter(t => !!t.title);
+
+  // 2. Search all tabs for the GEO ID in column AC
+  let targetTabTitle: string | null = null;
+  let targetTabSheetId: number | null = null;
+  let rowIndexInTab: number | null = null;
+
+  for (const tab of allTabs) {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${tab.title}!AC2:AC`,
+    });
+    const idColumn = response.data.values || [];
+    const index = idColumn.findIndex((row) => row[0] === id);
+    if (index !== -1) {
+      targetTabTitle = tab.title;
+      targetTabSheetId = tab.sheetId;
+      rowIndexInTab = index;
+      break;
+    }
   }
 
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${sheetTabName}!AC2:AC`,
-  });
-
-  const idColumn = response.data.values || [];
-  const rowIndex = idColumn.findIndex((row) => row[0] === id);
-
-  if (rowIndex === -1) {
+  if (targetTabTitle === null || targetTabSheetId === null || rowIndexInTab === null) {
     return false;
   }
 
-  const actualRowIndex = rowIndex + 2;
+  const actualRowIndex = rowIndexInTab + 2;
 
-  const spreadsheet = await sheets.spreadsheets.get({
-    spreadsheetId,
-  });
-
-  const sheet = spreadsheet.data.sheets?.find(
-    (s) => s.properties?.title === sheetTabName
-  );
-
-  if (!sheet?.properties?.sheetId) {
-    throw new Error("Sheet not found");
-  }
+  const sheetId = targetTabSheetId;
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
@@ -2082,7 +2088,7 @@ export async function deleteListing(id: string, overrideSpreadsheetId?: string):
         {
           deleteDimension: {
             range: {
-              sheetId: sheet.properties.sheetId,
+              sheetId: targetTabSheetId,
               dimension: "ROWS",
               startIndex: actualRowIndex - 1,
               endIndex: actualRowIndex,
