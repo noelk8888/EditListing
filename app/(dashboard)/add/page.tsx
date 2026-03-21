@@ -48,6 +48,14 @@ const getTodayDate = (): string => {
   return new Date().toISOString().split('T')[0];
 };
 
+// Normalize numeric styles in a string to allow "absolute" comparison
+const normalizeTextNumbers = (text: string): string => {
+  return (text || "").trim().toLowerCase().replace(/([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)/g, (match) => {
+    const n = parseFloat(match.replace(/,/g, ""));
+    return isNaN(n) ? match : String(n);
+  });
+};
+
 export default function AddListingPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>("paste");
@@ -949,7 +957,7 @@ export default function AddListingPage() {
           : (searchResult.summary || "");
 
         const differs = (a: string, b: string) =>
-          (a || "").trim().toLowerCase() !== (b || "").trim().toLowerCase();
+          normalizeTextNumbers(a) !== normalizeTextNumbers(b);
         const differsPrice = (a: string, b: string) => {
           const na = parseFloat((a || "").replace(/,/g, ""));
           const nb = parseFloat((b || "").replace(/,/g, ""));
@@ -984,9 +992,7 @@ export default function AddListingPage() {
   // Helper: compare if a value is significantly different from Supabase (used in UI highlighting)
   const isDifferent = (current: any, original: any) => {
     if (!original && !current) return false;
-    const c = String(current || "").trim().toLowerCase();
-    const o = String(original || "").trim().toLowerCase();
-    return c !== o;
+    return normalizeTextNumbers(String(current)) !== normalizeTextNumbers(String(original));
   };
 
   // Compute batchAutoPaused — used by both the flash effect and the card render
@@ -2214,9 +2220,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                             { label: "Floor Area", working: editFloorArea, backup: backupData.floorArea, numeric: true },
                             { label: "Price", working: editPrice, backup: backupData.price, numeric: true },
                           ].map(({ label, working, backup, numeric }) => {
-                            const diff = numeric
-                              ? (() => { const na = parseFloat((working || "").replace(/,/g, "")); const nb = parseFloat((backup || "").replace(/,/g, "")); return (!isNaN(na) && !isNaN(nb)) ? Math.abs(na - nb) > 0.01 : working.trim().toLowerCase() !== backup.trim().toLowerCase(); })()
-                              : working.trim().toLowerCase() !== backup.trim().toLowerCase();
+                            const diff = normalizeTextNumbers(working) !== normalizeTextNumbers(backup);
                             return (
                               <tr key={label} className={diff ? "bg-red-50" : ""}>
                                 <td className="border border-orange-300 px-2 py-1 font-medium">{label}</td>
