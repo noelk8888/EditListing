@@ -484,11 +484,12 @@ export async function generateNextGeoId(series?: string): Promise<string> {
     const s = raw.trim();
     const match = s.match(GEO_RE);
     if (match) {
-      // Regardless of the series requested, we find the absolute max numeric ID 
-      // across G, A, and B prefixes to ensure uniqueness in the shared pool.
+      // Shared pool: only consider G and B prefixes for calculating the next number.
+      // Legacy A-series IDs are ignored to prevent them from skewing the sequence.
       const foundPrefix = match[1].toUpperCase();
-      const num = parseInt(match[2], 10);
+      if (foundPrefix !== "G" && foundPrefix !== "B") return;
       
+      const num = parseInt(match[2], 10);
       if (num > maxNumber) {
         maxNumber = num;
         // Only update prefix if we haven't locked it via targetPrefix
