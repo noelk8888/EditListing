@@ -2089,15 +2089,20 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   {permissions.sheet2 === true && sourceTab === "Sheet2" && (
                     <Button
                       variant="outline"
-                      className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                      className="border-green-300 text-green-700 hover:bg-green-50 shadow-sm"
                       onClick={() => {
-                        if (window.confirm("Are you sure you want to promote this listing to Sheet1? This will move it from Sheet2 to Sheet1 while maintaining the SAME GEO ID.")) {
+                        const isBSeries = searchResult?.id?.startsWith("B");
+                        const msg = isBSeries 
+                          ? `Promote this listing to Sheet1? \n\nThe GEO ID will be transformed from ${searchResult.id} to ${searchResult.id.replace(/^B/, "G")}.`
+                          : `Promote this listing to Sheet1? \n\nThe GEO ID (${searchResult.id}) will remain the same.`;
+                        
+                        if (window.confirm(msg)) {
                           handleUpdateExisting("Sheet1");
                         }
                       }}
                       disabled={updating}
                     >
-                      <ArrowRight className="h-4 w-4 mr-2" />
+                      <Sparkles className="h-4 w-4 mr-2 text-green-600" />
                       Promote to Sheet1
                     </Button>
                   )}

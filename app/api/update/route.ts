@@ -440,15 +440,79 @@ export async function POST(request: Request) {
       const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
 
       if (targetTab !== sourceTab) {
-        console.log(`🚀 Promoting/Moving listing ${id} from ${sourceTab} to ${targetTab}...`);
-        // 1. Add to destination sheet with SAME GeoID
-        await addNewGSheetRow(displayData, id, syncData, updatedBy, undefined, targetTab);
+        let finalId = id;
+        let isIdChanged = false;
+
+        // If promoting from Sheet2 to Sheet1, handle B -> G transformation
+        if (sourceTab === "Sheet2" && targetTab === "Sheet1") {
+          if (id.startsWith("B")) {
+            finalId = id.replace(/^B/, "G");
+            isIdChanged = true;
+            console.log(`🏷️ Transforming ID for promotion: ${id} -> ${finalId}`);
+            
+            // Update syncData with new GEO ID and MAIN text
+            syncData.geoId = finalId;
+            syncData.main = finalId + "\n" + blastedFormat;
+          }
+        }
+
+        console.log(`🚀 Promoting/Moving listing ${id} from ${sourceTab} to ${targetTab}${isIdChanged ? ` with new ID ${finalId}` : ""}...`);
         
-        // 2. Delete from source sheet
+        // 1. Add to destination sheet with finalId (new G-series or existing A/G)
+        await addNewGSheetRow(displayData, finalId, syncData, updatedBy, undefined, targetTab);
+        
+        // 2. Delete from source sheet (old B-series or existing A/G)
         const oldRow = await findRowByGeoIdInSheet(id, spreadsheetId, sourceTab);
         if (oldRow) {
           console.log(`🗑️ Deleting old record from ${sourceTab} row ${oldRow}...`);
           await deleteRowFromSheet(spreadsheetId, sourceTab, oldRow);
+        }
+
+        // 3. Handle Supabase record change if ID was transformed
+        if (isIdChanged) {
+          console.log(`🔄 Updating Supabase for ID change: ${id} -> ${finalId}`);
+          
+          // Delete old B-series record
+          await supabase.from(TABLE_NAME).delete().eq('"GEO ID"', id);
+          
+          // Insert new G-series record (most data already in the update object above, but we need to re-insert)
+          const newSupabaseRecord = {
+             ...body, // Use the incoming body as a base
+             "GEO ID": finalId,
+             "MAIN": finalId + "\n" + blastedFormat,
+             "SOURCE_TAB": targetTab,
+             // Ensure numeric fields are correctly typed
+             "LOT AREA": lot_area || null,
+             "FLOOR AREA": floor_area || null,
+             "Extracted Sale Price": price || null,
+             "Extracted Lease Price": lease_price || null,
+             "Sale Price/Sqm": sale_price_per_sqm || null,
+             "Lease Price/Sqm": lease_price_per_sqm || null,
+             // Ensure boolean/checkbox fields are correctly handled
+             "RESIDENTIAL": residential || null,
+             "COMMERCIAL": commercial || null,
+             "INDUSTRIAL": industrial || null,
+             "AGRICULTURAL": agricultural || null,
+             "MAP VERIFIED": location_verified 
+                ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+                : (bv_col || null),
+          };
+
+          // Clean up fields that aren't in the Supabase schema
+          const fieldsToDelete = [
+            'id', 'send_telegram', 'telegram_post_message', 'telegram_groups', 
+            'batch_source_sheet_id', 'batch_source_sheet_gid', 'batch_row_number', 
+            'batch_source_tab_name', 'col_q', 'col_r', 'location_verified',
+            'summary', 'sale_or_lease', 'location_verified', 'bv_col'
+          ];
+          fieldsToDelete.forEach(f => delete (newSupabaseRecord as any)[f]);
+
+          const { error: insertErr } = await supabase.from(TABLE_NAME).insert(newSupabaseRecord);
+          if (insertErr) {
+            console.error("❌ Failed to insert new Supabase record after ID change:", insertErr);
+          } else {
+            console.log(`✅ Supabase record ${finalId} inserted.`);
+          }
         }
       } else {
         // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
