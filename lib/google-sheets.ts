@@ -1035,12 +1035,12 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
       );
       const sheetId = sheet?.properties?.sheetId;
       if (sheetId !== undefined) {
-        const now = new Date().toLocaleString("en-PH", {
-          timeZone: "Asia/Manila",
-          year: "numeric", month: "2-digit", day: "2-digit",
-          hour: "2-digit", minute: "2-digit", hour12: true,
-        });
-        const noteText = `Updated by: ${noteConfig.updatedBy}\n${now}`;
+        const date = new Date();
+        const month = date.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" });
+        const day = date.toLocaleDateString("en-US", { day: "2-digit", timeZone: "Asia/Manila" });
+        const year = date.toLocaleDateString("en-US", { year: "numeric", timeZone: "Asia/Manila" });
+        const formattedDate = `${month} ${day}, ${year}`;
+        const noteText = `Listing Update - ${formattedDate}, by ${noteConfig.updatedBy}`;
         const requests: object[] = [];
         // Col AQ (42) — STATUS
         if (noteConfig.cols.has(42)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 42, endColumnIndex: 43 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
@@ -1190,12 +1190,12 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 
       // Insert notes only on columns that actually changed
       if (noteConfig && noteConfig.cols.size > 0) {
-        const now = new Date().toLocaleString("en-PH", {
-          timeZone: "Asia/Manila",
-          year: "numeric", month: "2-digit", day: "2-digit",
-          hour: "2-digit", minute: "2-digit", hour12: true,
-        });
-        const noteText = `Updated by: ${noteConfig.updatedBy}\n${now}`;
+        const date = new Date();
+        const month = date.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" });
+        const day = date.toLocaleDateString("en-US", { day: "2-digit", timeZone: "Asia/Manila" });
+        const year = date.toLocaleDateString("en-US", { year: "numeric", timeZone: "Asia/Manila" });
+        const formattedDate = `${month} ${day}, ${year}`;
+        const noteText = `Listing Update - ${formattedDate}, by ${noteConfig.updatedBy}`;
         // Col N (13) — Date Updated
         if (noteConfig.cols.has(13)) requests.push({ updateCells: { range: { sheetId, startRowIndex: rowNumber - 1, endRowIndex: rowNumber, startColumnIndex: 13, endColumnIndex: 14 }, rows: [{ values: [{ note: noteText }] }], fields: "note" } });
         // Col O (14) — Status

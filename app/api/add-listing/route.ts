@@ -129,6 +129,19 @@ export async function POST(request: Request) {
         // Search Sheet2 (specifically) for a content match
         const sheet2Match = await findRowByColAText(summary, spreadsheetId, "Sheet2");
         if (sheet2Match && sheet2Match.rowNumber) {
+          // If match found in Sheet2 and user is SuperAdmin, return error so UI can offer promotion
+          if (isSuperAdmin) {
+            return NextResponse.json(
+              { 
+                error: "EXISTING_IN_SHEET2", 
+                message: "Listing already exists in Sheet2. Promote it instead?",
+                match: sheet2Match 
+              }, 
+              { status: 409 }
+            );
+          }
+
+          // Otherwise (Admin/Editor), perform Silent Transfer
           console.log(`🕵️ Silent Transfer: match found in Sheet2 row ${sheet2Match.rowNumber}. Deleting it...`);
           await deleteRowFromSheet(spreadsheetId, "Sheet2", sheet2Match.rowNumber);
           

@@ -310,7 +310,9 @@ export default function AddListingPage() {
       const gsheet = batchCurrentRowRef.current;
       if (gsheet) {
         if (!data.dateReceived && gsheet.colM) setDateReceived(normalizeGSheetDate(gsheet.colM));
-        if (!data.dateResorted && gsheet.colN) setDateUpdated(normalizeGSheetDate(gsheet.colN));
+        if (!data.dateResorted) {
+          setDateUpdated(gsheet.colN ? normalizeGSheetDate(gsheet.colN) : getTodayDate());
+        }
         if (!data.directOrCobroker && gsheet.colJ) {
           const val = gsheet.colJ.toLowerCase();
           if (val.includes('direct')) setDirectOrCobroker('Direct to Owner');
@@ -753,7 +755,7 @@ export default function AddListingPage() {
     // Must come AFTER goToStep because goToStep → clearEditFields resets these fields.
     // React batches all setState calls in this effect; last write wins.
     if (row.colM) setDateReceived(normalizeGSheetDate(row.colM));
-    if (row.colN) setDateUpdated(normalizeGSheetDate(row.colN));
+    setDateUpdated(row.colN ? normalizeGSheetDate(row.colN) : getTodayDate());
 
     // Pre-fill additional fields from GSheet columns B-I, O-P
     if (row.colB) {
@@ -1153,6 +1155,8 @@ export default function AddListingPage() {
         body: JSON.stringify({
           message: msg,
           groups: telegramGroups.length > 0 ? telegramGroups : undefined,
+          summary: editSummary,
+          geoId: searchResult?.id || newGeoId,
         }),
       });
 
@@ -1416,8 +1420,28 @@ export default function AddListingPage() {
       });
 
       const data = await response.json();
+      console.log("Add Listing Response:", data);
 
       if (!response.ok) {
+        if (data.error === "EXISTING_IN_SHEET2" && data.match) {
+          const match = data.match;
+          const isBSeries = match.geoId?.startsWith("B");
+          const msg = `This listing already exists in Sheet2 (Row ${match.rowNumber}).\n\nWould you like to PROMOTE it to Sheet1 instead?\n\n${isBSeries ? `GEO ID will transform: ${match.geoId} → ${match.geoId.replace(/^B/, "G")}` : `GEO ID will remain: ${match.geoId}`}`;
+          
+          if (window.confirm(msg)) {
+            // Re-populate searchResult from the match data so handleUpdateExisting works
+            // The backend returns 'geoId' but frontend 'searchResult' expects 'id'
+            setSearchResult({
+              ...match,
+              id: match.geoId,
+              summary: match.blastedFormat || match.summary || editSummary,
+            } as any);
+            setSourceTab("Sheet2");
+            handleUpdateExisting("Sheet1");
+            return;
+          }
+          throw new Error("Add cancelled. Listing already exists in Sheet2.");
+        }
         throw new Error(data.details || data.error || "Failed to add listing");
       }
 
@@ -2095,7 +2119,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   {permissions.sheet2 === true && sourceTab === "Sheet2" && (
                     <Button
                       variant="outline"
-                      className="border-green-300 text-green-700 hover:bg-green-50 shadow-sm"
+                      className="border-red-500 text-red-600 hover:bg-red-50 shadow-md border-2"
                       onClick={() => {
                         const isBSeries = searchResult?.id?.startsWith("B");
                         const msg = isBSeries 
@@ -2108,7 +2132,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       }}
                       disabled={updating}
                     >
-                      <Sparkles className="h-4 w-4 mr-2 text-green-600" />
+                      <Sparkles className="h-4 w-4 mr-2 text-red-500" />
                       Promote to Sheet1
                     </Button>
                   )}
