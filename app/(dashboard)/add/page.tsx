@@ -12,6 +12,7 @@ import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles
 import { useRouter } from "next/navigation";
 import { SupabaseListing } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
+import { LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 
 type Step = "paste" | "check" | "review";
 
@@ -2486,7 +2487,22 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
-                    <Input value={listingOwnership} onChange={(e) => handleInputChange(setListingOwnership)(e.target.value)} className="h-8 text-sm" />
+                    <Select 
+                      value={listingOwnership} 
+                      onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Select ownership..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value=" ">&lt;blank&gt;</SelectItem>
+                        {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Row 5: Income + Photos Link */}
@@ -2786,7 +2802,22 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
-                    <Input value={listingOwnership} onChange={(e) => handleInputChange(setListingOwnership)(e.target.value)} className="h-8 text-sm" />
+                    <Select 
+                      value={listingOwnership} 
+                      onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
+                    >
+                      <SelectTrigger className="h-8 text-sm">
+                        <SelectValue placeholder="Select ownership..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value=" ">&lt;blank&gt;</SelectItem>
+                        {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                          <SelectItem key={option} value={option}>
+                            {option}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Income</Label>
@@ -3298,7 +3329,22 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
-                  <Input value={listingOwnership} onChange={(e) => handleInputChange(setListingOwnership)(e.target.value)} className="h-8 text-sm" />
+                  <Select 
+                    value={listingOwnership} 
+                    onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
+                  >
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Select ownership..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value=" ">&lt;blank&gt;</SelectItem>
+                      {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Row 5 */}
