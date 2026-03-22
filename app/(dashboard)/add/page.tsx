@@ -2492,7 +2492,9 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
                     >
                       <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select ownership..." />
+                        <span className={listingOwnership === " " ? "opacity-0" : ""}>
+                          <SelectValue placeholder="Select ownership..." />
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value=" ">&lt;blank&gt;</SelectItem>
@@ -2807,7 +2809,9 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
                     >
                       <SelectTrigger className="h-8 text-sm">
-                        <SelectValue placeholder="Select ownership..." />
+                        <span className={listingOwnership === " " ? "opacity-0" : ""}>
+                          <SelectValue placeholder="Select ownership..." />
+                        </span>
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value=" ">&lt;blank&gt;</SelectItem>
@@ -3334,7 +3338,9 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
                   >
                     <SelectTrigger className="h-8 text-sm">
-                      <SelectValue placeholder="Select ownership..." />
+                      <span className={listingOwnership === " " ? "opacity-0" : ""}>
+                        <SelectValue placeholder="Select ownership..." />
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value=" ">&lt;blank&gt;</SelectItem>

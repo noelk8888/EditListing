@@ -461,7 +461,9 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
               onValueChange={(value) => updateField("listingOwnership", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select ownership..." />
+                <span className={listing.listingOwnership === "" ? "opacity-0" : ""}>
+                  <SelectValue placeholder="Select ownership..." />
+                </span>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">&lt;blank&gt;</SelectItem>
