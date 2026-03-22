@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2, Play, Pause } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SupabaseListing } from "@/lib/supabase";
+import { SupabaseListing, fetchSpearheadedByNames } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
 import { LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 
@@ -98,6 +98,13 @@ export default function AddListingPage() {
   const [corner, setCorner] = useState("");
   const [compound, setCompound] = useState("");
   const [monthlyDues, setMonthlyDues] = useState("");
+  const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchSpearheadedByNames().then(setDynamicOptions);
+  }, []);
+
+  const allOwnershipOptions = Array.from(new Set([...LISTING_OWNERSHIP_OPTIONS, ...dynamicOptions]));
   const [comments, setComments] = useState("");
 
   // Editable listing fields (from search result)
@@ -2498,7 +2505,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value=" ">&lt;blank&gt;</SelectItem>
-                        {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                        {allOwnershipOptions.map((option) => (
                           <SelectItem key={option} value={option}>
                             {option}
                           </SelectItem>
@@ -2815,7 +2822,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value=" ">&lt;blank&gt;</SelectItem>
-                        {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                        {allOwnershipOptions.map((option) => (
                           <SelectItem key={option} value={option}>
                             {option}
                           </SelectItem>
@@ -3344,7 +3351,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value=" ">&lt;blank&gt;</SelectItem>
-                      {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                      {allOwnershipOptions.map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
                         </SelectItem>

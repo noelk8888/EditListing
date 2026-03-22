@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Listing, PROPERTY_TYPES, STATUS_OPTIONS, DIRECT_COBROKER_OPTIONS, LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 import { Loader2, Save, MapPin } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { fetchSpearheadedByNames } from "@/lib/supabase";
 
 interface ListingFormProps {
   listing: Partial<Listing>;
@@ -28,6 +29,13 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
   const router = useRouter();
   const [listing, setListing] = useState<Partial<Listing>>(initialListing);
   const [loading, setLoading] = useState(false);
+  const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetchSpearheadedByNames().then(setDynamicOptions);
+  }, []);
+
+  const allOwnershipOptions = Array.from(new Set([...LISTING_OWNERSHIP_OPTIONS, ...dynamicOptions]));
   const [geocoding, setGeocoding] = useState(false);
 
   const updateField = <K extends keyof Listing>(field: K, value: Listing[K]) => {
@@ -467,7 +475,7 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="">&lt;blank&gt;</SelectItem>
-                {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                {allOwnershipOptions.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
