@@ -508,7 +508,7 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
               value={listing.rawListing || ""}
               onChange={(e) => updateField("rawListing", e.target.value)}
               rows={5}
-              className="font-mono text-sm"
+              className="font-mono text-sm placeholder:text-gray-300"
               placeholder="Original listing text for reference"
             />
           </div>

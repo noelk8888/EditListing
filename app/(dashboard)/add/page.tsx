@@ -1842,7 +1842,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 rows={12}
-                className="resize-none font-mono text-sm"
+                className="resize-none font-mono text-sm placeholder:text-gray-300"
               />
               <Button
                 variant="ghost"
@@ -1971,7 +1971,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     <Textarea 
                       value={rawText}
                       onChange={(e) => setRawText(e.target.value)}
-                      className="bg-muted font-mono text-sm min-h-[300px]"
+                      className="bg-muted font-mono text-sm min-h-[300px] placeholder:text-gray-300"
                       placeholder="Paste your listing here..."
                     />
                   ) : (

@@ -81,7 +81,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={10}
-            className="resize-none font-mono text-sm placeholder:text-gray-400"
+            className="resize-none font-mono text-sm placeholder:text-gray-300"
           />
           <Button
             variant="ghost"
