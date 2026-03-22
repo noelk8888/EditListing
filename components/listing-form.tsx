@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Listing, PROPERTY_TYPES, STATUS_OPTIONS, DIRECT_COBROKER_OPTIONS } from "@/types/listing";
+import { Listing, PROPERTY_TYPES, STATUS_OPTIONS, DIRECT_COBROKER_OPTIONS, LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 import { Loader2, Save, MapPin } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 
@@ -456,12 +456,22 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
           </div>
           <div className="space-y-2">
             <Label htmlFor="listingOwnership">Listing Ownership</Label>
-            <Input
-              id="listingOwnership"
+            <Select
               value={listing.listingOwnership || ""}
-              onChange={(e) => updateField("listingOwnership", e.target.value)}
-              placeholder="Ownership details"
-            />
+              onValueChange={(value) => updateField("listingOwnership", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select ownership..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">&lt;blank&gt;</SelectItem>
+                {LISTING_OWNERSHIP_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>

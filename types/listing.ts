@@ -64,6 +64,15 @@ export const PROPERTY_TYPES: PropertyType[] = [
 
 export const STATUS_OPTIONS = ["Available", "Sold", "Leased"] as const;
 
+export const LISTING_OWNERSHIP_OPTIONS = [
+  "Broker Nicole Rodil",
+  "Sales Associate Adolf Leong",
+  "Sales Associate Leslie Kiu",
+  "Sales Associate Philip Co",
+  "Sales Associate Sean Loo",
+  "Tagle Siblings",
+] as const;
+
 export interface ParsedListing extends Partial<Listing> {
   confidence?: number;
   geocodableAddress?: string;
