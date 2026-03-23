@@ -121,6 +121,8 @@ export async function POST(request: Request) {
     // Determine target tab: SuperAdmins can choose, Admins always use Sheet1
     const targetTab = isSuperAdmin ? (batch_source_tab_name || "Sheet1") : "Sheet1";
 
+    let finalGeoId = geo_id;
+
     // --- Silent Transfer Logic ---
     // If adding to Sheet1, check if it secretly exists in Sheet2.
     if (targetTab === "Sheet1" && summary) {
@@ -149,6 +151,14 @@ export async function POST(request: Request) {
           if (sheet2Match.geoId) {
             console.log(`🗑️ Cleaning up old GEO ID ${sheet2Match.geoId} from Supabase...`);
             await supabase.from(TABLE_NAME).delete().eq('"GEO ID"', sheet2Match.geoId);
+
+            // PRESERVE the ID for the new add
+            if (!finalGeoId) {
+              finalGeoId = sheet2Match.geoId.startsWith("B") 
+                ? sheet2Match.geoId.replace(/^B/, "G") 
+                : sheet2Match.geoId;
+              console.log(`🔄 Silent Transfer: using preserved/transformed ID ${finalGeoId} (was ${sheet2Match.geoId})`);
+            }
           }
         }
       } catch (err) {
@@ -271,7 +281,7 @@ export async function POST(request: Request) {
     // When batch_source_tab_name is set (Sheet2 batch), write in-place to the source row.
     const newGeoId = await addNewGSheetRow(
       displayData,
-      geo_id || undefined,
+      finalGeoId || undefined,
       syncData,
       updatedBy || undefined,
       undefined,
@@ -367,7 +377,7 @@ export async function POST(request: Request) {
 
     // Use upsert when an override GEO ID was confirmed — handles the case where the
     // record already exists in Supabase (updates it) or doesn't (inserts it).
-    const supabaseOp = geo_id
+    const supabaseOp = finalGeoId
       ? supabase.from(TABLE_NAME).upsert(supabaseRecord, { onConflict: '"GEO ID"' }).select()
       : supabase.from(TABLE_NAME).insert(supabaseRecord).select();
 
@@ -381,7 +391,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log(`✅ Supabase ${geo_id ? "upserted" : "inserted"} for GEO ID:`, newGeoId);
+    console.log(`✅ Supabase ${finalGeoId ? "upserted" : "inserted"} for GEO ID:`, newGeoId);
 
     // Send Telegram notifications if requested
     if (send_telegram) {
