@@ -527,7 +527,7 @@ export async function POST(request: Request) {
       }
 
       // Sync A-P to COPY GSheet — skip when batch_source_tab_name is set (Sheet2 data stays in Sheet2 only)
-      if (!batch_source_tab_name) {
+      if (targetTab === "Sheet1") {
         const backupId = process.env.BACKUP_SPREADSHEET_ID;
         if (backupId) {
           await updateDisplayColumnsInSheet(id, displayData, backupId).catch((err) =>
@@ -535,7 +535,7 @@ export async function POST(request: Request) {
           );
         }
       } else {
-        console.log("⏭️ COPY GSheet sync skipped — Sheet2 batch mode");
+        console.log("⏭️ COPY GSheet sync skipped — target is not Sheet1");
       }
     } catch (gsheetError) {
       const msg = gsheetError instanceof Error ? gsheetError.message : String(gsheetError);

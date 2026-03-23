@@ -307,9 +307,9 @@ export async function POST(request: Request) {
     const backupSpreadsheetId = process.env.BACKUP_SPREADSHEET_ID;
     let backupError: string | null = null;
     let backupSkipped = false;
-    if (batch_source_tab_name) {
+    if (targetTab !== "Sheet1") {
       backupSkipped = true;
-      console.log("⏭️ COPY GSheet skipped — Sheet2 batch mode");
+      console.log("⏭️ COPY GSheet skipped — target is not Sheet1");
     } else if (!backupSpreadsheetId) {
       backupSkipped = true;
       console.warn("⚠️ BACKUP_SPREADSHEET_ID not set — backup skipped");
