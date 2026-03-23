@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab } from "@/lib/google-sheets";
+import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab, appendDisplayRowToSheet } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -438,8 +438,9 @@ export async function POST(request: Request) {
       const targetTab = batch_source_tab_name || "Sheet1";
       const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
 
+      let finalId = id;
+
       if (targetTab !== sourceTab) {
-        let finalId = id;
         let isIdChanged = false;
 
         // If promoting from Sheet2 to Sheet1, handle B -> G transformation
@@ -530,9 +531,19 @@ export async function POST(request: Request) {
       if (targetTab === "Sheet1") {
         const backupId = process.env.BACKUP_SPREADSHEET_ID;
         if (backupId) {
-          await updateDisplayColumnsInSheet(id, displayData, backupId).catch((err) =>
-            console.warn("⚠️ Backup sync failed (non-fatal):", err)
-          );
+          const synced = await updateDisplayColumnsInSheet(id, displayData, backupId, finalId).catch((err) => {
+            console.warn("⚠️ Backup update failed:", err);
+            return false;
+          });
+
+          // If update failed (row not found), it might be a new promotion/transfer to Sheet1.
+          // Append it to ensure backup parity.
+          if (!synced) {
+            console.log(`➕ Backup row missing for ${finalId} — appending to backup sheet.`);
+            await appendDisplayRowToSheet(displayData, finalId, backupId).catch((err) =>
+              console.error("❌ Backup append failed:", err)
+            );
+          }
         }
       } else {
         console.log("⏭️ COPY GSheet sync skipped — target is not Sheet1");

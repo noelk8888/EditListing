@@ -1346,7 +1346,8 @@ export async function getDisplayDataFromSheet(
 export async function updateDisplayColumnsInSheet(
   geoId: string,
   data: GSheetDisplayData,
-  spreadsheetId: string
+  spreadsheetId: string,
+  newGeoId?: string
 ): Promise<boolean> {
   const rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId);
   if (!rowNumber) {
@@ -1355,23 +1356,37 @@ export async function updateDisplayColumnsInSheet(
   }
 
   const sheets = getSheets();
-  const rowData = [
-    data.blastedFormat, data.type, data.area, data.city,
-    data.lotArea, data.floorArea, data.price, data.saleOrLease,
-    data.withIncome, data.directCobroker, data.ownerBroker, data.away,
-    data.dateReceived, data.dateResorted, data.available, data.listingOwnership,
-  ];
+  const rowData: string[] = new Array(29).fill(""); // A-AC
+  rowData[GSHEET_COLUMNS.A_BLASTED_FORMAT] = data.blastedFormat;
+  rowData[GSHEET_COLUMNS.B_TYPE] = data.type;
+  rowData[GSHEET_COLUMNS.C_AREA] = data.area;
+  rowData[GSHEET_COLUMNS.D_CITY] = data.city;
+  rowData[GSHEET_COLUMNS.E_LOT_AREA] = data.lotArea;
+  rowData[GSHEET_COLUMNS.F_FLOOR_AREA] = data.floorArea;
+  rowData[GSHEET_COLUMNS.G_PRICE] = data.price;
+  rowData[GSHEET_COLUMNS.H_SALE_OR_LEASE] = data.saleOrLease;
+  rowData[GSHEET_COLUMNS.I_WITH_INCOME] = data.withIncome;
+  rowData[GSHEET_COLUMNS.J_DIRECT_COBROKER] = data.directCobroker;
+  rowData[GSHEET_COLUMNS.K_OWNER_BROKER] = data.ownerBroker;
+  rowData[GSHEET_COLUMNS.L_AWAY] = data.away;
+  rowData[GSHEET_COLUMNS.M_DATE_RECEIVED] = data.dateReceived;
+  rowData[GSHEET_COLUMNS.N_DATE_RESORTED] = data.dateResorted;
+  rowData[GSHEET_COLUMNS.O_AVAILABLE] = data.available;
+  rowData[GSHEET_COLUMNS.P_LISTING_OWNERSHIP] = data.listingOwnership;
+  rowData[16] = data.colQ || ""; // Q
+  rowData[17] = data.colR || ""; // R
+  rowData[GSHEET_COLUMNS.AC_GEO_ID] = newGeoId || geoId;
 
-  await runWithExpansion(sheets, spreadsheetId, 16, () =>
+  await runWithExpansion(sheets, spreadsheetId, 29, () =>
     sheets.spreadsheets.values.update({
       spreadsheetId,
-      range: `${SHEET_NAME}!A${rowNumber}:P${rowNumber}`,
+      range: `${SHEET_NAME}!A${rowNumber}:AC${rowNumber}`,
       valueInputOption: "USER_ENTERED",
       requestBody: { values: [rowData] },
     })
   );
 
-  console.log(`✅ Backup sync: GEO ID ${geoId} → row ${rowNumber} in ${spreadsheetId}`);
+  console.log(`✅ Backup sync: GEO ID ${geoId} → row ${rowNumber} in ${spreadsheetId} (A-R + AC updated)`);
   return true;
 }
 
