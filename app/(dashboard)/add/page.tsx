@@ -1847,7 +1847,7 @@ Direct to owner
 Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
-                rows={12}
+                autoResize
                 className="resize-none font-mono text-sm placeholder:text-gray-300"
               />
               <Button
@@ -1977,7 +1977,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                     <Textarea 
                       value={rawText}
                       onChange={(e) => setRawText(e.target.value)}
-                      className="bg-muted font-mono text-sm min-h-[300px] placeholder:text-gray-300"
+                      autoResize
+                      className="bg-muted font-mono text-sm placeholder:text-gray-300"
                       placeholder="Paste your listing here..."
                     />
                   ) : (
@@ -2351,7 +2352,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                         <Textarea
                           value={editSummary}
                           onChange={(e) => setEditSummary(e.target.value)}
-                          className="font-mono text-xs min-h-64 leading-relaxed resize-y"
+                          autoResize
+                          className="font-mono text-xs leading-relaxed resize-y"
                         />
                       ) : (
                         <div className="bg-muted p-3 rounded-md font-mono text-xs leading-relaxed">
