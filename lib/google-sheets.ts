@@ -290,22 +290,25 @@ export function getSheets() {
 const _ensuredCols = new Map<string, number>();
 
 /**
- * Ensure the sheet has at least minCols columns.
+ * Ensure the sheet has at least minCols columns AND/OR minRows rows.
  * Google Sheets sometimes creates new sheets with only a few columns (e.g. 18-26).
  * Our app requires columns Z-BO (up to column 67).
  */
-export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number) {
-  // Skip the API call if we've already verified this sheet has enough columns
-  const verified = _ensuredCols.get(spreadsheetId) ?? 0;
-  if (verified >= minCols) return;
+export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number, minRows?: number) {
+  // Skip the API call if we've already verified this sheet has enough dimensions
+  const verifiedCols = _ensuredCols.get(spreadsheetId) ?? 0;
+  // Note: We don't cache rows since they grow much more dynamically
+  if (verifiedCols >= minCols && !minRows) return;
   const logPath = "/tmp/gsheet_debug.log";
   const log = (msg: string) => {
     console.log(msg);
-    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`);
+    if (fs.existsSync("/tmp")) {
+      fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${msg}\n`);
+    }
   };
 
   try {
-    log(`Checking dimensions for ${spreadsheetId}, target: ${minCols}`);
+    log(`Checking dimensions for ${spreadsheetId}, target: ${minCols} cols, ${minRows ?? "any"} rows`);
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
 
     // Find sheet by title, or fallback to the first sheet
@@ -317,32 +320,48 @@ export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, 
 
     const sheetId = sheet?.properties?.sheetId;
     const currentCols = sheet?.properties?.gridProperties?.columnCount || 0;
+    const currentRows = sheet?.properties?.gridProperties?.rowCount || 0;
     const title = sheet?.properties?.title || "Unknown";
 
-    log(`Current sheet: "${title}" (${sheetId}), Cols: ${currentCols}`);
+    log(`Current sheet: "${title}" (${sheetId}), Cols: ${currentCols}, Rows: ${currentRows}`);
 
+    const requests: any[] = [];
+
+    // Expand columns if needed
     if (sheetId !== undefined && currentCols < minCols) {
       log(`Expanding columns from ${currentCols} to ${minCols}`);
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              appendDimension: {
-                sheetId,
-                dimension: "COLUMNS",
-                length: minCols - currentCols,
-              },
-            },
-          ],
+      requests.push({
+        appendDimension: {
+          sheetId,
+          dimension: "COLUMNS",
+          length: minCols - currentCols,
         },
       });
-      log(`Successfully expanded to ${minCols} columns`);
+    }
+
+    // Expand rows if needed
+    if (sheetId !== undefined && minRows && currentRows < minRows) {
+      log(`Expanding rows from ${currentRows} to ${minRows}`);
+      requests.push({
+        appendDimension: {
+          sheetId,
+          dimension: "ROWS",
+          length: minRows - currentRows,
+        },
+      });
+    }
+
+    if (requests.length > 0) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests },
+      });
+      log(`Successfully expanded dimensions`);
     } else {
-      log(`No expansion needed or sheetId missing. sheetId: ${sheetId}, currentCols: ${currentCols}`);
+      log(`No expansion needed or sheetId missing. sheetId: ${sheetId}`);
     }
     // Mark this spreadsheet as verified for at least minCols columns
-    _ensuredCols.set(spreadsheetId, Math.max(verified, minCols));
+    _ensuredCols.set(spreadsheetId, Math.max(verifiedCols, minCols));
   } catch (err: any) {
     const errMsg = err?.response?.data?.error?.message || err?.message || String(err);
     log(`ERROR in ensureSheetDimensions: ${errMsg}`);
@@ -370,15 +389,23 @@ export async function runWithExpansion<T>(
     const dataMsg = (err?.response?.data?.error?.message || "").toLowerCase();
     const innerMsg = (err?.cause?.message || "").toLowerCase();
 
-    const isGridLimit =
-      msg.includes("exceeds grid limits") ||
-      dataMsg.includes("exceeds grid limits") ||
-      innerMsg.includes("exceeds grid limits");
+    const fullErrMsg = `${msg} ${dataMsg} ${innerMsg}`;
+    const isGridLimit = fullErrMsg.includes("exceeds grid limits");
 
     if (isGridLimit) {
-      console.log(`GSheet: Grid limit hit, attempting expansion to ${minCols} cols...`);
+      console.log(`GSheet: Grid limit hit: ${fullErrMsg}`);
+      
+      // Parse required row/col from error message if possible
+      // Example: "Range (Sheet2!A11463:BZ11463) exceeds grid limits. Max rows: 1127"
+      let requiredRows = 0;
+      const rowMatch = fullErrMsg.match(/[A-Z]+(\d+):[A-Z]+(\d+) exceeds grid limits/i);
+      if (rowMatch) {
+        requiredRows = parseInt(rowMatch[2], 10);
+      }
+
+      console.log(`GSheet: Attempting expansion to ${minCols} cols, ${requiredRows || "any"} rows...`);
       try {
-        await ensureSheetDimensions(sheets, spreadsheetId, minCols);
+        await ensureSheetDimensions(sheets, spreadsheetId, minCols, requiredRows || undefined);
         // Retry once
         console.log("GSheet: Expansion successful, retrying operation...");
         return await operation();

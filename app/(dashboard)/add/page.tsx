@@ -2485,11 +2485,12 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   {/* Row 4 */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                    <Input type="date" value={dateReceived} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
+                                        <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
+
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Updated</Label>
-                    <Input type="date" value={dateUpdated} onChange={(e) => setDateUpdated(e.target.value)} className="h-8 text-sm flex-1" />
+                    <Input type="date" value={dateUpdated} max={getTodayDate()} onChange={(e) => { setDateUpdated(e.target.value); setTodayToggle(e.target.value === getTodayDate()); }} className="h-8 text-sm flex-1" />
                     <Button
                       type="button"
                       variant={todayToggle ? "default" : "outline"}
@@ -2815,7 +2816,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                   )}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                    <Input type="date" value={dateReceived} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
+                                        <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
+
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
@@ -3331,11 +3333,12 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                 {/* Row 4 */}
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                  <Input type="date" value={dateReceived} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
+                                    <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
+
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Updated</Label>
-                  <Input type="date" value={dateUpdated} onChange={(e) => setDateUpdated(e.target.value)} className="h-8 text-sm flex-1" />
+                  <Input type="date" value={dateUpdated} max={getTodayDate()} onChange={(e) => { setDateUpdated(e.target.value); setTodayToggle(e.target.value === getTodayDate()); }} className="h-8 text-sm flex-1" />
                   <Button
                     type="button"
                     variant={todayToggle ? "default" : "outline"}

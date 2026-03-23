@@ -354,6 +354,7 @@ export async function POST(request: Request) {
         .from(TABLE_NAME)
         .select(SELECT_COLUMNS)
         .ilike('"GEO ID"', listingId)
+        .order('SOURCE_TAB', { ascending: true })
         .limit(1);
 
       if (error) {
@@ -415,28 +416,46 @@ export async function POST(request: Request) {
       const searchTerm = urlMatch ? urlMatch[1] : photoLink;
       console.log("Searching by PHOTO containing:", searchTerm);
 
+      // Prioritize Sheet1 by ordering alphabetically (Sheet1 < Sheet2)
       const { data, error } = await supabase
         .from(TABLE_NAME)
         .select(SELECT_COLUMNS)
         .ilike('"PHOTO"', `%${searchTerm}%`)
-        .limit(1);
+        .order('SOURCE_TAB', { ascending: true })
+        .limit(5);
 
       if (error) {
         console.error("Supabase error:", error);
       } else if (data && data.length > 0) {
-        console.log("Found by PHOTO:", data[0]["GEO ID"]);
-        const baseResult = supabaseToResult(data[0] as SupabaseResult);
-        const [result, sourceTabFromGSheet] = await Promise.all([
-          applyGSheetFallback(baseResult),
-          findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
-        ]);
-        const sourceTab = (data[0] as any)["SOURCE_TAB"] || sourceTabFromGSheet;
+        console.log(`Found ${data.length} matches by PHOTO`);
+        
+        let bestMatch = null;
+        let restrictedMatch = null;
 
-        if (sourceTab === "Sheet2" && !isSuperAdmin) {
-          return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+        for (const row of data) {
+          const baseResult = supabaseToResult(row as SupabaseResult);
+          const [result, sourceTabFromGSheet] = await Promise.all([
+            applyGSheetFallback(baseResult),
+            findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
+          ]);
+          const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
+
+          if (sourceTab === "Sheet2" && !isSuperAdmin) {
+            if (!restrictedMatch) restrictedMatch = { result, sourceTab };
+            continue; // Keep looking for a Sheet1 match
+          }
+          
+          bestMatch = { result, sourceTab };
+          break; // Found a valid Sheet1 match (or user is SuperAdmin)
         }
 
-        return NextResponse.json({ result, matchedBy: "photoLink", sourceTab });
+        if (bestMatch) {
+          console.log("Found best match:", bestMatch.result.id, "(", bestMatch.sourceTab, ")");
+          return NextResponse.json({ result: bestMatch.result, matchedBy: "photoLink", sourceTab: bestMatch.sourceTab });
+        } else if (restrictedMatch) {
+          console.log("Only restricted matches found for Photo");
+          return NextResponse.json({ result: restrictedMatch.result, matchedBy: "restricted", sourceTab: "Sheet2" });
+        }
       }
       console.log("No match by PHOTO");
     }
@@ -468,9 +487,12 @@ export async function POST(request: Request) {
             .from(TABLE_NAME)
             .select(SELECT_COLUMNS)
             .ilike('"MAIN"', `%${line2}%`)
+            .order('SOURCE_TAB', { ascending: true })
             .limit(20);
 
           if (!error && data && data.length > 0) {
+            let restrictedMatchLine2 = null;
+
             for (const row of data) {
               const mainText = (row["MAIN"] || "").toLowerCase();
 
@@ -484,7 +506,7 @@ export async function POST(request: Request) {
 
               // Require at least 80% of lines to match
               if (matchRatio >= 0.8) {
-                console.log("Found match with Strategy A:", row["GEO ID"]);
+                console.log("Candidate match with Strategy A:", row["GEO ID"]);
                 const baseResult = supabaseToResult(row as SupabaseResult);
                 const [result, sourceTabFromGSheet] = await Promise.all([
                   applyGSheetFallback(baseResult),
@@ -493,11 +515,18 @@ export async function POST(request: Request) {
                 const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
 
                 if (sourceTab === "Sheet2" && !isSuperAdmin) {
-                  return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+                  console.log("  [Strategy A] Restricted Sheet2 match, continuing search...");
+                  if (!restrictedMatchLine2) restrictedMatchLine2 = { result, sourceTab: "Sheet2" };
+                  continue;
                 }
 
                 return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
+            }
+            
+            if (restrictedMatchLine2) {
+              console.log("Strategy A: Only restricted match found");
+              return NextResponse.json({ result: restrictedMatchLine2.result, matchedBy: "restricted", sourceTab: "Sheet2" });
             }
             console.log("Strategy A: No match found");
           }
@@ -513,9 +542,12 @@ export async function POST(request: Request) {
             .from(TABLE_NAME)
             .select(SELECT_COLUMNS)
             .ilike('"MAIN"', `%${line3}%`)
+            .order('SOURCE_TAB', { ascending: true })
             .limit(20);
 
           if (!error && data && data.length > 0) {
+            let restrictedMatchLine3 = null;
+
             for (const row of data) {
               const mainText = (row["MAIN"] || "").toLowerCase();
 
@@ -529,7 +561,7 @@ export async function POST(request: Request) {
 
               // Require at least 80% of lines to match
               if (matchRatio >= 0.8) {
-                console.log("Found match with Strategy B:", row["GEO ID"]);
+                console.log("Candidate match with Strategy B:", row["GEO ID"]);
                 const baseResult2 = supabaseToResult(row as SupabaseResult);
                 const [result, sourceTabFromGSheet] = await Promise.all([
                   applyGSheetFallback(baseResult2),
@@ -538,11 +570,18 @@ export async function POST(request: Request) {
                 const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
 
                 if (sourceTab === "Sheet2" && !isSuperAdmin) {
-                  return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
+                  console.log("  [Strategy B] Restricted Sheet2 match, continuing search...");
+                  if (!restrictedMatchLine3) restrictedMatchLine3 = { result, sourceTab: "Sheet2" };
+                  continue;
                 }
 
                 return NextResponse.json({ result, matchedBy: "text", sourceTab });
               }
+            }
+
+            if (restrictedMatchLine3) {
+              console.log("Strategy B: Only restricted match found");
+              return NextResponse.json({ result: restrictedMatchLine3.result, matchedBy: "restricted", sourceTab: "Sheet2" });
             }
             console.log("Strategy B: No match found");
           }
