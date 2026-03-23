@@ -34,6 +34,7 @@ IMPORTANT RULES:
 16. Extract ownerBroker: the name of the listing broker or agent. Look for lines like "Agent:", "Broker:", "Contact:", "Inq:", or a person's name near a phone number. Extract the name only (not the phone number). If multiple names, take the primary contact.
 17. Extract howManyAway: the cobroker chain distance. Only set if the listing explicitly mentions "X away from owner/seller" — extract just the number (e.g. "1", "2"). Leave empty for direct listings or if not stated.
 18. Produce a geocodableAddress: the most specific, Google Maps-ready address string you can construct from the listing. Use the format: "[Street Number + Street Name], [Building/Project], [Subdivision/Area], [Barangay], [City], [Province], Philippines". Always include the street number and street name if present in the listing — this is the most important part for accurate geocoding. Include only the parts you are confident about. Examples: "2 Young Street corner Luna Street, Corinthian Gardens, Ugong Norte, Quezon City, Metro Manila, Philippines" or "Rockwell Center, Makati City, Metro Manila, Philippines".
+19. If the listing mentions "TANDEM PARKING" or "TANDEM PARKING SLOT", it refers to 2 parking slots. Set garage to "2" if this is mentioned, unless a higher total number of slots is clearly specified.
 
 Return a JSON object with these fields (use empty string "" for unknown values, use false for unknown boolean values):
 {
