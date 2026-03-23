@@ -17,16 +17,17 @@ export async function POST(request: Request) {
 
     // Send the Telegram notification
     const selectedGroups: string[] | undefined = Array.isArray(groups) ? groups : undefined;
+    const formatMsg = (msg: string) => msg.replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership");
 
     // 1. Send the listing summary if provided
     if (summary && geoId) {
       const mainWithId = summary.startsWith(geoId) ? summary : `${geoId}\n${summary}`;
-      await sendTelegramNotification(mainWithId, selectedGroups);
+      await sendTelegramNotification(formatMsg(mainWithId), selectedGroups);
     }
 
     // 2. Send the custom message if provided
     if (message) {
-      await sendTelegramNotification(message, selectedGroups);
+      await sendTelegramNotification(formatMsg(message), selectedGroups);
     }
 
     return NextResponse.json({ success: true });

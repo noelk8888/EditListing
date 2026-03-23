@@ -1136,10 +1136,14 @@ export default function AddListingPage() {
     const today = `${month} ${day}, ${year}`;
 
     if (telegramPostEnabled) {
+      const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const formatOwnership = (val: string) => 
+        (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
+
       setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 ${today}*` : `*Update ${today}*`);
       setTelegramLine2(editStatus || "");
       setTelegramLine3(ownerBroker);
-      setTelegramLine4(listingOwnership || "");
+      setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
@@ -1340,12 +1344,14 @@ export default function AddListingPage() {
   // Directly perform the save without confirmation OR trigger modal
   const handleSaveNew = () => {
     if (telegramPostEnabled) {
-      const now = new Date();
-      const today = now.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+      const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const formatOwnership = (val: string) =>
+        (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
+
       setTelegramLine1(`*New Listing ${today}*`);
       setTelegramLine2(editStatus || "");
       setTelegramLine3(ownerBroker);
-      setTelegramLine4(listingOwnership || "");
+      setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
       const autoGroups = [
