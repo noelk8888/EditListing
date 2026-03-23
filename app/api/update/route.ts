@@ -562,11 +562,10 @@ export async function POST(request: Request) {
     // Send Telegram notifications only when checkbox is checked
     if (send_telegram) {
       const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
-      const formatMsg = (msg: string) => msg.replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership");
 
-      await sendTelegramNotification(formatMsg(mainWithId), groups);
+      await sendTelegramNotification(mainWithId, groups);
       if (telegram_post_message) {
-        await sendTelegramNotification(formatMsg(telegram_post_message), groups);
+        await sendTelegramNotification(telegram_post_message, groups);
       }
     }
 

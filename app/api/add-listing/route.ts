@@ -386,15 +386,14 @@ export async function POST(request: Request) {
     // Send Telegram notifications if requested
     if (send_telegram) {
       const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
-      const formatMsg = (msg: string) => msg.replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership");
 
       // 1. Send default notification
       const defaultMsg = `🆕 New Listing: ${newGeoId}\n\n${summary || ""}`;
-      await sendTelegramNotification(formatMsg(defaultMsg), groups);
+      await sendTelegramNotification(defaultMsg, groups);
 
       // 2. Send custom message if provided
       if (telegram_post_message) {
-        await sendTelegramNotification(formatMsg(telegram_post_message), groups);
+        await sendTelegramNotification(telegram_post_message, groups);
       }
     }
 
