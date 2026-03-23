@@ -1,3 +1,5 @@
+import { signOut } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
 
 export default function UnauthorizedPage() {
   return (
@@ -11,13 +13,19 @@ export default function UnauthorizedPage() {
           Contact an administrator to request access.
         </p>
       </div>
-      <form action="/api/auth/signout" method="POST">
-        <button
+      <form
+        action={async () => {
+          "use server";
+          await signOut({ redirectTo: "/login" });
+        }}
+      >
+        <Button
           type="submit"
-          className="text-sm underline text-muted-foreground hover:text-foreground"
+          variant="outline"
+          className="text-muted-foreground hover:text-foreground"
         >
           Sign out
-        </button>
+        </Button>
       </form>
     </div>
   );
