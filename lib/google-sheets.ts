@@ -489,26 +489,37 @@ export async function generateNextGeoId(series?: string): Promise<string> {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // Scan all tabs for AC (dedicated GEO ID column)
-  // Scan Sheet1 for AA/A (legacy blasted format)
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const allTabs = (meta.data.sheets || [])
-    .map((s: any) => s.properties?.title as string)
-    .filter((title: string) => !!title);
-
+  // Only scan primary database tabs to be efficient and avoid timeouts with large/complex spreadsheets
+  const targetTabs = ["Sheet1", "Sheet2"];
+  
   // Build list of ranges to fetch
   const ranges = [
-    ...allTabs.map(tab => `'${tab}'!AC2:AC`),
-    `'${SHEET_NAME}'!AA2:AA`,
-    `'${SHEET_NAME}'!A2:A`
+    ...targetTabs.map(tab => `'${tab}'!AC2:AC`),
+    `'Sheet1'!AA2:AA`,
+    `'Sheet1'!A2:A`
   ];
 
-  const response = await sheets.spreadsheets.values.batchGet({
-    spreadsheetId,
-    ranges
-  });
-  const valueRanges = response.data.valueRanges || [];
-  console.log(`generateNextGeoId: fetched ${valueRanges.length} ranges from ${allTabs.length} tabs`);
+  let valueRanges: any[] = [];
+  try {
+    const response = await sheets.spreadsheets.values.batchGet({
+      spreadsheetId,
+      ranges
+    });
+    valueRanges = response.data.valueRanges || [];
+    console.log(`generateNextGeoId: fetched ${valueRanges.length} ranges from primary tabs`);
+  } catch (err) {
+    console.error("Critical error in generateNextGeoId batchGet:", err);
+    // If batch failed (likely bad range or timeout), try scanning just Sheet1 individually
+    try {
+      const single = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: "'Sheet1'!AC2:AC"
+      });
+      valueRanges = [single.data];
+    } catch (inner) {
+      console.error("Fallback scan also failed:", inner);
+    }
+  }
 
   // Single letter + 4-6 digits (e.g. G11628, G123456).
   // Rejects typos like G1 (too short) and false positives like P150000 (price, if prefix not G/B).
