@@ -513,7 +513,8 @@ export default function AddListingPage() {
     setSuggestedGeoId("");
     setNewGeoId("");
     setGeoIdConfirmed(false);
-    setTargetTab(permissions.sheet2 ? "Sheet2" : "Sheet1");
+    const finalTargetTab = permissions.sheet2 ? "Sheet2" : "Sheet1";
+    setTargetTab(finalTargetTab);
 
     try {
       const response = await fetch("/api/search", {
@@ -630,8 +631,9 @@ export default function AddListingPage() {
           setNewGeoId(listingId);
         } else {
           // If we just saved a listing this session with the same series, derive the next ID locally (avoids race condition)
+          const targetSeries = finalTargetTab === "Sheet2" ? "B" : "G";
           const lastMatch = lastAssignedGeoId.match(/^([A-Z])(\d+)$/);
-          if (lastMatch && lastMatch[1].toUpperCase() === (targetTab === "Sheet2" ? "B" : "G")) {
+          if (lastMatch && lastMatch[1].toUpperCase() === targetSeries) {
             const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
             setSuggestedGeoId(next);
             setNewGeoId(next);
@@ -639,7 +641,7 @@ export default function AddListingPage() {
             // First new listing this session or different series — must query the sheet
             try {
               const geoRes = await fetch(
-                `/api/next-geo-id?series=${targetTab === "Sheet2" ? "B" : "G"}`,
+                `/api/next-geo-id?series=${targetSeries}`,
                 { cache: "no-store" }
               );
               const geoData = await geoRes.json();
@@ -2081,7 +2083,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                       value={newGeoId}
                       onChange={(e) => { setNewGeoId(e.target.value.toUpperCase()); setGeoIdConfirmed(false); }}
                       className="h-8 w-28 text-sm font-mono font-bold"
-                      placeholder="G00000"
+                      placeholder={targetTab === "Sheet2" ? "B00000" : "G00000"}
                     />
                     {suggestedGeoId && newGeoId !== suggestedGeoId && (
                       <button
