@@ -498,9 +498,9 @@ export async function generateNextGeoId(series?: string): Promise<string> {
 
   // Build list of ranges to fetch
   const ranges = [
-    ...allTabs.map(tab => `${tab}!AC2:AC`),
-    `${SHEET_NAME}!AA2:AA`,
-    `${SHEET_NAME}!A2:A`
+    ...allTabs.map(tab => `'${tab}'!AC2:AC`),
+    `'${SHEET_NAME}'!AA2:AA`,
+    `'${SHEET_NAME}'!A2:A`
   ];
 
   const response = await sheets.spreadsheets.values.batchGet({
@@ -510,9 +510,9 @@ export async function generateNextGeoId(series?: string): Promise<string> {
   const valueRanges = response.data.valueRanges || [];
   console.log(`generateNextGeoId: fetched ${valueRanges.length} ranges from ${allTabs.length} tabs`);
 
-  // Single letter + 4-5 digits only (e.g. G11628).
-  // Rejects typos like G111245 (6 digits) and false positives like P150000 (price).
-  const GEO_RE = /^([A-Z])(\d{4,5})$/;
+  // Single letter + 4-6 digits (e.g. G11628, G123456).
+  // Rejects typos like G1 (too short) and false positives like P150000 (price, if prefix not G/B).
+  const GEO_RE = /^([A-Z])(\d{4,6})$/;
 
   const targetPrefix = series?.toUpperCase();
   let maxNumber = 0;

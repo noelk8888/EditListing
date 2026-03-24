@@ -645,12 +645,15 @@ export default function AddListingPage() {
                 { cache: "no-store" }
               );
               const geoData = await geoRes.json();
+              console.log("GEO ID fetch result in handleSearch:", geoData);
               if (geoData.geoId) {
                 setSuggestedGeoId(geoData.geoId);
                 setNewGeoId(geoData.geoId);
+              } else if (geoData.error) {
+                console.error("Server error generating ID in handleSearch:", geoData.error);
               }
-            } catch {
-              // Non-critical — silently ignore
+            } catch (err) {
+              console.error("Fetch failed in handleSearch:", err);
             }
           }
         }
