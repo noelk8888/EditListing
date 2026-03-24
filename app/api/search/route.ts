@@ -151,7 +151,7 @@ function supabaseToResult(row: SupabaseResult) {
     building: row["BUILDING"] || null,
     lot_area: row["LOT AREA"] || null,
     floor_area: row["FLOOR AREA"] || null,
-    status: row["STATUS"] || null,
+    status: (row["STATUS"]?.toUpperCase() || null) as any,
     type_description: row["TYPE"] || null,
     price: row["Extracted Sale Price"] || null,
     lease_price: row["Extracted Lease Price"] || null,

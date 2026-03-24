@@ -15,9 +15,13 @@ IMPORTANT RULES:
 5. Calculate price per sqm if you have both price and lot area
 6. Determine property categories (can be multiple): RESIDENTIAL, COMMERCIAL, INDUSTRIAL, AGRICULTURAL
 7. Determine property type: TOWNHOUSE, WAREHOUSE, VACANT LOT, HOUSE AND LOT, CONDO, OFFICE/COMMERCIAL, BUILDING, CLUB SHARE/BUSINESS
-8. Status should be: Available, Sold, Leased, On Hold, or Off Market (default to Available if not specified).
-   CRITICAL: "FOR LEASE" or "FOR RENT" in the listing means the property IS AVAILABLE to be leased — set status to "Available". Do NOT confuse "FOR LEASE" with "LEASED OUT".
-   Only set status to "Leased" if the listing explicitly says "LEASED OUT", "already leased", "currently leased", "tenant occupied and not available", or similar meaning the property is no longer available.
+8. Status should be: AVAILABLE, SOLD, LEASED OUT, OFF MARKET, ON HOLD, UNDER NEGO, or UNDECISIVE SELLER (default to AVAILABLE if not specified).
+19. CRITICAL indicators:
+    - "UNDER NEGO", "Under Negotiation", or "Negotiation" means status is "UNDER NEGO".
+    - "FOR LEASE" or "FOR RENT" in the listing means the property IS AVAILABLE to be leased — set status to "AVAILABLE". Do NOT confuse "FOR LEASE" with "LEASED OUT".
+    - Only set status to "LEASED OUT" if the listing explicitly says "LEASED OUT", "already leased", "currently leased", "tenant occupied and not available", or similar meaning the property is no longer available.
+    - "OFF MARKET" or "Sold" means what they say.
+    - "UNDECISIVE" or "UNDECISIVE SELLER" means status is "UNDECISIVE SELLER".
 9. Extract photo URLs if present (lines with "Photos:", "Photo Link:", etc.)
 9b. Extract Google Map / map link URLs if present (lines with "Google Map:", "Map Link:", "MAP LINK:", etc.)
 10. For areas, extract numeric values with unit (e.g., "15430" for "15,430 sqm"). CRITICAL: "Lot Area" and "Floor Area" are DIFFERENT things. ONLY set lotArea if the listing explicitly says "Lot Area" or "Land Area". ONLY set floorArea if the listing explicitly says "Floor Area", "Unit Size", "GFA", or similar. A condo/unit listing that says "Floor Area: 147 sqm" has floorArea=147 and lotArea="" (empty). Never copy the floor area value into lotArea.
@@ -50,7 +54,7 @@ Return a JSON object with these fields (use empty string "" for unknown values, 
   "agricultural": boolean,
   "lotArea": "string (numeric value with sqm)",
   "floorArea": "string (numeric value with sqm)",
-  "status": "AVAILABLE" | "SOLD" | "LEASED OUT" | "ON HOLD" | "OFF MARKET",
+  "status": "AVAILABLE" | "SOLD" | "LEASED OUT" | "OFF MARKET" | "ON HOLD" | "UNDER NEGO" | "UNDECISIVE SELLER",
   "type": "TOWNHOUSE" | "WAREHOUSE" | "VACANT LOT" | "HOUSE AND LOT" | "CONDO" | "OFFICE/COMMERCIAL" | "BUILDING" | "CLUB SHARE/BUSINESS" | "",
   "salePrice": "string (numeric value only)",
   "salePricePerSqm": "string (calculated or extracted)",
@@ -81,6 +85,11 @@ const STATUS_MAP: Record<string, string> = {
   "leased out": "LEASED OUT",
   "on hold": "ON HOLD",
   "off market": "OFF MARKET",
+  "under nego": "UNDER NEGO",
+  "under negotiation": "UNDER NEGO",
+  "negotiation": "UNDER NEGO",
+  "undecisive": "UNDECISIVE SELLER",
+  "undecisive seller": "UNDECISIVE SELLER",
 };
 
 function normalizeStatus(raw: string | undefined): string {
@@ -121,7 +130,7 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
       agricultural: Boolean(parsed.agricultural),
       lotArea: String(parsed.lotArea || ""),
       floorArea: String(parsed.floorArea || ""),
-      status: (normalizeStatus(parsed.status) || "Available") as "" | "Available" | "Sold" | "Leased",
+      status: (normalizeStatus(parsed.status) || "AVAILABLE") as any,
       type: PROPERTY_TYPES.includes(parsed.type) ? parsed.type : "",
       salePrice: String(parsed.salePrice || "").replace(/[^0-9.-]/g, ""),
       salePricePerSqm: String(parsed.salePricePerSqm || "").replace(

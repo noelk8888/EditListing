@@ -12,7 +12,7 @@ export interface Listing {
   agricultural: boolean;
   lotArea: string;
   floorArea: string;
-  status: "Available" | "Sold" | "Leased" | "";
+  status: "AVAILABLE" | "SOLD" | "LEASED OUT" | "OFF MARKET" | "ON HOLD" | "UNDER NEGO" | "UNDECISIVE SELLER" | "";
   type: PropertyType | "";
   salePrice: string;
   salePricePerSqm: string;
@@ -62,7 +62,7 @@ export const PROPERTY_TYPES: PropertyType[] = [
   "CLUB SHARE/BUSINESS",
 ];
 
-export const STATUS_OPTIONS = ["Available", "Sold", "Leased"] as const;
+export const STATUS_OPTIONS = ["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"] as const;
 
 export const LISTING_OWNERSHIP_OPTIONS = [] as const;
 

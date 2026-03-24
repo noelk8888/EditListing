@@ -1085,7 +1085,7 @@ export default function AddListingPage() {
 
   // Save empty string if only the auto-prefix was filled with no actual name
   const cleanOwnerBroker = (val: string): string => {
-    const stripped = val.replace(/^(Owner|Cobroker) - /i, "").trim();
+    const stripped = val.replace(/^(Owner|Cobroker|Broker) - /i, "").trim();
     return stripped ? val.trim() : "";
   };
   const cleanListingOwnership = (val: string): string => {
@@ -1096,10 +1096,10 @@ export default function AddListingPage() {
   // When Direct/CoBroker selection changes, auto-prefix ownerBroker field
   const handleDirectOrCobrokerChange = (v: string) => {
     handleInputChange(setDirectOrCobroker)(v as "Direct to Owner" | "With Cobroker" | "");
-    const prefix = v === "Direct to Owner" ? "Owner - " : v === "With Cobroker" ? "Cobroker - " : "";
+    const prefix = v === "Direct to Owner" ? "Owner - " : v === "With Cobroker" ? "Broker - " : "";
     if (!prefix) return;
     setOwnerBroker((prev) => {
-      const stripped = prev.replace(/^(Owner|Cobroker) - /, "");
+      const stripped = prev.replace(/^(Owner|Cobroker|Broker) - /, "");
       return stripped ? `${prefix}${stripped}` : prefix;
     });
     // Pre-fill Listing Ownership with "Sales Associate " only if currently empty

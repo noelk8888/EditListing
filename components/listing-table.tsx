@@ -64,7 +64,7 @@ export function ListingTable({
         .some((field) => field.toLowerCase().includes(search.toLowerCase()));
 
     const matchesType = typeFilter === "all" || listing.type === typeFilter;
-    const matchesStatus = statusFilter === "all" || listing.status === statusFilter;
+    const matchesStatus = statusFilter === "all" || (listing.status?.toUpperCase() === statusFilter.toUpperCase());
 
     return matchesSearch && matchesType && matchesStatus;
   });
@@ -222,12 +222,16 @@ export function ListingTable({
                   <TableCell>
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        listing.status === "Available"
+                        listing.status === "AVAILABLE"
                           ? "bg-green-100 text-green-800"
-                          : listing.status === "Sold"
+                          : listing.status === "SOLD"
                           ? "bg-red-100 text-red-800"
-                          : listing.status === "Leased"
+                          : listing.status === "LEASED OUT"
                           ? "bg-blue-100 text-blue-800"
+                          : listing.status === "ON HOLD"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : listing.status === "UNDER NEGO"
+                          ? "bg-purple-100 text-purple-800"
                           : "bg-gray-100 text-gray-800"
                       }`}
                     >

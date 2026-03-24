@@ -42,6 +42,21 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
     setListing((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleDirectOrCobrokerChange = (value: Listing["directOrCobroker"]) => {
+    updateField("directOrCobroker", value);
+    const prefix = value === "Direct" ? "Owner - " : value === "Cobroker" ? "Broker - " : "";
+    if (!prefix) return;
+    
+    setListing((prev) => {
+      const currentOwnerBroker = prev.ownerBroker || "";
+      const stripped = currentOwnerBroker.replace(/^(Owner|Cobroker|Broker) - /i, "");
+      return {
+        ...prev,
+        ownerBroker: stripped ? `${prefix}${stripped}` : prefix
+      };
+    });
+  };
+
   const handleGeocode = async () => {
     const address = [
       listing.building,
@@ -430,7 +445,7 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
             <Label htmlFor="directOrCobroker">Direct or Cobroker</Label>
             <Select
               value={listing.directOrCobroker || ""}
-              onValueChange={(value) => updateField("directOrCobroker", value as Listing["directOrCobroker"])}
+              onValueChange={(value) => handleDirectOrCobrokerChange(value as Listing["directOrCobroker"])}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select..." />
