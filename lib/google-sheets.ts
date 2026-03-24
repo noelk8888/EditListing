@@ -508,6 +508,7 @@ export async function generateNextGeoId(series?: string): Promise<string> {
     ranges
   });
   const valueRanges = response.data.valueRanges || [];
+  console.log(`generateNextGeoId: fetched ${valueRanges.length} ranges from ${allTabs.length} tabs`);
 
   // Single letter + 4-5 digits only (e.g. G11628).
   // Rejects typos like G111245 (6 digits) and false positives like P150000 (price).
@@ -539,11 +540,13 @@ export async function generateNextGeoId(series?: string): Promise<string> {
     }
   };
 
+  let scannedCount = 0;
   for (const vr of valueRanges) {
     if (!vr.values) continue;
     const isSpecialCol = vr.range?.includes("!AA") || vr.range?.includes("!A");
     for (const row of vr.values) {
       if (!row[0]) continue;
+      scannedCount++;
       if (isSpecialCol) {
         const fl = String(row[0]).split("\n")[0];
         if (fl) check(fl);
@@ -552,6 +555,8 @@ export async function generateNextGeoId(series?: string): Promise<string> {
       }
     }
   }
+
+  console.log(`generateNextGeoId: scanned ${scannedCount} non-empty values, max number found: ${maxNumber}`);
 
   const nextNum = maxNumber + 1;
   // B-series (Sheet2): use the shared G-series number.

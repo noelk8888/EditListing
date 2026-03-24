@@ -1914,6 +1914,8 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                           if (data.geoId) {
                             setSuggestedGeoId(data.geoId);
                             setNewGeoId(data.geoId);
+                          } else if (data.error) {
+                            console.error("Server error generating G ID:", data.error);
                           }
                         } catch (err) {
                           console.error("Failed to fetch G-series GEO ID:", err);
@@ -1939,9 +1941,11 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
                           if (data.geoId) {
                             setSuggestedGeoId(data.geoId);
                             setNewGeoId(data.geoId);
+                          } else if (data.error) {
+                            console.error("Server error generating B ID:", data.error);
                           }
                         } catch (err) {
-                          console.error("Failed to fetch A-series GEO ID:", err);
+                          console.error("Failed to fetch B-series GEO ID:", err);
                         } finally {
                           setSearching(false);
                         }
