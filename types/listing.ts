@@ -64,7 +64,7 @@ export const PROPERTY_TYPES: PropertyType[] = [
 
 export const STATUS_OPTIONS = ["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"] as const;
 
-export const LISTING_OWNERSHIP_OPTIONS = ["LUXE REALTY"] as const;
+export const LISTING_OWNERSHIP_OPTIONS = [] as const;
 
 export interface ParsedListing extends Partial<Listing> {
   confidence?: number;

@@ -120,7 +120,6 @@ export async function fetchSpearheadedByNames(): Promise<string[]> {
   const { data, error } = await supabase
     .from('luxe_listing_fb_groups')
     .select('spearheaded_by')
-    .neq('name', 'LUXE GROUP')
     .not('spearheaded_by', 'is', null)
     .not('spearheaded_by', 'eq', '');
 
@@ -130,9 +129,10 @@ export async function fetchSpearheadedByNames(): Promise<string[]> {
   }
 
   // Get unique non-empty names
-  const names = data
+  const names = (data as any[]) || [];
+  const processedNames = names
     .map(item => item.spearheaded_by?.trim())
     .filter((name): name is string => !!name);
   
-  return Array.from(new Set(names)).sort();
+  return Array.from(new Set(processedNames)).sort();
 }
