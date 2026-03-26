@@ -1159,8 +1159,9 @@ export default function AddListingPage() {
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
         "UPDATE LISTING",
+        "TEST",
       ];
-      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING"]);
+      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING", "TEST"]);
       setShowTelegramModal(true);
     } else {
       confirmUpdate(undefined, overrideTargetTab);
@@ -1367,8 +1368,9 @@ export default function AddListingPage() {
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
         "UPDATE LISTING",
+        "TEST",
       ];
-      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING"]);
+      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING", "TEST"]);
       setShowTelegramModal(true);
     } else {
       confirmAddNew();
