@@ -183,7 +183,7 @@ export default function AddListingPage() {
   const [telegramLine2, setTelegramLine2] = useState("");
   const [telegramLine3, setTelegramLine3] = useState("");
   const [telegramLine4, setTelegramLine4] = useState("");
-  const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL", "UPDATE LISTING"]);
+  const [telegramGroups, setTelegramGroups] = useState<string[]>(["DIRECT", "RESIDENTIAL", "UPDATE LISTING", "TEST"]);
 
   // === PERMISSIONS ===
   const [targetTab, setTargetTab] = useState<"Sheet1" | "Sheet2">("Sheet1");
@@ -3659,7 +3659,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
                 <div className="flex gap-3 flex-wrap">
-                  {["DIRECT", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "BUSINESS FOR SALE", "UPDATE LISTING"].map(g => (
+                  {["DIRECT", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "BUSINESS FOR SALE", "UPDATE LISTING", "TEST"].map(g => (
                     <label key={g} className="flex items-center gap-1.5 cursor-pointer text-sm">
                       <input
                         type="checkbox"

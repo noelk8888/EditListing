@@ -294,9 +294,12 @@ const _ensuredCols = new Map<string, number>();
  * Google Sheets sometimes creates new sheets with only a few columns (e.g. 18-26).
  * Our app requires columns Z-BO (up to column 67).
  */
-export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number, minRows?: number) {
-  // Skip the API call if we've already verified this sheet has enough dimensions
-  const verifiedCols = _ensuredCols.get(spreadsheetId) ?? 0;
+export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number, minRows?: number, tabName?: string) {
+  const targetTab = tabName || SHEET_NAME;
+  // Use a composite key for caching: spreadsheetId + tabName
+  const cacheKey = `${spreadsheetId}|${targetTab}`;
+  
+  const verifiedCols = _ensuredCols.get(cacheKey) ?? 0;
   // Note: We don't cache rows since they grow much more dynamically
   if (verifiedCols >= minCols && !minRows) return;
   const logPath = "/tmp/gsheet_debug.log";
@@ -308,13 +311,13 @@ export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, 
   };
 
   try {
-    log(`Checking dimensions for ${spreadsheetId}, target: ${minCols} cols, ${minRows ?? "any"} rows`);
+    log(`Checking dimensions for ${spreadsheetId} [${targetTab}], target: ${minCols} cols, ${minRows ?? "any"} rows`);
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
 
-    // Find sheet by title, or fallback to the first sheet
-    let sheet = spreadsheet.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+    // Find sheet by title
+    let sheet = spreadsheet.data.sheets?.find((s: any) => s.properties?.title === targetTab);
     if (!sheet && spreadsheet.data.sheets?.length) {
-      log(`SHEET_NAME "${SHEET_NAME}" not found, falling back to first sheet: "${spreadsheet.data.sheets[0].properties?.title}"`);
+      log(`Tab "${targetTab}" not found, falling back to first sheet: "${spreadsheet.data.sheets[0].properties?.title}"`);
       sheet = spreadsheet.data.sheets[0];
     }
 
@@ -360,8 +363,8 @@ export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, 
     } else {
       log(`No expansion needed or sheetId missing. sheetId: ${sheetId}`);
     }
-    // Mark this spreadsheet as verified for at least minCols columns
-    _ensuredCols.set(spreadsheetId, Math.max(verifiedCols, minCols));
+    // Mark this spreadsheet tab as verified for at least minCols columns
+    _ensuredCols.set(cacheKey, Math.max(verifiedCols, minCols));
   } catch (err: any) {
     const errMsg = err?.response?.data?.error?.message || err?.message || String(err);
     log(`ERROR in ensureSheetDimensions: ${errMsg}`);
@@ -906,7 +909,7 @@ export async function syncPairedColumns(
   if (!spreadsheetId) throw new Error("SPREADSHEET_ID not configured");
 
   const sheets = getSheets();
-  await ensureSheetDimensions(sheets, spreadsheetId, 56);
+  await ensureSheetDimensions(sheets, spreadsheetId, 56, undefined, SHEET_NAME);
 
   const rowNumber = overrideSpreadsheetId
     ? await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId)
@@ -953,7 +956,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
   }
 
   // Ensure enough columns for Z-BZ (78 cols)
-  await ensureSheetDimensions(sheets, spreadsheetId, 78);
+  await ensureSheetDimensions(sheets, spreadsheetId, 78, undefined, tabName);
   let rowNumber: number | null;
   if (sheetTabName) {
     rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
@@ -1123,7 +1126,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
   }
 
   // Ensure enough columns for BZ (up to col 78)
-  await ensureSheetDimensions(sheets, spreadsheetId, 78);
+  await ensureSheetDimensions(sheets, spreadsheetId, 78, undefined, tabName);
 
   let rowNumber: number | null;
   if (sheetTabName) {
@@ -1266,7 +1269,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 export async function findRowByGeoIdInSheet(geoId: string, spreadsheetId: string, sheetTabName?: string): Promise<number | null> {
   const tabName = sheetTabName || SHEET_NAME;
   const sheets = getSheets();
-  await ensureSheetDimensions(sheets, spreadsheetId, 29);
+  await ensureSheetDimensions(sheets, spreadsheetId, 29, undefined, tabName);
 
   const acResponse = await runWithExpansion(sheets, spreadsheetId, 29, () =>
     sheets.spreadsheets.values.get({
@@ -1613,6 +1616,9 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     const rowsInColAC = (colACResp.data.values || []).length;
     nextRow = Math.max(rowsInColA, rowsInColAC) + 1;
   }
+
+  // Ensure dimensions (especially rows) before updating
+  await ensureSheetDimensions(sheets, spreadsheetId, 78, nextRow, resolvedTabName);
 
   // Write with an explicit A{n}:BZ{n} reference — col A is always index 0
   await sheets.spreadsheets.values.update({

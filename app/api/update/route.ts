@@ -18,6 +18,41 @@ function formatDisplayDate(dateStr: string): string {
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
+/**
+ * Clean listing content by stripping leading ID lines (both current and target IDs).
+ * Also strips any legacy B-series IDs from the start if we're promoting from Sheet2.
+ */
+function cleanListingContent(text: string, currentId: string, finalId: string): string {
+  let lines = (text || "").split('\n');
+  
+  // 1. Remove ANY leading line that matches currentId OR finalId (case-insensitive)
+  while (lines.length > 0) {
+    const firstLine = lines[0].trim().toUpperCase();
+    if (firstLine === currentId.toUpperCase() || firstLine === finalId.toUpperCase()) {
+      lines.shift();
+    } else {
+      break;
+    }
+  }
+
+  // 2. Scan for "B series" legacy IDs that might be stuck on the new first/second line
+  // If promoting B -> G, and we find a B ID on the new first line, remove it too.
+  if (finalId.startsWith('G') && currentId.startsWith('B')) {
+    while (lines.length > 0) {
+       const firstLine = lines[0].trim().toUpperCase();
+       // Check if it's a B-series ID pattern (B followed by 4-6 digits)
+       if (/^B\d{4,6}$/.test(firstLine)) {
+         console.log(`[Promotion Clean] Stripping legacy B-series ID: ${firstLine}`);
+         lines.shift();
+       } else {
+         break;
+       }
+    }
+  }
+
+  return lines.join('\n').trim();
+}
+
 export async function POST(request: Request) {
   const session = await auth();
   const updatedBy = session?.user?.email || session?.user?.name || "";
@@ -181,6 +216,22 @@ export async function POST(request: Request) {
         ? `https://www.google.com/maps/search/?api=1&query=${lat},${long}`
         : (lat === "" || long === "" ? null : (map_link || null));
 
+    // Determine targetTab and finalId early to ensure correct cleaning and consistency
+    const targetTab = batch_source_tab_name || "Sheet1";
+    const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
+    let finalId = id;
+
+    // Handle B -> G transformation for promotion
+    if (sourceTab === "Sheet2" && targetTab === "Sheet1" && id.startsWith("B")) {
+      finalId = id.replace(/^B/, "G");
+    }
+
+    // Build BLASTED FORMAT (A) - Clean content without IDs
+    const blastedFormat = cleanListingContent(summary || "", id, finalId);
+
+    // Build COL AA (MAIN with GEO ID as first line)
+    const mainWithId = finalId + "\n" + blastedFormat;
+
     console.log("=== UPDATING LISTING ===");
     console.log("ID:", id);
     console.log("send_telegram:", send_telegram);
@@ -201,7 +252,7 @@ export async function POST(request: Request) {
         "FLOOR AREA": floor_area || null,
         "Extracted Sale Price": price || null,
         "Extracted Lease Price": lease_price || null,
-        "MAIN": summary || null,
+        "MAIN": mainWithId || null,
         "RESIDENTIAL": residential || null,
         "COMMERCIAL": commercial || null,
         "INDUSTRIAL": industrial || null,
@@ -249,7 +300,6 @@ export async function POST(request: Request) {
     if (!data || data.length === 0) {
       // GSheet-only listing — INSERT into Supabase using the existing GEO ID
       console.warn(`⚠️ GEO ID ${id} not in Supabase — inserting new record`);
-      const mainWithId = summary ? (summary.startsWith(id) ? summary : `${id}\n${summary}`) : id;
       const { error: insertError } = await supabase.from(TABLE_NAME).insert({
         "GEO ID": id,
         "MAIN": mainWithId,
@@ -309,15 +359,8 @@ export async function POST(request: Request) {
       console.log(`✅ Supabase updated ${data.length} row(s) for GEO ID:`, id);
     }
 
-    // Build BLASTED FORMAT (A) - MAIN without GEO ID first line
-    let blastedFormat = summary || "";
-    if (blastedFormat.startsWith(id)) {
-      const lines = blastedFormat.split('\n');
-      blastedFormat = lines.slice(1).join('\n');
-    }
-
-    // Build COL AA (MAIN with GEO ID as first line)
-    const mainWithId = summary ? (summary.startsWith(id) ? summary : `${id}\n${summary}`) : id;
+    // Build BLASTED FORMAT (A) - Clean content without IDs
+    // (moved up to ensure consistency)
 
     // Update GSheet columns A-P
     try {
@@ -435,8 +478,7 @@ export async function POST(request: Request) {
       };
       
       const spreadsheetId = process.env.SPREADSHEET_ID!;
-      const targetTab = batch_source_tab_name || "Sheet1";
-      const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
+      // (targetTab and sourceTab already calculated above)
 
       let finalId = id;
 
@@ -446,13 +488,14 @@ export async function POST(request: Request) {
         // If promoting from Sheet2 to Sheet1, handle B -> G transformation
         if (sourceTab === "Sheet2" && targetTab === "Sheet1") {
           if (id.startsWith("B")) {
-            finalId = id.replace(/^B/, "G");
+            // finalId was already calculated above during content cleaning
             isIdChanged = true;
             console.log(`🏷️ Transforming ID for promotion: ${id} -> ${finalId}`);
             
-            // Update syncData with new GEO ID and MAIN text
+            // Update syncData with new GEO ID and clean MAIN text
             syncData.geoId = finalId;
-            syncData.main = finalId + "\n" + blastedFormat;
+            syncData.main = mainWithId;
+            syncData.blastedFormat = blastedFormat;
           }
         }
 
