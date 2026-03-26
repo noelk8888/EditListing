@@ -134,5 +134,9 @@ export async function fetchSpearheadedByNames(): Promise<string[]> {
     .map(item => item.spearheaded_by?.trim())
     .filter((name): name is string => !!name);
   
-  return Array.from(new Set(processedNames)).sort();
+  const uniqueNames = Array.from(new Set(processedNames));
+  const PINNED = "Owners Anderson and Tricia Liu";
+  const pinned = uniqueNames.filter(n => n === PINNED);
+  const rest = uniqueNames.filter(n => n !== PINNED).sort();
+  return [...pinned, ...rest];
 }
