@@ -135,8 +135,17 @@ export async function fetchSpearheadedByNames(): Promise<string[]> {
     .filter((name): name is string => !!name);
   
   const uniqueNames = Array.from(new Set(processedNames));
-  const PINNED = "Owners Anderson and Tricia Liu";
-  const pinned = uniqueNames.filter(n => n === PINNED);
-  const rest = uniqueNames.filter(n => n !== PINNED).sort();
-  return [...pinned, ...rest];
+
+  const priority = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.startsWith("owner")) return 0;
+    if (n.startsWith("broker")) return 1;
+    if (n.startsWith("sales")) return 2;
+    return 3;
+  };
+
+  return uniqueNames.sort((a, b) => {
+    const diff = priority(a) - priority(b);
+    return diff !== 0 ? diff : a.localeCompare(b);
+  });
 }
