@@ -1154,8 +1154,7 @@ export default function AddListingPage() {
       const autoGroups = [
         ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
-        ...(commercial ? ["COMMERCIAL"] : []),
-        ...(industrial ? ["INDUSTRIAL"] : []),
+        ...(commercial || industrial ? ["COMMERCIAL AND INDUSTRIAL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
         "UPDATE LISTING",
@@ -1363,8 +1362,7 @@ export default function AddListingPage() {
       const autoGroups = [
         ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
-        ...(commercial ? ["COMMERCIAL"] : []),
-        ...(industrial ? ["INDUSTRIAL"] : []),
+        ...(commercial || industrial ? ["COMMERCIAL AND INDUSTRIAL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
         "UPDATE LISTING",
@@ -3661,7 +3659,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
                 <div className="flex gap-3 flex-wrap">
-                  {["DIRECT", "RESIDENTIAL", "COMMERCIAL", "INDUSTRIAL", "AGRICULTURAL", "BUSINESS FOR SALE", "UPDATE LISTING", "TEST"].map(g => (
+                  {["DIRECT", "RESIDENTIAL", "COMMERCIAL AND INDUSTRIAL", "AGRICULTURAL", "BUSINESS FOR SALE", "UPDATE LISTING", "TEST"].map(g => (
                     <label key={g} className="flex items-center gap-1.5 cursor-pointer text-sm">
                       <input
                         type="checkbox"
