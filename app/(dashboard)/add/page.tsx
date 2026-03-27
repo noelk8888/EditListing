@@ -180,9 +180,10 @@ export default function AddListingPage() {
   const [telegramPostEnabled, setTelegramPostEnabled] = useState(false);
   const [showTelegramModal, setShowTelegramModal] = useState(false);
   const [telegramLine1, setTelegramLine1] = useState("");
-  const [telegramLine2, setTelegramLine2] = useState("");
-  const [telegramLine3, setTelegramLine3] = useState("");
-  const [telegramLine4, setTelegramLine4] = useState("");
+  const [telegramLine2, setTelegramLine2] = useState(""); // status dropdown
+  const [telegramLine3Notes, setTelegramLine3Notes] = useState(""); // optional notes
+  const [telegramLine3, setTelegramLine3] = useState(""); // broker
+  const [telegramLine4, setTelegramLine4] = useState(""); // ownership
   const [telegramGroups, setTelegramGroups] = useState<string[]>(["DIRECT", "RESIDENTIAL", "UPDATE LISTING", "TEST"]);
 
   // === PERMISSIONS ===
@@ -1145,8 +1146,16 @@ export default function AddListingPage() {
       const formatOwnership = (val: string) => 
         (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
 
-      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 ${today}*` : `*Update ${today}*`);
-      setTelegramLine2(editStatus || "");
+      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 ${today}*` : `*${today}*`);
+      setTelegramLine2(
+        editStatus === "AVAILABLE" ? "UPDATED FORMAT" :
+        editStatus === "SOLD" ? "SOLD" :
+        editStatus === "LEASED OUT" ? "LEASED OUT" :
+        editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
+        editStatus === "UNDER NEGO" ? "UNDER NEGO" :
+        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : ""
+      );
+      setTelegramLine3Notes("");
       setTelegramLine3(ownerBroker);
       setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
@@ -1171,7 +1180,14 @@ export default function AddListingPage() {
     setIsSendingOnly(true);
     setError(null);
     try {
-      const msg = [telegramLine1, telegramLine2, telegramLine3, telegramLine4].filter(Boolean).join("\n");
+      const lines = [
+        telegramLine1,
+        telegramLine2,
+        telegramLine3Notes,
+        telegramLine3,
+        telegramLine4,
+      ].filter(Boolean);
+      const msg = lines.join("\n");
       const response = await fetch("/api/send-telegram-only", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1199,7 +1215,14 @@ export default function AddListingPage() {
 
   const handleTelegramConfirm = () => {
     setShowTelegramModal(false);
-    const msg = [telegramLine1, telegramLine2, telegramLine3, telegramLine4].filter(Boolean).join("\n");
+    const lines = [
+      telegramLine1,
+      telegramLine2, // status — skipped if empty
+      telegramLine3Notes, // notes — skipped if empty
+      telegramLine3, // broker
+      telegramLine4, // ownership
+    ].filter(Boolean);
+    const msg = lines.join("\n");
     if (searchResult) {
       confirmUpdate(msg, pendingUpdateTab || undefined);
     } else {
@@ -1354,7 +1377,15 @@ export default function AddListingPage() {
         (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
 
       setTelegramLine1(`*New Listing ${today}*`);
-      setTelegramLine2(editStatus || "");
+      setTelegramLine2(
+        editStatus === "AVAILABLE" ? "UPDATED FORMAT" :
+        editStatus === "SOLD" ? "SOLD" :
+        editStatus === "LEASED OUT" ? "LEASED OUT" :
+        editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
+        editStatus === "UNDER NEGO" ? "UNDER NEGO" :
+        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : ""
+      );
+      setTelegramLine3Notes("");
       setTelegramLine3(ownerBroker);
       setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
@@ -3686,16 +3717,32 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 2 (Notes)</Label>
-                <Textarea
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 2 (Status)</Label>
+                <select
                   value={telegramLine2}
                   onChange={e => setTelegramLine2(e.target.value)}
-                  className="min-h-20 text-sm"
-                  placeholder="Type your notes here..."
+                  className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                >
+                  <option value="">(none — skip)</option>
+                  <option value="SOLD">SOLD</option>
+                  <option value="LEASED OUT">LEASED OUT</option>
+                  <option value="UPDATED FORMAT">UPDATED FORMAT</option>
+                  <option value="OFF THE MARKET">OFF THE MARKET</option>
+                  <option value="UNDER NEGO">UNDER NEGO</option>
+                  <option value="UNDECISIVE SELLER">UNDECISIVE SELLER</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 3 (Notes — optional)</Label>
+                <Textarea
+                  value={telegramLine3Notes}
+                  onChange={e => setTelegramLine3Notes(e.target.value)}
+                  className="min-h-16 text-sm"
+                  placeholder="Add any notes here... (leave blank to skip)"
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 3 (Broker / Col K)</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 4 (Broker / Owner)</Label>
                 <Input
                   value={telegramLine3}
                   onChange={e => setTelegramLine3(e.target.value)}
@@ -3703,7 +3750,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 />
               </div>
               <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 4 (Listing Ownership)</Label>
+                <Label className="text-xs text-muted-foreground mb-1 block">Line 5 (Listing Ownership)</Label>
                 <Input
                   value={telegramLine4}
                   onChange={e => setTelegramLine4(e.target.value)}
