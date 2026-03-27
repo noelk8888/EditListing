@@ -1143,8 +1143,10 @@ export default function AddListingPage() {
 
     if (telegramPostEnabled) {
       const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      const formatOwnership = (val: string) => 
-        (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
+      const formatOwnership = (val: string) => {
+        const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
+        return result === "Listing Ownership" ? "" : result;
+      };
 
       setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 ${today}*` : `*${today}*`);
       setTelegramLine2(
@@ -1373,8 +1375,10 @@ export default function AddListingPage() {
   const handleSaveNew = () => {
     if (telegramPostEnabled) {
       const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      const formatOwnership = (val: string) =>
-        (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
+      const formatOwnership = (val: string) => {
+        const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
+        return result === "Listing Ownership" ? "" : result;
+      };
 
       setTelegramLine1(`*New Listing ${today}*`);
       setTelegramLine2(
