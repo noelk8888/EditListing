@@ -1137,12 +1137,12 @@ export default function AddListingPage() {
 
     const now = new Date();
     const day = String(now.getDate()).padStart(2, "0");
-    const month = now.toLocaleDateString("en-US", { month: "short" });
+    const month = now.toLocaleDateString("en-US", { month: "long" });
     const year = now.getFullYear();
     const today = `${month} ${day}, ${year}`;
 
     if (telegramPostEnabled) {
-      const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       const formatOwnership = (val: string) => {
         const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
         return result === "Listing Ownership" ? "" : result;
@@ -1374,7 +1374,7 @@ export default function AddListingPage() {
   // Directly perform the save without confirmation OR trigger modal
   const handleSaveNew = () => {
     if (telegramPostEnabled) {
-      const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       const formatOwnership = (val: string) => {
         const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
         return result === "Listing Ownership" ? "" : result;

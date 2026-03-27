@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   title: "LUXE Listings Manager",
   description: "Manage property listings with AI-powered data extraction",
   icons: {
-    icon: "/favicon-32.png",
-    apple: "/apple-icon.png",
-    shortcut: "/favicon-32.png",
+    icon: "/luxe-logo.png",
+    apple: "/luxe-logo.png",
+    shortcut: "/luxe-logo.png",
   },
 };
 

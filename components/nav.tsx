@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Building2, Plus, LogOut, Users, ShieldCheck, Sun, Moon } from "lucide-react";
+import { Plus, LogOut, Users, ShieldCheck, Sun, Moon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 
@@ -45,10 +45,10 @@ export function Nav({ user }: NavProps) {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
-          <Link href="/" className="mr-6 flex items-center space-x-2">
-            <Building2 className="h-6 w-6" />
-            <span className="font-bold">LUXE Listings</span>
-            <span className="text-xs text-muted-foreground font-mono">{APP_VERSION}</span>
+          <Link href="/" className="mr-6 flex items-center space-x-3">
+            <img src="/luxe-logo.png" alt="Luxe Logo" className="h-8 w-8 rounded object-contain" />
+            <span className="font-bold text-lg tracking-tight">Luxe Realty and Development Corporation</span>
+            <span className="text-xs text-muted-foreground font-mono self-end mb-1">{APP_VERSION}</span>
           </Link>
           <nav className="flex items-center space-x-6 text-sm font-medium">
             {links.map((link) => {

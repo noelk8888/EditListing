@@ -1082,7 +1082,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
       const sheetId = sheet?.properties?.sheetId;
       if (sheetId !== undefined) {
         const date = new Date();
-        const month = date.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" });
+        const month = date.toLocaleDateString("en-US", { month: "long", timeZone: "Asia/Manila" });
         const day = date.toLocaleDateString("en-US", { day: "2-digit", timeZone: "Asia/Manila" });
         const year = date.toLocaleDateString("en-US", { year: "numeric", timeZone: "Asia/Manila" });
         const formattedDate = `${month} ${day}, ${year}`;
@@ -1237,7 +1237,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
       // Insert notes only on columns that actually changed
       if (noteConfig && noteConfig.cols.size > 0) {
         const date = new Date();
-        const month = date.toLocaleDateString("en-US", { month: "short", timeZone: "Asia/Manila" });
+        const month = date.toLocaleDateString("en-US", { month: "long", timeZone: "Asia/Manila" });
         const day = date.toLocaleDateString("en-US", { day: "2-digit", timeZone: "Asia/Manila" });
         const year = date.toLocaleDateString("en-US", { year: "numeric", timeZone: "Asia/Manila" });
         const formattedDate = `${month} ${day}, ${year}`;
