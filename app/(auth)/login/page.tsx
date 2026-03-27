@@ -18,7 +18,7 @@ export default async function LoginPage() {
           <div className="flex justify-center mb-4">
             <Building2 className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl">LUXE Listings Manager</CardTitle>
+          <CardTitle className="text-2xl">Luxe Realty and Development Corporation</CardTitle>
           <CardDescription>
             Sign in with your Google account to manage property listings
           </CardDescription>

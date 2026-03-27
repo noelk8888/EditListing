@@ -4,7 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "next-themes";
 
 export const metadata: Metadata = {
-  title: "LUXE Listings Manager",
+  title: "Luxe Realty and Development Corporation",
   description: "Manage property listings with AI-powered data extraction",
   icons: {
     icon: "/luxe-logo.png",
