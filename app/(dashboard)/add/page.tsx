@@ -1840,16 +1840,18 @@ export default function AddListingPage() {
           <CardContent className="space-y-4">
             <div className="relative">
               <Textarea
-                placeholder={`*FOR SALE* G01333
+                placeholder={`G01333
+*FOR SALE*
 9 Greenview Compound, Brgy. Bagong Lipunan ng Crame, Quezon City
 Residential Vacant Lot
 Lot Area: 451 sqm
 Orientation Facing: East
 Clean Tile under Individual
 Zoning Classification: R2
-Price: P72,160,000 (P160k/sqm) gross
+Price: Php72,160,000 (P160k/sqm) gross
 Direct to owner
-Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
+Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9
+Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.0472576`}
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 autoResize
