@@ -3659,7 +3659,7 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9`}
               <div>
                 <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
                 <div className="flex gap-3 flex-wrap">
-                  {["DIRECT", "RESIDENTIAL", "COMMERCIAL AND INDUSTRIAL", "AGRICULTURAL", "BUSINESS FOR SALE", "UPDATE LISTING", "TEST"].map(g => (
+                  {["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COMMERCIAL AND INDUSTRIAL", "BUSINESS FOR SALE", "TEST"].map(g => (
                     <label key={g} className="flex items-center gap-1.5 cursor-pointer text-sm">
                       <input
                         type="checkbox"
