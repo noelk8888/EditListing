@@ -7,9 +7,9 @@ export const metadata: Metadata = {
   title: "Luxe Realty and Development Corporation",
   description: "Manage property listings with AI-powered data extraction",
   icons: {
-    icon: "/luxe-logo.png",
-    apple: "/luxe-logo.png",
-    shortcut: "/luxe-logo.png",
+    icon: "/luxe-branding.png",
+    apple: "/luxe-branding.png",
+    shortcut: "/luxe-branding.png",
   },
 };
 

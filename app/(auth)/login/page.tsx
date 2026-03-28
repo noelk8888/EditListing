@@ -16,7 +16,7 @@ export default async function LoginPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
-            <Building2 className="h-12 w-12 text-primary" />
+            <img src="/luxe-branding.png" alt="Luxe Logo" className="h-16 w-16 object-contain" />
           </div>
           <CardTitle className="text-2xl">Luxe Realty and Development Corporation</CardTitle>
           <CardDescription>

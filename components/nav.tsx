@@ -46,7 +46,7 @@ export function Nav({ user }: NavProps) {
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-3">
-            <img src="/luxe-logo.png" alt="Luxe Logo" className="h-8 w-8 rounded object-contain" />
+            <img src="/luxe-branding.png" alt="Luxe Logo" className="h-8 w-8 rounded object-contain" />
             <span className="font-bold text-lg tracking-tight">Luxe Realty and Development Corporation</span>
             <span className="text-xs text-muted-foreground font-mono self-end mb-1">{APP_VERSION}</span>
           </Link>
