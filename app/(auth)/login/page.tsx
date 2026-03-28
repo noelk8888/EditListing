@@ -16,11 +16,11 @@ export default async function LoginPage() {
       <Card className="w-full max-w-md bg-[#1e293b] border-slate-800 shadow-2xl">
         <CardHeader className="text-center space-y-6 pt-10">
           <div className="flex justify-center mb-2">
-            <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-slate-700 shadow-xl bg-[#0f172a]">
+            <div className="relative w-32 h-32 overflow-hidden bg-[#0f172a]">
               <img 
                 src="/luxe-branding.png" 
                 alt="Luxe Logo" 
-                className="w-full h-full object-cover p-1" 
+                className="w-full h-full object-contain" 
               />
             </div>
           </div>
