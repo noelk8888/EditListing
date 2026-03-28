@@ -12,26 +12,40 @@ export default async function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <img src="/luxe-branding.png" alt="Luxe Logo" className="h-16 w-16 object-contain" />
+    <div className="min-h-screen flex items-center justify-center bg-[#0f172a] p-4 text-white">
+      <Card className="w-full max-w-md bg-[#1e293b] border-slate-800 shadow-2xl">
+        <CardHeader className="text-center space-y-6 pt-10">
+          <div className="flex justify-center mb-2">
+            <div className="relative w-32 h-32 rounded-lg overflow-hidden border border-slate-700 shadow-xl bg-[#0f172a]">
+              <img 
+                src="/luxe-branding.png" 
+                alt="Luxe Logo" 
+                className="w-full h-full object-cover p-1" 
+              />
+            </div>
           </div>
-          <CardTitle className="text-2xl">Luxe Realty and Development Corporation</CardTitle>
-          <CardDescription>
-            Sign in with your Google account to manage property listings
-          </CardDescription>
+          <div className="space-y-2">
+            <CardTitle className="text-2xl font-bold tracking-tight text-slate-100">
+              Luxe Realty and Development Corporation
+            </CardTitle>
+            <CardDescription className="text-slate-400 text-sm">
+              Sign in with your Google account to manage property listings
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pb-10 px-8">
           <form
             action={async () => {
               "use server";
               await signIn("google", { redirectTo: "/" });
             }}
           >
-            <Button type="submit" className="w-full" size="lg">
-              <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
+            <Button 
+              type="submit" 
+              className="w-full bg-[#334155] hover:bg-[#475569] text-white border-slate-600 transition-all duration-200 py-6" 
+              size="lg"
+            >
+              <svg className="mr-3 h-5 w-5" viewBox="0 0 24 24">
                 <path
                   fill="currentColor"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
