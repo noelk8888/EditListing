@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -8,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
+import { BackupModal } from "@/components/BackupModal";
 
 interface NavProps {
   user?: {
@@ -28,13 +30,13 @@ export function Nav({ user }: NavProps) {
   const role = user?.role || "";
   const { theme, setTheme } = useTheme();
   const isAdmin = role === "SUPERADMIN" || role === "ADMIN";
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
 
   const links = [
     { href: "/add", label: "Add Listing", icon: Plus },
     ...(isAdmin
       ? [
           { href: "/admin/users", label: "Users", icon: Users },
-          { href: "/admin/backup", label: "Backup", icon: Database },
         ]
       : []),
     ...(role === "SUPERADMIN"
@@ -74,6 +76,19 @@ export function Nav({ user }: NavProps) {
                 </Link>
               );
             })}
+            
+            {/* Backup Modal Trigger (Admin only) */}
+            {isAdmin && (
+              <button
+                onClick={() => setIsBackupOpen(true)}
+                className={cn(
+                  "flex items-center gap-2 transition-colors hover:text-foreground/80 text-sm font-medium text-foreground/60",
+                )}
+              >
+                <Database className="h-4 w-4" />
+                Backup
+              </button>
+            )}
           </nav>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-4">
@@ -103,6 +118,8 @@ export function Nav({ user }: NavProps) {
           )}
         </div>
       </div>
+
+      <BackupModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
     </header>
   );
 }

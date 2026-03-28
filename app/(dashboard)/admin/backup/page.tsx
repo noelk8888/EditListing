@@ -3,38 +3,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/components/ui/use-toast";
-import { Database, Download, History, Loader2, ShieldCheck } from "lucide-react";
+import { Database, Download, History, ShieldCheck } from "lucide-react";
+import { BackupModal } from "@/components/BackupModal";
 
 export default function BackupPage() {
-  const [isBackingUp, setIsBackingUp] = useState(false);
-  const { toast } = useToast();
-
-  const handleManualBackup = async () => {
-    setIsBackingUp(true);
-    try {
-      const res = await fetch("/api/admin/backup", {
-        method: "POST",
-      });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Failed to create backup");
-
-      toast({
-        title: "Backup Successful",
-        description: data.message,
-      });
-    } catch (err: any) {
-      console.error(err);
-      toast({
-        variant: "destructive",
-        title: "Backup Failed",
-        description: err.message,
-      });
-    } finally {
-      setIsBackingUp(false);
-    }
-  };
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -59,21 +32,11 @@ export default function BackupPage() {
               named with today's date.
             </p>
             <Button 
-              onClick={handleManualBackup} 
-              disabled={isBackingUp}
+              onClick={() => setIsBackupOpen(true)} 
               className="w-full sm:w-auto"
             >
-              {isBackingUp ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Backup...
-                </>
-              ) : (
-                <>
-                  <Database className="mr-2 h-4 w-4" />
-                  Backup Now
-                </>
-              )}
+              <Database className="mr-2 h-4 w-4" />
+              Open Backup Modal
             </Button>
           </CardContent>
         </Card>
@@ -104,6 +67,8 @@ export default function BackupPage() {
           </CardContent>
         </Card>
       </div>
+
+      <BackupModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
     </div>
   );
 }
