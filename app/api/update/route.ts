@@ -201,12 +201,13 @@ export async function POST(request: Request) {
     const noteConfig: NoteConfig | undefined =
       updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;
 
-    // BC value: "Listing Update - Mmm dd, yyyy, by Group"
+    // BC value: "Mmm dd, yyyy | Type | Group" (e.g. "Mar 28, 2026 | STATUS/PRICE | Luxe")
     const bcDateUpdated = date_updated
       ? (() => {
           const formattedDate = formatDisplayDate(date_updated);
-          const author = userGroup ? `, by ${userGroup}` : "";
-          return `Listing Update - ${formattedDate}${author}`;
+          const author = userGroup || "System";
+          const types = changeTypes.join('/');
+          return `${formattedDate} | ${types} | ${author}`;
         })()
       : "";
 
