@@ -1,3 +1,9 @@
 {
-  "regions": ["sin1"]
+  "regions": ["sin1"],
+  "crons": [
+    {
+      "path": "/api/admin/backup",
+      "schedule": "0 16 * * *"
+    }
+  ]
 }

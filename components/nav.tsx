@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Plus, LogOut, Users, ShieldCheck, Sun, Moon } from "lucide-react";
+import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 
@@ -32,7 +32,10 @@ export function Nav({ user }: NavProps) {
   const links = [
     { href: "/add", label: "Add Listing", icon: Plus },
     ...(isAdmin
-      ? [{ href: "/admin/users", label: "Users", icon: Users }]
+      ? [
+          { href: "/admin/users", label: "Users", icon: Users },
+          { href: "/admin/backup", label: "Backup", icon: Database },
+        ]
       : []),
     ...(role === "SUPERADMIN"
       ? [{ href: "/admin/permissions", label: "Permissions", icon: ShieldCheck }]

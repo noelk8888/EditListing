@@ -3,7 +3,11 @@ import { JWT } from "google-auth-library";
 import * as fs from "fs";
 import * as path from "path";
 
-const SCOPES = ["https://www.googleapis.com/auth/spreadsheets"];
+const SCOPES = [
+  "https://www.googleapis.com/auth/spreadsheets",
+  "https://www.googleapis.com/auth/drive",
+  "https://www.googleapis.com/auth/drive.file"
+];
 const SHEET_NAME = "Sheet1";
 
 // Format a numeric string as X,XXX,XXX.XX for GSheet display (Col AS, AU, etc.)
@@ -2172,3 +2176,50 @@ export async function deleteListing(id: string, overrideSpreadsheetId?: string):
 
   return true;
 }
+
+/**
+ * Create a backup of the current spreadsheet in Google Drive.
+ * Duplicates the file and names it with the current date.
+ */
+export async function createSpreadsheetBackup(): Promise<{ id: string; name: string; url: string }> {
+  const auth = getAuth();
+  const drive = google.drive({ version: "v3", auth });
+  const spreadsheetId = process.env.SPREADSHEET_ID;
+
+  if (!spreadsheetId) {
+    throw new Error("SPREADSHEET_ID not configured for backup");
+  }
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Manila",
+  });
+  const backupName = `LUXE Listings Backup - ${dateStr}`;
+
+  console.log(`🚀 Creating backup: "${backupName}" for file ${spreadsheetId}...`);
+
+  const response = await drive.files.copy({
+    fileId: spreadsheetId,
+    requestBody: {
+      name: backupName,
+    },
+  });
+
+  const newFileId = response.data.id;
+  if (!newFileId) {
+    throw new Error("Google Drive copy failed: No file ID returned");
+  }
+
+  const url = `https://docs.google.com/spreadsheets/d/${newFileId}/edit`;
+  console.log(`✅ Backup created: ${backupName} (${newFileId})`);
+
+  return {
+    id: newFileId,
+    name: backupName,
+    url,
+  };
+}
+
