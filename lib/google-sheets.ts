@@ -2178,6 +2178,43 @@ export async function deleteListing(id: string, overrideSpreadsheetId?: string):
 }
 
 /**
+ * Delete backups older than specified number of days from a folder.
+ */
+async function deleteOldBackups(drive: any, folderId: string, days: number) {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+    
+    // ISO format for Drive API query
+    const rfc3339Date = cutoffDate.toISOString();
+
+    console.log(`🧹 Cleaning up backups older than ${days} days (${rfc3339Date})...`);
+
+    // List files in the backup folder created before the cutoff
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and createdTime < '${rfc3339Date}' and trashed = false`,
+      fields: "files(id, name, createdTime)",
+    });
+
+    const files = response.data.files || [];
+    if (files.length === 0) {
+      console.log("✨ No old backups found to clean up.");
+      return;
+    }
+
+    console.log(`🗑️ Found ${files.length} old backup(s) to delete.`);
+    for (const file of files) {
+      console.log(`  - Deleting: ${file.name} (${file.createdTime})`);
+      await drive.files.delete({ fileId: file.id });
+    }
+    console.log("✅ Cleanup complete.");
+  } catch (err) {
+    console.error("❌ Error during backup cleanup:", err);
+    // Non-fatal, don't stop the main backup process
+  }
+}
+
+/**
  * Create a backup of the current spreadsheet in Google Drive.
  * Duplicates the file and names it with the current date.
  */
@@ -2185,6 +2222,8 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
   const auth = getAuth();
   const drive = google.drive({ version: "v3", auth });
   const spreadsheetId = process.env.SPREADSHEET_ID;
+  const backupFolderId = process.env.BACKUP_DRIVE_FOLDER_ID;
+  const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10);
 
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured for backup");
@@ -2203,14 +2242,21 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
 
   const response = await drive.files.copy({
     fileId: spreadsheetId,
+    supportsAllDrives: true,
     requestBody: {
       name: backupName,
+      parents: backupFolderId ? [backupFolderId] : undefined,
     },
   });
 
   const newFileId = response.data.id;
   if (!newFileId) {
     throw new Error("Google Drive copy failed: No file ID returned");
+  }
+
+  // Handle cleanup if folder is configured
+  if (backupFolderId) {
+    await deleteOldBackups(drive, backupFolderId, retentionDays);
   }
 
   const url = `https://docs.google.com/spreadsheets/d/${newFileId}/edit`;
