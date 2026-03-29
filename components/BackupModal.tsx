@@ -155,8 +155,8 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
           )}
 
           {result && (
-            <div className="space-y-4 animate-in fade-in zoom-in duration-300">
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200 text-green-900 overflow-hidden">
+            <div className="w-full max-w-full space-y-4 animate-in fade-in zoom-in duration-300">
+              <div className="w-full max-w-full flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200 text-green-900 overflow-hidden">
                 <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold truncate" title={result.name}>{result.name}</h4>
@@ -164,8 +164,8 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
                   
                   <div className="mt-4 p-3 bg-white/50 rounded border border-green-200 space-y-2">
                     <p className="text-[10px] uppercase tracking-wider font-bold text-green-700">BACKUP GSHEET LINK</p>
-                    <div className="flex items-center gap-2 w-full">
-                      <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 w-full max-w-full">
+                      <div className="flex-1 min-w-0 overflow-hidden">
                         <code className="block text-[11px] bg-white px-2 py-1.5 rounded border overflow-hidden text-ellipsis whitespace-nowrap font-mono w-full">
                           {result.url}
                         </code>
