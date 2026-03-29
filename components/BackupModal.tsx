@@ -81,9 +81,9 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-6">
+        <div className="py-6 w-full max-w-full overflow-hidden">
           {!result && !error && (
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 w-full">
               <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
                 <p className="text-sm text-muted-foreground">
                   Running a backup will clone the current listings spreadsheet into the Service Account's Google Drive. 
@@ -111,12 +111,12 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
           )}
 
           {error && (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full">
               <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200 text-red-900">
                 <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
-                <div>
+                <div className="min-w-0 flex-1">
                   <h4 className="font-bold">Backup Failed</h4>
-                  <p className="text-sm mt-1">{error}</p>
+                  <p className="text-sm mt-1 break-words">{error}</p>
                 </div>
               </div>
 
@@ -155,25 +155,27 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
           )}
 
           {result && (
-            <div className="w-full max-w-full space-y-4 animate-in fade-in zoom-in duration-300">
-              <div className="w-full max-w-full flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200 text-green-900 overflow-hidden">
-                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold truncate" title={result.name}>{result.name}</h4>
-                  <p className="text-sm mt-1 opacity-80">Your Parallel syncs are now secure.</p>
+            <div className="grid grid-cols-1 w-full max-w-full space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-400">
+              <div className="grid grid-cols-[auto_1fr] gap-3 p-4 rounded-xl bg-green-50/50 border border-green-200 text-green-900 overflow-hidden box-border">
+                <div className="pt-0.5">
+                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                </div>
+                <div className="min-w-0 w-full overflow-hidden">
+                  <h4 className="font-bold truncate text-base" title={result.name}>{result.name}</h4>
+                  <p className="text-sm mt-0.5 opacity-80">Your Parallel syncs are now secure.</p>
                   
-                  <div className="mt-4 p-3 bg-white/50 rounded border border-green-200 space-y-2">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-green-700">BACKUP GSHEET LINK</p>
-                    <div className="flex items-center gap-2 w-full max-w-full">
-                      <div className="flex-1 min-w-0 overflow-hidden">
-                        <code className="block text-[11px] bg-white px-2 py-1.5 rounded border overflow-hidden text-ellipsis whitespace-nowrap font-mono w-full">
+                  <div className="mt-4 p-3 bg-white/80 rounded-lg border border-green-100 space-y-2 shadow-sm">
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-green-700/70">BACKUP GSHEET LINK</p>
+                    <div className="grid grid-cols-[1fr_auto] items-center gap-2 w-full">
+                      <div className="min-w-0 overflow-hidden">
+                        <code className="block text-[11px] bg-white px-2.5 py-2 rounded-md border border-green-100 overflow-hidden text-ellipsis whitespace-nowrap font-mono text-green-800">
                           {result.url}
                         </code>
                       </div>
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 hover:bg-green-100 shrink-0" 
+                        className="h-8 w-8 hover:bg-green-100 text-green-600 shrink-0" 
                         onClick={() => copyToClipboard(result.url)}
                       >
                         <Copy className="h-4 w-4" />
@@ -183,14 +185,14 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" asChild>
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <Button variant="outline" className="w-full border-green-200 hover:bg-green-50 text-green-700" asChild>
                   <a href={result.url} target="_blank" rel="noopener noreferrer">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Open Sheet
                   </a>
                 </Button>
-                <Button className="flex-1" onClick={handleClose}>
+                <Button className="w-full bg-slate-900 hover:bg-slate-800" onClick={handleClose}>
                   Done
                 </Button>
               </div>
