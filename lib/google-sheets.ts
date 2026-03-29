@@ -2236,100 +2236,128 @@ async function manageBackupTabs(sheets: any, spreadsheetId: string, retentionDay
 }
 
 /**
- * Create a versioned tab-based backup in a persistent user-owned sheet.
- * This bypasses Service Account quota limits (0MB) by using the User's space.
+ * Internal helper to perform a data-sync backup from source to target.
+ * Handles Tab creation, Data Sync, Visibility Rename, and Auto-Delete Cleanup.
  */
-export async function createSpreadsheetBackup(): Promise<{ id: string; name: string; url: string }> {
-  const auth = getAuth();
-  const sheets = google.sheets({ version: "v4", auth });
-  const drive = google.drive({ version: "v3", auth });
-  
-  const masterId = process.env.SPREADSHEET_ID;
-  const targetId = process.env.BACKUP_TARGET_SHEET_ID;
-  const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10);
-
-  if (!masterId || !targetId) {
-    throw new Error("Master or Target Spreadsheet IDs not configured for backup");
-  }
-
+async function performSyncBackup(
+  sheets: any, 
+  drive: any, 
+  sourceId: string, 
+  targetId: string, 
+  label: string, 
+  retentionDays: number
+) {
   const now = new Date();
   const dateStr = now.toLocaleDateString("en-US", {
     month: "short",
     day: "2-digit",
     year: "numeric",
     timeZone: "Asia/Manila",
-  }).replace(/ /g, "_").replace(/,/g, ""); // Format: Mar_29_2026
+  }).replace(/ /g, "_").replace(/,/g, ""); // Mar_29_2026
   
   const tabName = `Backup_${dateStr}`;
-  const backupTitle = `LUXE Backup - ${dateStr.replace(/_/g, " ")}`;
+  const backupTitle = `${label} - ${dateStr.replace(/_/g, " ")}`;
 
-  console.log(`🚀 [BACKUP-SYNC] Starting versioned sync to Tab: "${tabName}" in Target (${targetId})...`);
+  console.log(`🚀 [BACKUP-${label}] Starting sync from ${sourceId} to Tab: "${tabName}" in Target (${targetId})...`);
 
-  try {
-    // 1. READ ALL DATA FROM MASTER (Sheet1)
-    const masterResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId: masterId,
-      range: "Sheet1!A:BO",
-    });
+  // 1. READ ALL DATA FROM SOURCE (Sheet1)
+  const sourceResponse = await sheets.spreadsheets.values.get({
+    spreadsheetId: sourceId,
+    range: "Sheet1!A:BO",
+  });
 
-    const rows = masterResponse.data.values;
-    if (!rows || rows.length === 0) {
-      throw new Error("Master sheet is empty - nothing to backup.");
-    }
-
-    // 2. CREATE NEW TAB (OR BEYOND IF IT ALREADY EXISTS)
-    try {
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: targetId,
-        requestBody: {
-          requests: [{
-            addSheet: {
-              properties: { title: tabName }
-            }
-          }]
-        }
-      });
-      console.log(`🆕 [BACKUP-SYNC] Created new tab: "${tabName}"`);
-    } catch (err: any) {
-      if (err.message.includes("already exists")) {
-        console.log(`🔄 [BACKUP-SYNC] Tab "${tabName}" already exists, overwriting content.`);
-      } else {
-        throw err;
-      }
-    }
-
-    // 3. WRITE TO SPECIFIC TAB
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: targetId,
-      range: `${tabName}!A1`,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: rows,
-      },
-    });
-
-    console.log(`✅ [BACKUP-SYNC] Data synced into tab: "${tabName}".`);
-
-    // 4. RENAME TARGET FILE FOR VISIBILITY
-    await drive.files.update({
-      fileId: targetId,
-      requestBody: {
-        name: backupTitle,
-      },
-    });
-
-    // 5. RUN AUTO-DELETE CLEANUP
-    await manageBackupTabs(sheets, targetId, retentionDays);
-
-    return {
-      id: targetId,
-      name: backupTitle,
-      url: `https://docs.google.com/spreadsheets/d/${targetId}/edit#gid=${tabName}`, // Note: GID is internal, manual link is safer
-    };
-
-  } catch (err: any) {
-    console.error("❌ [BACKUP-SYNC] ERROR during sync:", err.message);
-    throw err;
+  const rows = sourceResponse.data.values;
+  if (!rows || rows.length === 0) {
+    throw new Error(`${label} source sheet is empty - nothing to backup.`);
   }
+
+  // 2. CREATE NEW TAB (OR BEYOND IF IT ALREADY EXISTS)
+  try {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: targetId,
+      requestBody: {
+        requests: [{
+          addSheet: {
+            properties: { title: tabName }
+          }
+        }]
+      }
+    });
+    console.log(`🆕 [BACKUP-${label}] Created new tab: "${tabName}"`);
+  } catch (err: any) {
+    if (err.message.includes("already exists")) {
+      console.log(`🔄 [BACKUP-${label}] Tab "${tabName}" already exists, overwriting content.`);
+    } else {
+      throw err;
+    }
+  }
+
+  // 3. WRITE TO SPECIFIC TAB
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: targetId,
+    range: `${tabName}!A1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: rows,
+    },
+  });
+
+  console.log(`✅ [BACKUP-${label}] Data synced into tab: "${tabName}".`);
+
+  // 4. RENAME TARGET FILE FOR VISIBILITY
+  await drive.files.update({
+    fileId: targetId,
+    requestBody: {
+      name: backupTitle,
+    },
+  });
+
+  // 5. RUN AUTO-DELETE CLEANUP
+  await manageBackupTabs(sheets, targetId, retentionDays);
+
+  return { id: targetId, name: backupTitle };
+}
+
+/**
+ * Perform parallel backups for the Master Listing and LUXE Copy spreadsheets.
+ */
+export async function createSpreadsheetBackup(): Promise<{ id: string; name: string; url: string }> {
+  const auth = getAuth();
+  const sheets = google.sheets({ version: "v4", auth });
+  const drive = google.drive({ version: "v3", auth });
+
+  const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10);
+
+  // 1. MASTER LISTING BACKUP
+  const masterId = process.env.SPREADSHEET_ID;
+  const targetId = process.env.BACKUP_TARGET_SHEET_ID;
+  
+  // 2. LUXE COPY BACKUP (Parallel)
+  const copyId = process.env.COPY_SPREADSHEET_ID;
+  const copyTargetId = process.env.COPY_BACKUP_TARGET_ID;
+
+  if (!masterId || !targetId) {
+    throw new Error("Master backup IDs not configured");
+  }
+
+  console.log("👯 [PARALLEL-BACKUP] Triggering dual syncs...");
+
+  const results = await Promise.all([
+    performSyncBackup(sheets, drive, masterId, targetId, "LUXE Master Backup", retentionDays),
+    copyId && copyTargetId 
+      ? performSyncBackup(sheets, drive, copyId, copyTargetId, "LUXE Copy Backup", retentionDays)
+      : Promise.resolve(null)
+  ]);
+
+  const masterResult = results[0];
+  const copyResult = results[1];
+
+  return {
+    id: masterResult.id,
+    name: copyResult 
+      ? `Dual Backup: ${masterResult.name} & ${copyResult.name}`
+      : masterResult.name,
+    url: `https://docs.google.com/spreadsheets/d/${masterResult.id}/edit`, // Default to master link
+  };
 }
 
