@@ -153,27 +153,24 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
               <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200 text-green-900">
                 <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
                 <div className="flex-1">
-                  <h4 className="font-bold">Backup Created Successfully</h4>
-                  <p className="text-sm mt-1">{result.name}</p>
+                  <h4 className="font-bold">{result.name}</h4>
+                  <p className="text-sm mt-1 opacity-80">Your Parallel syncs are now secure.</p>
                   
                   <div className="mt-4 p-3 bg-white/50 rounded border border-green-200 space-y-2">
-                    <p className="text-[10px] uppercase tracking-wider font-bold text-green-700">Backup Sheet ID</p>
+                    <p className="text-[10px] uppercase tracking-wider font-bold text-green-700">BACKUP GSHEET LINK</p>
                     <div className="flex items-center justify-between gap-2">
-                      <code className="text-xs bg-white px-2 py-1 rounded border overflow-hidden text-ellipsis whitespace-nowrap flex-1">
-                        {result.id}
+                      <code className="text-[11px] bg-white px-2 py-1.5 rounded border overflow-hidden text-ellipsis whitespace-nowrap flex-1 font-mono">
+                        {result.url}
                       </code>
                       <Button 
                         variant="ghost" 
                         size="icon" 
                         className="h-8 w-8 hover:bg-green-100" 
-                        onClick={() => copyToClipboard(result.id)}
+                        onClick={() => copyToClipboard(result.url)}
                       >
                         <Copy className="h-4 w-4" />
                       </Button>
                     </div>
-                    <p className="text-[10px] text-green-600 italic">
-                      * Note: To enable Redundant Sync, update your `BACKUP_SPREADSHEET_ID` env variable with this ID.
-                    </p>
                   </div>
                 </div>
               </div>

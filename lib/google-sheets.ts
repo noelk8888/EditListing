@@ -2352,12 +2352,21 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
   const masterResult = results[0];
   const copyResult = results[1];
 
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    timeZone: "Asia/Manila",
+  });
+
+  // Return the Copy Backup info if available, otherwise Master
   return {
-    id: masterResult.id,
-    name: copyResult 
-      ? `Dual Backup: ${masterResult.name} & ${copyResult.name}`
-      : masterResult.name,
-    url: `https://docs.google.com/spreadsheets/d/${masterResult.id}/edit`, // Default to master link
+    id: copyResult ? copyResult.id : masterResult.id,
+    name: `Backup Created Successfully- ${dateStr}`,
+    url: copyResult 
+      ? `https://docs.google.com/spreadsheets/d/${copyResult.id}/edit`
+      : `https://docs.google.com/spreadsheets/d/${masterResult.id}/edit`,
   };
 }
 
