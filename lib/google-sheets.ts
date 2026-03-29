@@ -2178,55 +2178,19 @@ export async function deleteListing(id: string, overrideSpreadsheetId?: string):
 }
 
 /**
- * Delete backups older than specified number of days from a folder.
- */
-async function deleteOldBackups(drive: any, folderId: string, days: number) {
-  try {
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-    
-    // ISO format for Drive API query
-    const rfc3339Date = cutoffDate.toISOString();
-
-    console.log(`🧹 Cleaning up backups older than ${days} days (${rfc3339Date})...`);
-
-    // List files in the backup folder created before the cutoff
-    const response = await drive.files.list({
-      q: `'${folderId}' in parents and createdTime < '${rfc3339Date}' and trashed = false`,
-      fields: "files(id, name, createdTime)",
-    });
-
-    const files = response.data.files || [];
-    if (files.length === 0) {
-      console.log("✨ No old backups found to clean up.");
-      return;
-    }
-
-    console.log(`🗑️ Found ${files.length} old backup(s) to delete.`);
-    for (const file of files) {
-      console.log(`  - Deleting: ${file.name} (${file.createdTime})`);
-      await drive.files.delete({ fileId: file.id });
-    }
-    console.log("✅ Cleanup complete.");
-  } catch (err) {
-    console.error("❌ Error during backup cleanup:", err);
-    // Non-fatal, don't stop the main backup process
-  }
-}
-
-/**
- * Create a backup of the current spreadsheet in Google Drive.
- * Duplicates the file and names it with the current date.
+ * Create a data-sync backup of the current spreadsheet into a target user-owned sheet.
+ * This bypasses Service Account quota limits (0MB) by using the User's space.
  */
 export async function createSpreadsheetBackup(): Promise<{ id: string; name: string; url: string }> {
   const auth = getAuth();
+  const sheets = google.sheets({ version: "v4", auth });
   const drive = google.drive({ version: "v3", auth });
-  const spreadsheetId = process.env.SPREADSHEET_ID;
-  const backupFolderId = process.env.BACKUP_DRIVE_FOLDER_ID;
-  const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10);
+  
+  const masterId = process.env.SPREADSHEET_ID;
+  const targetId = process.env.BACKUP_TARGET_SHEET_ID;
 
-  if (!spreadsheetId) {
-    throw new Error("SPREADSHEET_ID not configured for backup");
+  if (!masterId || !targetId) {
+    throw new Error("Master or Target Spreadsheet IDs not configured for backup");
   }
 
   const now = new Date();
@@ -2236,36 +2200,55 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
     year: "numeric",
     timeZone: "Asia/Manila",
   });
-  const backupName = `LUXE Listings Backup - ${dateStr}`;
+  const backupName = `LUXE Backup - ${dateStr}`;
 
-  console.log(`🚀 Creating backup: "${backupName}" for file ${spreadsheetId}...`);
+  console.log(`🚀 [BACKUP-SYNC] Starting sync from Master (${masterId}) to Target (${targetId})...`);
 
-  const response = await drive.files.copy({
-    fileId: spreadsheetId,
-    supportsAllDrives: true,
-    requestBody: {
+  try {
+    // 1. READ ALL DATA FROM MASTER (Sheet1)
+    const masterResponse = await sheets.spreadsheets.values.get({
+      spreadsheetId: masterId,
+      range: "Sheet1!A:BO", // Entire data range
+    });
+
+    const rows = masterResponse.data.values;
+    if (!rows || rows.length === 0) {
+      throw new Error("Master sheet is empty - nothing to backup.");
+    }
+
+    console.log(`📊 [BACKUP-SYNC] Read ${rows.length} rows from Master.`);
+
+    // 2. CLEAR AND WRITE TO TARGET (Sheet1)
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: targetId,
+      range: "Sheet1!A1",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: rows,
+      },
+    });
+
+    console.log(`✅ [BACKUP-SYNC] Data synced to target file.`);
+
+    // 3. RENAME TARGET FILE WITH CURRENT TIMESTAMP
+    await drive.files.update({
+      fileId: targetId,
+      requestBody: {
+        name: backupName,
+      },
+    });
+
+    console.log(`🏷️ [BACKUP-SYNC] Target file renamed to: ${backupName}`);
+
+    return {
+      id: targetId,
       name: backupName,
-      parents: backupFolderId ? [backupFolderId] : undefined,
-    },
-  });
+      url: `https://docs.google.com/spreadsheets/d/${targetId}/edit`,
+    };
 
-  const newFileId = response.data.id;
-  if (!newFileId) {
-    throw new Error("Google Drive copy failed: No file ID returned");
+  } catch (err: any) {
+    console.error("❌ [BACKUP-SYNC] ERROR during sync:", err.message);
+    throw err;
   }
-
-  // Handle cleanup if folder is configured
-  if (backupFolderId) {
-    await deleteOldBackups(drive, backupFolderId, retentionDays);
-  }
-
-  const url = `https://docs.google.com/spreadsheets/d/${newFileId}/edit`;
-  console.log(`✅ Backup created: ${backupName} (${newFileId})`);
-
-  return {
-    id: newFileId,
-    name: backupName,
-    url,
-  };
 }
 
