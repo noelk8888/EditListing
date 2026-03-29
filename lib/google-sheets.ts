@@ -2178,7 +2178,65 @@ export async function deleteListing(id: string, overrideSpreadsheetId?: string):
 }
 
 /**
- * Create a data-sync backup of the current spreadsheet into a target user-owned sheet.
+ * Manage daily backup tabs in the persistent spreadsheet.
+ * Creates a new tab for today and deletes tabs older than retentionDays.
+ */
+async function manageBackupTabs(sheets: any, spreadsheetId: string, retentionDays: number) {
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const sheetsList = spreadsheet.data.sheets || [];
+    const backupPrefix = "Backup_";
+
+    const now = new Date();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(now.getDate() - retentionDays);
+
+    console.log(`🧹 [BACKUP-CLEANUP] Scanning for tabs older than ${retentionDays} days...`);
+
+    const requests: any[] = [];
+    const tabsFound: string[] = [];
+
+    sheetsList.forEach((s: any) => {
+      const title = s.properties.title;
+      if (title.startsWith(backupPrefix)) {
+        // Expected format: Backup_Mar_29_2026
+        const parts = title.split("_");
+        if (parts.length === 4) {
+          const month = parts[1];
+          const day = parseInt(parts[2], 10);
+          const year = parseInt(parts[3], 10);
+          
+          const monthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(month);
+          if (monthIndex !== -1) {
+            const tabDate = new Date(year, monthIndex, day);
+            if (tabDate < cutoffDate) {
+              requests.push({
+                deleteSheet: { sheetId: s.properties.sheetId }
+              });
+              tabsFound.push(title);
+            }
+          }
+        }
+      }
+    });
+
+    if (requests.length > 0) {
+      console.log(`🗑️ [BACKUP-CLEANUP] Deleting ${requests.length} old tabs: ${tabsFound.join(", ")}`);
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests }
+      });
+      console.log("✅ [BACKUP-CLEANUP] Cleanup complete.");
+    } else {
+      console.log("✨ [BACKUP-CLEANUP] No old tabs found to delete.");
+    }
+  } catch (err: any) {
+    console.warn("⚠️ [BACKUP-CLEANUP] Non-fatal cleanup warning:", err.message);
+  }
+}
+
+/**
+ * Create a versioned tab-based backup in a persistent user-owned sheet.
  * This bypasses Service Account quota limits (0MB) by using the User's space.
  */
 export async function createSpreadsheetBackup(): Promise<{ id: string; name: string; url: string }> {
@@ -2188,6 +2246,7 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
   
   const masterId = process.env.SPREADSHEET_ID;
   const targetId = process.env.BACKUP_TARGET_SHEET_ID;
+  const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10);
 
   if (!masterId || !targetId) {
     throw new Error("Master or Target Spreadsheet IDs not configured for backup");
@@ -2199,16 +2258,18 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
     day: "2-digit",
     year: "numeric",
     timeZone: "Asia/Manila",
-  });
-  const backupName = `LUXE Backup - ${dateStr}`;
+  }).replace(/ /g, "_").replace(/,/g, ""); // Format: Mar_29_2026
+  
+  const tabName = `Backup_${dateStr}`;
+  const backupTitle = `LUXE Backup - ${dateStr.replace(/_/g, " ")}`;
 
-  console.log(`🚀 [BACKUP-SYNC] Starting sync from Master (${masterId}) to Target (${targetId})...`);
+  console.log(`🚀 [BACKUP-SYNC] Starting versioned sync to Tab: "${tabName}" in Target (${targetId})...`);
 
   try {
     // 1. READ ALL DATA FROM MASTER (Sheet1)
     const masterResponse = await sheets.spreadsheets.values.get({
       spreadsheetId: masterId,
-      range: "Sheet1!A:BO", // Entire data range
+      range: "Sheet1!A:BO",
     });
 
     const rows = masterResponse.data.values;
@@ -2216,34 +2277,54 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
       throw new Error("Master sheet is empty - nothing to backup.");
     }
 
-    console.log(`📊 [BACKUP-SYNC] Read ${rows.length} rows from Master.`);
+    // 2. CREATE NEW TAB (OR BEYOND IF IT ALREADY EXISTS)
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: targetId,
+        requestBody: {
+          requests: [{
+            addSheet: {
+              properties: { title: tabName }
+            }
+          }]
+        }
+      });
+      console.log(`🆕 [BACKUP-SYNC] Created new tab: "${tabName}"`);
+    } catch (err: any) {
+      if (err.message.includes("already exists")) {
+        console.log(`🔄 [BACKUP-SYNC] Tab "${tabName}" already exists, overwriting content.`);
+      } else {
+        throw err;
+      }
+    }
 
-    // 2. CLEAR AND WRITE TO TARGET (Sheet1)
+    // 3. WRITE TO SPECIFIC TAB
     await sheets.spreadsheets.values.update({
       spreadsheetId: targetId,
-      range: "Sheet1!A1",
+      range: `${tabName}!A1`,
       valueInputOption: "USER_ENTERED",
       requestBody: {
         values: rows,
       },
     });
 
-    console.log(`✅ [BACKUP-SYNC] Data synced to target file.`);
+    console.log(`✅ [BACKUP-SYNC] Data synced into tab: "${tabName}".`);
 
-    // 3. RENAME TARGET FILE WITH CURRENT TIMESTAMP
+    // 4. RENAME TARGET FILE FOR VISIBILITY
     await drive.files.update({
       fileId: targetId,
       requestBody: {
-        name: backupName,
+        name: backupTitle,
       },
     });
 
-    console.log(`🏷️ [BACKUP-SYNC] Target file renamed to: ${backupName}`);
+    // 5. RUN AUTO-DELETE CLEANUP
+    await manageBackupTabs(sheets, targetId, retentionDays);
 
     return {
       id: targetId,
-      name: backupName,
-      url: `https://docs.google.com/spreadsheets/d/${targetId}/edit`,
+      name: backupTitle,
+      url: `https://docs.google.com/spreadsheets/d/${targetId}/edit#gid=${tabName}`, // Note: GID is internal, manual link is safer
     };
 
   } catch (err: any) {
