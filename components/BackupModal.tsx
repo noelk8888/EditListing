@@ -150,22 +150,22 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
 
           {result && (
             <div className="space-y-4 animate-in fade-in zoom-in duration-300">
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200 text-green-900">
-                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
-                <div className="flex-1">
-                  <h4 className="font-bold">{result.name}</h4>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-green-50 border border-green-200 text-green-900 overflow-hidden">
+                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-bold truncate">{result.name}</h4>
                   <p className="text-sm mt-1 opacity-80">Your Parallel syncs are now secure.</p>
                   
                   <div className="mt-4 p-3 bg-white/50 rounded border border-green-200 space-y-2">
                     <p className="text-[10px] uppercase tracking-wider font-bold text-green-700">BACKUP GSHEET LINK</p>
-                    <div className="flex items-center justify-between gap-2">
-                      <code className="text-[11px] bg-white px-2 py-1.5 rounded border overflow-hidden text-ellipsis whitespace-nowrap flex-1 font-mono">
+                    <div className="flex items-center justify-between gap-2 overflow-hidden">
+                      <code className="text-[11px] bg-white px-2 py-1.5 rounded border overflow-hidden text-ellipsis whitespace-nowrap flex-1 font-mono min-w-0">
                         {result.url}
                       </code>
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 hover:bg-green-100" 
+                        className="h-8 w-8 hover:bg-green-100 shrink-0" 
                         onClick={() => copyToClipboard(result.url)}
                       >
                         <Copy className="h-4 w-4" />
