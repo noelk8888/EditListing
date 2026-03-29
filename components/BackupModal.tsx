@@ -62,9 +62,15 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
     });
   };
 
+  const handleClose = () => {
+    setResult(null);
+    setError(null);
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent className="sm:max-w-[500px] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Database className="h-5 w-5 text-blue-600" />
@@ -160,7 +166,7 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
                     <p className="text-[10px] uppercase tracking-wider font-bold text-green-700">BACKUP GSHEET LINK</p>
                     <div className="flex items-center gap-2 w-full">
                       <div className="flex-1 min-w-0">
-                        <code className="block text-[11px] bg-white px-2 py-1.5 rounded border overflow-hidden text-ellipsis whitespace-nowrap font-mono">
+                        <code className="block text-[11px] bg-white px-2 py-1.5 rounded border overflow-hidden text-ellipsis whitespace-nowrap font-mono w-full">
                           {result.url}
                         </code>
                       </div>
@@ -184,7 +190,7 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
                     Open Sheet
                   </a>
                 </Button>
-                <Button className="flex-1" onClick={onClose}>
+                <Button className="flex-1" onClick={handleClose}>
                   Done
                 </Button>
               </div>
