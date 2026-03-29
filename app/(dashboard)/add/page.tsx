@@ -533,6 +533,13 @@ export default function AddListingPage() {
       console.log("Search response:", data);
 
       const isRestrictedMatch = data.matchedBy === "restricted";
+      let transformedRestrictedId = null;
+
+      if (isRestrictedMatch && data.result?.id) {
+        transformedRestrictedId = data.result.id.startsWith("B") 
+          ? data.result.id.replace(/^B/, "G") 
+          : data.result.id;
+      }
 
       // If it is restricted (Sheet2 match for Admin), we keep data.result for populate but HIDE the searchResult UI
       if (isRestrictedMatch) {
@@ -540,7 +547,7 @@ export default function AddListingPage() {
         setMatchedBy(null);
         setSourceTab(null);
         console.log(
-          "🕵️ Restricted Sheet2 match found; treating as NEW but populating data."
+          `🕵️ Restricted Sheet2 match found (${data.result?.id}); treating as NEW but populating data. Target ID: ${transformedRestrictedId}`
         );
       } else {
         setSearchResult(data.result);
@@ -627,9 +634,13 @@ export default function AddListingPage() {
           setComments(template.comments || "");
         }
 
-        // If the pasted text already contains a GEO ID (e.g. "G10642" as first line),
-        // preserve it — don't overwrite with a brand new ID
-        if (listingId) {
+        // If it was a restricted match, use its ID (transformed)
+        if (transformedRestrictedId) {
+          setSuggestedGeoId(transformedRestrictedId);
+          setNewGeoId(transformedRestrictedId);
+        } else if (listingId) {
+          // If the pasted text already contains a GEO ID (e.g. "G10642" as first line),
+          // preserve it — don't overwrite with a brand new ID
           setSuggestedGeoId(listingId);
           setNewGeoId(listingId);
         } else {
