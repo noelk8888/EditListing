@@ -1477,7 +1477,12 @@ export default function AddListingPage() {
   const confirmAddNew = async (telegramMsg?: string, overrideTargetTab?: "Sheet1" | "Sheet2") => {
     setAdding(true);
     setError(null);
-    const finalTargetTab = overrideTargetTab || targetTab;
+    
+    let finalTargetTab = overrideTargetTab || targetTab;
+    // IF batch mode is running and reading from the default spreadsheet link -> FORCE G-SERIES / SHEET1
+    if (batchActive && batchSheetUrl && batchSheetUrl.includes("1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM")) {
+      finalTargetTab = "Sheet1";
+    }
 
     try {
       const response = await fetch("/api/add-listing", {
