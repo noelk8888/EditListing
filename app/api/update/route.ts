@@ -1,7 +1,7 @@
 import { getPHLDate } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab, appendDisplayRowToSheet } from "@/lib/google-sheets";
+import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab, appendDisplayRowToSheet, SHEET_NAME } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 
@@ -567,7 +567,16 @@ export async function POST(request: Request) {
       if (targetTab === "Sheet1") {
         const backupId = process.env.BACKUP_SPREADSHEET_ID;
         if (backupId) {
-          // Check the ROW NUMBER to match with the LUXE DBASE before syncing
+          // 1. If ID changed (Promotion), delete OLD ID row from Backup sheet first to avoid ghosts
+          if (id !== finalId) {
+            const oldRowInBackup = await findRowByGeoIdInSheet(id, backupId);
+            if (oldRowInBackup) {
+              console.log(`🗑️ Deleting ghost record ${id} from backup row ${oldRowInBackup}...`);
+              await deleteRowFromSheet(backupId, SHEET_NAME, oldRowInBackup);
+            }
+          }
+
+          // 2. Check the ROW NUMBER to match with the LUXE DBASE before syncing
           const exactMasterRow = await findRowByGeoIdInSheet(finalId, spreadsheetId, targetTab);
           if (exactMasterRow) {
             console.log(`🔒 Syncing COPY LUXE strictly to matched master row: ${exactMasterRow}`);

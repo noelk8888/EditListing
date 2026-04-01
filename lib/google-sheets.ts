@@ -8,7 +8,7 @@ const SCOPES = [
   "https://www.googleapis.com/auth/drive",
   "https://www.googleapis.com/auth/drive.file"
 ];
-const SHEET_NAME = "Sheet1";
+export const SHEET_NAME = "Sheet1";
 
 // Format a numeric string as X,XXX,XXX.XX for GSheet display (Col AS, AU, etc.)
 const formatPriceForSheet = (val: string): string => {
