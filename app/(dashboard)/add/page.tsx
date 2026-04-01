@@ -563,7 +563,10 @@ export default function AddListingPage() {
     setSuggestedGeoId("");
     setNewGeoId("");
     setGeoIdConfirmed(false);
-    const finalTargetTab = permissions.sheet2 ? "Sheet2" : "Sheet1";
+    let finalTargetTab: "Sheet1" | "Sheet2" = permissions.sheet2 ? "Sheet2" : "Sheet1";
+    if (batchActive && batchSheetUrl && batchSheetUrl.includes("1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM")) {
+      finalTargetTab = "Sheet1";
+    }
     setTargetTab(finalTargetTab);
 
     try {
