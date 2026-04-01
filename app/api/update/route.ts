@@ -137,6 +137,7 @@ export async function POST(request: Request) {
       by_col,
       bz_col,
       location_verified,
+      targetTab: incomingTargetTab,
     } = body;
 
     if (!id) {
@@ -218,9 +219,15 @@ export async function POST(request: Request) {
         : (lat === "" || long === "" ? null : (map_link || null));
 
     // Determine targetTab and finalId early to ensure correct cleaning and consistency
-    const targetTab = batch_source_tab_name || "Sheet1";
-    const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
+    let targetTab = incomingTargetTab || batch_source_tab_name || "Sheet1";
     let finalId = id;
+
+    // Force G-series and A-series to always use Sheet1 as targetTab to prevent accidental Sheet2 writes
+    if (finalId.startsWith("G") || finalId.startsWith("A")) {
+      targetTab = "Sheet1";
+    }
+
+    const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
 
     // Handle B -> G transformation for promotion
     if (sourceTab === "Sheet2" && targetTab === "Sheet1" && id.startsWith("B")) {
@@ -284,7 +291,7 @@ export async function POST(request: Request) {
         "SPONSOR START": sponsor_start || null,
         "SPONSOR END": sponsor_end || null,
         "PHOTO": photo_link || null,
-        "SOURCE_TAB": batch_source_tab_name || "Sheet1",
+        "SOURCE_TAB": targetTab,
         "MAP VERIFIED": location_verified 
             ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
             : (bv_col || null),
@@ -502,8 +509,17 @@ export async function POST(request: Request) {
 
         console.log(`🚀 Promoting/Moving listing ${id} from ${sourceTab} to ${targetTab}${isIdChanged ? ` with new ID ${finalId}` : ""}...`);
         
-        // 1. Add to destination sheet with finalId (new G-series or existing A/G)
-        await addNewGSheetRow(displayData, finalId, syncData, updatedBy, undefined, targetTab);
+        // Check if destination row already exists to avoid duplicates during self-healing
+        const existingRowInTarget = await findRowByGeoIdInSheet(finalId, spreadsheetId, targetTab);
+        
+        if (existingRowInTarget) {
+          console.log(`⚠️ Listing ${finalId} already exists in ${targetTab} (Self-healing). Updating in place...`);
+          await updateSyncColumns(finalId, syncData, summary || "", noteConfig, undefined, targetTab);
+          await updateDisplayColumns(finalId, displayData, summary || "", noteConfig, undefined, targetTab);
+        } else {
+          // 1. Add to destination sheet with finalId (new G-series or existing A/G)
+          await addNewGSheetRow(displayData, finalId, syncData, updatedBy, undefined, targetTab);
+        }
         
         // 2. Delete from source sheet (old B-series or existing A/G)
         const oldRow = await findRowByGeoIdInSheet(id, spreadsheetId, sourceTab);

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database } from "lucide-react";
+import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 import { BackupModal } from "@/components/BackupModal";
@@ -18,6 +18,7 @@ interface NavProps {
     image?: string | null;
     role?: string | null;
   };
+  permissions?: Record<string, boolean>;
 }
 
 const ROLE_BADGE: Record<string, { label: string; className: string }> = {
@@ -25,7 +26,7 @@ const ROLE_BADGE: Record<string, { label: string; className: string }> = {
   EDITOR: { label: "ED", className: "bg-green-100 text-green-700" },
 };
 
-export function Nav({ user }: NavProps) {
+export function Nav({ user, permissions }: NavProps) {
   const pathname = usePathname();
   const role = user?.role || "";
   const { theme, setTheme } = useTheme();
@@ -40,7 +41,10 @@ export function Nav({ user }: NavProps) {
         ]
       : []),
     ...(role === "SUPERADMIN"
-      ? [{ href: "/admin/permissions", label: "Permissions", icon: ShieldCheck }]
+      ? [
+          { href: "/admin/permissions", label: "Permissions", icon: ShieldCheck },
+          { href: "/admin/groups", label: "Telegram Hub", icon: Send },
+        ]
       : []),
   ];
 

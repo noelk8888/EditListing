@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2, Play, Pause } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SupabaseListing, fetchSpearheadedByNames } from "@/lib/supabase";
+import { SupabaseListing, fetchSpearheadedByNames, SupabaseTelegramGroup, fetchTelegramGroups } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
 import { LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 import { useToast } from "@/components/ui/use-toast";
@@ -187,6 +188,8 @@ export default function AddListingPage() {
   const [telegramLine3, setTelegramLine3] = useState(""); // broker
   const [telegramLine4, setTelegramLine4] = useState(""); // ownership
   const [telegramGroups, setTelegramGroups] = useState<string[]>(["DIRECT", "RESIDENTIAL", "UPDATE LISTING", "TEST"]);
+  const [allTelegramGroups, setAllTelegramGroups] = useState<SupabaseTelegramGroup[]>([]);
+  const [telegramSearch, setTelegramSearch] = useState("");
 
   // === PERMISSIONS ===
   const [targetTab, setTargetTab] = useState<"Sheet1" | "Sheet2">("Sheet1");
@@ -194,6 +197,7 @@ export default function AddListingPage() {
   const [pendingUpdateTab, setPendingUpdateTab] = useState<"Sheet1" | "Sheet2" | null>(null);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const showTelegramProHub = !!(permissions.sheet2 || permissions.telegram_pro_hub);
 
   // Normalize MM/DD/YYYY or "Month DD, YYYY" → YYYY-MM-DD for date inputs
   const normalizeGSheetDate = (d: string) => {
@@ -223,7 +227,40 @@ export default function AddListingPage() {
         }
       })
       .catch(() => setPermissionsLoaded(true));
+
+    // Fetch Telegram groups from the Admin API (uses service role key — always returns all groups)
+    fetch("/api/admin/groups")
+      .then(r => r.json())
+      .then(d => setAllTelegramGroups(d.groups || []))
+      .catch(err => console.error("Failed to load Telegram groups:", err));
   }, []);
+
+  const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string) => {
+    if (allTelegramGroups.length === 0) return;
+    
+    const fields = [building, area, barangay, city, summary].map(f => (f || "").toLowerCase().trim());
+
+    setTelegramGroups(prev => {
+      const selected = new Set(prev);
+      allTelegramGroups.forEach(group => {
+        // 1. Keyword match (existing)
+        const kwMatch = group.keywords.some(kw => {
+          const lowerKw = kw.toLowerCase().trim();
+          if (!lowerKw) return false;
+          return fields.some(field => field.includes(lowerKw));
+        });
+
+        // 2. Name match (new) — strip the " x Luxe Realty" part
+        const cleanName = group.name.replace(/\s*x\s*Luxe\s*Realty/i, "").toLowerCase().trim();
+        const nameMatch = cleanName && cleanName.length > 3 && fields.some(field => field.includes(cleanName));
+
+        if (kwMatch || nameMatch) {
+          selected.add(group.name);
+        }
+      });
+      return Array.from(selected);
+    });
+  }, [allTelegramGroups]);
 
   const steps: { key: Step; label: string; number: number }[] = [
     { key: "paste", label: "Paste Listing", number: 1 },
@@ -232,6 +269,13 @@ export default function AddListingPage() {
   ];
 
   const currentStepIndex = steps.findIndex(s => s.key === step);
+
+  // Auto-select Telegram groups when switching to 'check' step
+  useEffect(() => {
+    if (showTelegramProHub && step === "check" && (editArea || editBuilding || editBarangay || editCity)) {
+      autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText);
+    }
+  }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, autoSelectGroups]);
 
   const handlePaste = async () => {
     try {
@@ -1090,9 +1134,9 @@ export default function AddListingPage() {
   }, [batchIndex]);
 
   // Auto-toggle today and set date when any input changes
-  const handleInputChange = <T,>(setter: (value: T) => void) => (value: T) => {
+  const handleInputChange = <T,>(setter: (value: T) => void, skipToggle = false) => (value: T) => {
     setter(value);
-    if (!todayToggle) {
+    if (!todayToggle && !skipToggle) {
       setTodayToggle(true);
       setDateUpdated(getTodayDate());
     }
@@ -1175,7 +1219,8 @@ export default function AddListingPage() {
       setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
       const isBusiness = editType?.toLowerCase().includes("business") || propertyType?.toLowerCase().includes("business");
-      const autoGroups = [
+      
+      const defaultGroups = [
         ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
         ...(commercial || industrial ? ["COMMERCIAL AND INDUSTRIAL"] : []),
@@ -1184,7 +1229,8 @@ export default function AddListingPage() {
         "UPDATE LISTING",
         "TEST",
       ];
-      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING", "TEST"]);
+      // Merge defaults with existing (smart-matched) groups
+      setTelegramGroups(prev => Array.from(new Set([...prev, ...defaultGroups])));
       setShowTelegramModal(true);
     } else {
       confirmUpdate(undefined, overrideTargetTab);
@@ -1306,6 +1352,8 @@ export default function AddListingPage() {
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: telegramGroups,
           write_to_backup: backupStatus === "match" || (backupStatus === "conflict" && conflictResolved),
+          // Primary target tab (Sheet1 or Sheet2)
+          targetTab: overrideTargetTab || sourceTab || "Sheet1",
           // batch writeback: write existing GEO ID to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
@@ -1313,7 +1361,6 @@ export default function AddListingPage() {
             batch_row_number: batchRows[batchIndex].rowNumber,
             batch_source_tab_name: overrideTargetTab || batchSourceTabName || undefined,
           } : {}),
-          ...(!batchActive && (overrideTargetTab || sourceTab) ? { batch_source_tab_name: overrideTargetTab || sourceTab } : {}),
         }),
       });
 
@@ -2793,7 +2840,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     {/* Row 10: COMMENTS, SPONSOR START, SPONSOR END */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                      <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
+                      <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
                     </div>
                   </div>
                 </div>
@@ -3081,7 +3128,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     {/* Row 9: COMMENTS, SPONSOR START, SPONSOR END */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                      <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
+                      <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
                     </div>
                   </div>
                 </div>
@@ -3469,7 +3516,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     type="url"
                     placeholder="https://photos.app.goo.gl/..."
                     value={photosLink}
-                    onChange={(e) => setPhotosLink(e.target.value)}
+                    onChange={(e) => handleInputChange(setPhotosLink, true)(e.target.value)}
                     className="h-8 text-sm"
                   />
                 </div>
@@ -3614,7 +3661,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   {/* Row 9: comments, sponsor start, sponsor end */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                    <Input value={comments} onChange={(e) => handleInputChange(setComments)(e.target.value)} className="h-8 text-sm" />
+                    <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
                   </div>
                 </div>
               </div>
@@ -3716,102 +3763,159 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
         </div>
       )}
 
-      {showTelegramModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-background rounded-lg p-6 w-full max-w-md shadow-xl space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              <Send className="h-5 w-5 text-blue-600" />
-              Telegram Post
-            </h3>
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Group</Label>
-                <div className="flex gap-3 flex-wrap">
-                  {["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COMMERCIAL AND INDUSTRIAL", "BUSINESS FOR SALE", "TEST"].map(g => (
-                    <label key={g} className="flex items-center gap-1.5 cursor-pointer text-sm">
-                      <input
-                        type="checkbox"
-                        value={g}
-                        checked={telegramGroups.includes(g)}
-                        onChange={() => setTelegramGroups(prev =>
-                          prev.includes(g) ? prev.filter(x => x !== g) : [...prev, g]
-                        )}
-                        className="accent-blue-600"
-                      />
-                      {g}
-                    </label>
-                  ))}
+      {showTelegramModal && (() => {
+        const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COMMERCIAL AND INDUSTRIAL", "BUSINESS FOR SALE", "TEST"];
+        const specificGroups = allTelegramGroups.filter(g => !META_GROUPS.includes(g.name));
+        const toggleGroup = (name: string) =>
+          setTelegramGroups(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]);
+
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div 
+              className={cn(
+                "bg-background rounded-lg shadow-xl w-full flex overflow-hidden",
+                showTelegramProHub ? "max-w-4xl" : "max-w-md"
+              )} 
+              style={{ maxHeight: "90vh" }}
+            >
+
+              {/* LEFT PANEL — form */}
+              <div className={cn(
+                "flex flex-col p-6 overflow-y-auto",
+                showTelegramProHub ? "w-[420px] shrink-0 border-r" : "w-full"
+              )}>
+                <h3 className="font-semibold text-lg flex items-center gap-2 mb-4">
+                  <Send className="h-5 w-5 text-blue-600" />
+                  Telegram Post
+                </h3>
+
+                {/* Meta group checkboxes */}
+                <div className="mb-4">
+                  <Label className="text-xs text-muted-foreground mb-2 block">Group</Label>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                    {META_GROUPS.map(name => (
+                      <label key={name} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                        <input
+                          type="checkbox"
+                          checked={telegramGroups.includes(name)}
+                          onChange={() => toggleGroup(name)}
+                          className="accent-blue-600 h-3.5 w-3.5"
+                        />
+                        <span className={telegramGroups.includes(name) ? "font-medium text-blue-700" : ""}>{name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 flex-1">
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 1 (Header)</Label>
+                    <Input value={telegramLine1} onChange={e => setTelegramLine1(e.target.value)} className="font-mono text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 2 (Status)</Label>
+                    <select
+                      value={telegramLine2}
+                      onChange={e => setTelegramLine2(e.target.value)}
+                      className="w-full border rounded-md px-3 py-2 text-sm bg-background"
+                    >
+                      <option value="">(none — skip)</option>
+                      <option value="SOLD">SOLD</option>
+                      <option value="LEASED OUT">LEASED OUT</option>
+                      <option value="UPDATED FORMAT">UPDATED FORMAT</option>
+                      <option value="OFF THE MARKET">OFF THE MARKET</option>
+                      <option value="UNDER NEGO">UNDER NEGO</option>
+                      <option value="UNDECISIVE SELLER">UNDECISIVE SELLER</option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 3 (Notes — optional)</Label>
+                    <Textarea
+                      value={telegramLine3Notes}
+                      onChange={e => setTelegramLine3Notes(e.target.value)}
+                      className="min-h-16 text-sm"
+                      placeholder="Add any notes here... (leave blank to skip)"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 4 (Broker / Owner)</Label>
+                    <Input value={telegramLine3} onChange={e => setTelegramLine3(e.target.value)} className="text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 5 (Listing Ownership)</Label>
+                    <Input value={telegramLine4} onChange={e => setTelegramLine4(e.target.value)} className="text-sm" placeholder="Listing ownership (optional)" />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 justify-end mt-4 pt-3 border-t">
+                  <Button variant="outline" onClick={() => setShowTelegramModal(false)} disabled={updating || adding || isSendingOnly}>
+                    <X className="mr-2 h-4 w-4" />Cancel
+                  </Button>
+                  <Button onClick={handleSendOnlyTelegram} disabled={updating || adding || isSendingOnly} className="bg-blue-600 hover:bg-blue-700 text-white">
+                    {isSendingOnly ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</> : <><Send className="mr-2 h-4 w-4" />SEND ONLY</>}
+                  </Button>
+                  <Button onClick={handleTelegramConfirm} disabled={updating || adding || isSendingOnly} className="bg-green-600 hover:bg-green-700 text-white">
+                    <Save className="mr-2 h-4 w-4" />Send &amp; Update
+                  </Button>
                 </div>
               </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 1 (Header)</Label>
-                <Input
-                  value={telegramLine1}
-                  onChange={e => setTelegramLine1(e.target.value)}
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 2 (Status)</Label>
-                <select
-                  value={telegramLine2}
-                  onChange={e => setTelegramLine2(e.target.value)}
-                  className="w-full border rounded-md px-3 py-2 text-sm bg-background"
-                >
-                  <option value="">(none — skip)</option>
-                  <option value="SOLD">SOLD</option>
-                  <option value="LEASED OUT">LEASED OUT</option>
-                  <option value="UPDATED FORMAT">UPDATED FORMAT</option>
-                  <option value="OFF THE MARKET">OFF THE MARKET</option>
-                  <option value="UNDER NEGO">UNDER NEGO</option>
-                  <option value="UNDECISIVE SELLER">UNDECISIVE SELLER</option>
-                </select>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 3 (Notes — optional)</Label>
-                <Textarea
-                  value={telegramLine3Notes}
-                  onChange={e => setTelegramLine3Notes(e.target.value)}
-                  className="min-h-16 text-sm"
-                  placeholder="Add any notes here... (leave blank to skip)"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 4 (Broker / Owner)</Label>
-                <Input
-                  value={telegramLine3}
-                  onChange={e => setTelegramLine3(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Line 5 (Listing Ownership)</Label>
-                <Input
-                  value={telegramLine4}
-                  onChange={e => setTelegramLine4(e.target.value)}
-                  className="text-sm"
-                  placeholder="Listing ownership (optional)"
-                />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowTelegramModal(false)} disabled={updating || adding || isSendingOnly}>
-                <X className="mr-2 h-4 w-4" />Cancel
-              </Button>
-              <Button onClick={handleSendOnlyTelegram} disabled={updating || adding || isSendingOnly} className="bg-blue-600 hover:bg-blue-700 text-white">
-                {isSendingOnly ? (
-                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</>
-                ) : (
-                  <><Send className="mr-2 h-4 w-4" />SEND ONLY</>
-                )}
-              </Button>
-              <Button onClick={handleTelegramConfirm} disabled={updating || adding || isSendingOnly} className="bg-green-600 hover:bg-green-700 text-white">
-                <Save className="mr-2 h-4 w-4" />Send & Update
-              </Button>
+
+              {/* RIGHT PANEL — specific group search */}
+              {showTelegramProHub && (
+                <div className="flex flex-col p-6 flex-1 min-w-0">
+                  <Label className="text-xs text-muted-foreground mb-2 block">Group</Label>
+                  <div className="relative mb-2">
+                    <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search groups..."
+                      value={telegramSearch}
+                      onChange={(e) => setTelegramSearch(e.target.value)}
+                      className="pl-8 h-9 text-sm"
+                    />
+                  </div>
+                  <div className="border rounded-md flex-1 overflow-y-auto p-2 bg-slate-50/50">
+                    {specificGroups
+                      .filter(g =>
+                        g.name.toLowerCase().includes(telegramSearch.toLowerCase()) ||
+                        telegramGroups.includes(g.name)
+                      )
+                      .sort((a, b) => {
+                        const aSelected = telegramGroups.includes(a.name);
+                        const bSelected = telegramGroups.includes(b.name);
+                        if (aSelected && !bSelected) return -1;
+                        if (!aSelected && bSelected) return 1;
+                        return a.name.localeCompare(b.name);
+                      })
+                      .map(group => (
+                        <label key={group.id} className={cn(
+                          "flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors text-sm",
+                          telegramGroups.includes(group.name) ? "bg-blue-50 text-blue-700" : "hover:bg-slate-100"
+                        )}>
+                          <input
+                            type="checkbox"
+                            checked={telegramGroups.includes(group.name)}
+                            onChange={() => toggleGroup(group.name)}
+                            className="accent-blue-600 h-3.5 w-3.5 shrink-0"
+                          />
+                          <span className="truncate">{group.name}</span>
+                        </label>
+                      ))}
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] text-muted-foreground px-1 mt-1">
+                    <span>{telegramGroups.length} selected</span>
+                    {telegramGroups.length > 0 && (
+                      <button onClick={() => setTelegramGroups([])} className="text-blue-600 hover:underline" type="button">
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );

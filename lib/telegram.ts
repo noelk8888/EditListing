@@ -1,3 +1,5 @@
+import { fetchTelegramChatIds } from "./supabase";
+
 // Map group label → env var name
 const GROUP_ENV_MAP: Record<string, string> = {
   "DIRECT": "TELEGRAM_CHAT_DIRECT",
@@ -26,15 +28,24 @@ export async function sendTelegramNotification(
 
   if (groups && groups.length > 0) {
     console.log("Resolving Telegram groups:", groups);
-    // Resolve each selected group to its chat ID env var
+    
+    const dbLookupGroups: string[] = [];
+
+    // 1. First check ENV vars for legacy groups
     for (const g of groups) {
       const envKey = GROUP_ENV_MAP[g];
       const id = envKey ? process.env[envKey] : undefined;
       if (id) {
         chatIds.push(id.trim());
       } else {
-        console.warn(`⚠️ Telegram group "${g}" (env: ${envKey}) has no chat ID set.`);
+        dbLookupGroups.push(g);
       }
+    }
+
+    // 2. Fetch remaining from Supabase
+    if (dbLookupGroups.length > 0) {
+      const dbIds = await fetchTelegramChatIds(dbLookupGroups);
+      chatIds = Array.from(new Set([...chatIds, ...dbIds]));
     }
   }
 

@@ -6,6 +6,7 @@ export type Feature =
   | "edit_listing"
   | "delete_listing"
   | "telegram_send"
+  | "telegram_pro_hub"
   | "batch_review"
   | "ai_extract"
   | "geocoding"
@@ -22,6 +23,7 @@ export const ALL_FEATURES: Feature[] = [
   "edit_listing",
   "delete_listing",
   "telegram_send",
+  "telegram_pro_hub",
   "batch_review",
   "ai_extract",
   "geocoding",
@@ -35,20 +37,21 @@ export const ALL_FEATURES: Feature[] = [
 ];
 
 export const FEATURE_LABELS: Record<Feature, string> = {
-  add_listing:    "Add Listing",
-  edit_listing:   "Edit Listing",
-  delete_listing: "Delete Listing",
-  telegram_send:  "Send Telegram Notifications",
-  batch_review:   "Batch Review Mode",
-  ai_extract:     "AI Extract (Claude)",
-  geocoding:      "Geocoding (Lat/Long)",
-  view_pricing:   "View Pricing",
-  view_contact:   "View Contact Info",
-  view_geo_id:    "View GEO IDs",
-  view_photos:    "View Photos",
-  export_data:    "Export Data",
-  manage_users:   "Manage Users",
-  sheet2:         "Sheet2 Features (Superadmin only)",
+  add_listing:      "Add Listing",
+  edit_listing:     "Edit Listing",
+  delete_listing:   "Delete Listing",
+  telegram_send:    "Send Telegram Notifications",
+  telegram_pro_hub: "Telegram Pro Hub",
+  batch_review:     "Batch Review Mode",
+  ai_extract:       "AI Extract (Claude)",
+  geocoding:        "Geocoding (Lat/Long)",
+  view_pricing:     "View Pricing",
+  view_contact:     "View Contact Info",
+  view_geo_id:      "View GEO IDs",
+  view_photos:      "View Photos",
+  export_data:      "Export Data",
+  manage_users:     "Manage Users",
+  sheet2:           "Sheet2 Features (Superadmin only)",
 };
 
 export const FEATURE_GROUPS: { label: string; features: Feature[] }[] = [
@@ -58,7 +61,7 @@ export const FEATURE_GROUPS: { label: string; features: Feature[] }[] = [
   },
   {
     label: "Communication",
-    features: ["telegram_send"],
+    features: ["telegram_send", "telegram_pro_hub"],
   },
   {
     label: "Power Tools",
@@ -77,36 +80,38 @@ export const FEATURE_GROUPS: { label: string; features: Feature[] }[] = [
 // ── Role defaults (used when no DB override exists) ───────────────────────────
 export const ROLE_DEFAULTS: Record<"ADMIN" | "EDITOR", Record<Feature, boolean>> = {
   ADMIN: {
-    add_listing:    true,
-    edit_listing:   true,
-    delete_listing: true,
-    telegram_send:  true,
-    batch_review:   true,
-    ai_extract:     true,
-    geocoding:      true,
-    view_pricing:   true,
-    view_contact:   true,
-    view_geo_id:    true,
-    view_photos:    true,
-    export_data:    true,
-    manage_users:   true,
-    sheet2:         false,
+    add_listing:      true,
+    edit_listing:     true,
+    delete_listing:   true,
+    telegram_send:    true,
+    telegram_pro_hub: false,
+    batch_review:     true,
+    ai_extract:       true,
+    geocoding:        true,
+    view_pricing:     true,
+    view_contact:     true,
+    view_geo_id:      true,
+    view_photos:      true,
+    export_data:      true,
+    manage_users:     true,
+    sheet2:           false,
   },
   EDITOR: {
-    add_listing:    false,
-    edit_listing:   false,
-    delete_listing: false,
-    telegram_send:  false,
-    batch_review:   false,
-    ai_extract:     false,
-    geocoding:      false,
-    view_pricing:   false,
-    view_contact:   false,
-    view_geo_id:    false,
-    view_photos:    true,
-    export_data:    false,
-    manage_users:   false,
-    sheet2:         false,
+    add_listing:      false,
+    edit_listing:     false,
+    delete_listing:   false,
+    telegram_send:    false,
+    telegram_pro_hub: false,
+    batch_review:     false,
+    ai_extract:       false,
+    geocoding:        false,
+    view_pricing:     false,
+    view_contact:     false,
+    view_geo_id:      false,
+    view_photos:      true,
+    export_data:      false,
+    manage_users:     false,
+    sheet2:           false,
   },
 };
 

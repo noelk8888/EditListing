@@ -149,3 +149,47 @@ export async function fetchSpearheadedByNames(): Promise<string[]> {
     return diff !== 0 ? diff : a.localeCompare(b);
   });
 }
+
+export interface SupabaseTelegramGroup {
+  id: string;
+  name: string;
+  keywords: string[];
+  invite_link: string | null;
+  chat_id: string | null;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export async function fetchTelegramGroups(): Promise<SupabaseTelegramGroup[]> {
+  const { data, error } = await supabase
+    .from('luxe_telegram_groups')
+    .select('*')
+    .eq('is_active', true)
+    .order('name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching telegram groups:', error);
+    return [];
+  }
+
+  return (data as SupabaseTelegramGroup[]) || [];
+}
+
+export async function fetchTelegramChatIds(groupNames: string[]): Promise<string[]> {
+  if (!groupNames || groupNames.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from('luxe_telegram_groups')
+    .select('chat_id')
+    .in('name', groupNames)
+    .not('chat_id', 'is', null)
+    .not('chat_id', 'eq', '');
+
+  if (error) {
+    console.error('Error fetching chat IDs from Supabase:', error);
+    return [];
+  }
+
+  return (data as { chat_id: string }[]).map(row => row.chat_id.trim());
+}
