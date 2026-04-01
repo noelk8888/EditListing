@@ -1370,9 +1370,10 @@ export async function updateDisplayColumnsInSheet(
   geoId: string,
   data: GSheetDisplayData,
   spreadsheetId: string,
-  newGeoId?: string
+  newGeoId?: string,
+  overrideRowNumber?: number
 ): Promise<boolean> {
-  const rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId);
+  const rowNumber = overrideRowNumber || await findRowByGeoIdInSheet(geoId, spreadsheetId);
   if (!rowNumber) {
     console.log(`Backup sync skipped: GEO ID ${geoId} not found in ${spreadsheetId}`);
     return false;

@@ -546,7 +546,13 @@ export async function POST(request: Request) {
       if (targetTab === "Sheet1") {
         const backupId = process.env.BACKUP_SPREADSHEET_ID;
         if (backupId) {
-          const synced = await updateDisplayColumnsInSheet(id, displayData, backupId, finalId).catch((err) => {
+          // Check the ROW NUMBER to match with the LUXE DBASE before syncing
+          const exactMasterRow = await findRowByGeoIdInSheet(finalId, spreadsheetId, targetTab);
+          if (exactMasterRow) {
+            console.log(`🔒 Syncing COPY LUXE strictly to matched master row: ${exactMasterRow}`);
+          }
+
+          const synced = await updateDisplayColumnsInSheet(id, displayData, backupId, finalId, exactMasterRow || undefined).catch((err) => {
             console.warn("⚠️ Backup update failed:", err);
             return false;
           });
