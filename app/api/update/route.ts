@@ -246,10 +246,7 @@ export async function POST(request: Request) {
     console.log("send_telegram:", send_telegram);
     console.log("telegram_groups:", telegram_groups);
 
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .update({
-        "GEO ID": finalId,
+    const cleanSupabaseFields = {
         "SOURCE_TAB": targetTab,
         "REGION": region || null,
         "PROVINCE": province || null,
@@ -275,7 +272,6 @@ export async function POST(request: Request) {
         "LISTING OWNERSHIP": listing_ownership || null,
         "DATE RECV": date_received || null,
         "DATE UPDATED": date_updated || null,
-        // MORE INFO fields
         "FB LINK": fb_link || null,
         "MAP LINK": derivedMapLink || null,
         "Sale Price/Sqm": sale_price_per_sqm || null,
@@ -297,7 +293,11 @@ export async function POST(request: Request) {
         "MAP VERIFIED": location_verified 
             ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
             : (bv_col || null),
-      })
+    };
+
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .update(cleanSupabaseFields)
       .eq('"GEO ID"', id)
       .select('"GEO ID"');
 
@@ -527,6 +527,27 @@ export async function POST(request: Request) {
         if (oldRow) {
           console.log(`🗑️ Deleting old record from ${sourceTab} row ${oldRow}...`);
           await deleteRowFromSheet(spreadsheetId, sourceTab, oldRow);
+        }
+
+        // 3. Handle Supabase record change if ID was transformed
+        if (isIdChanged) {
+          console.log(`🔄 Updating Supabase for ID change: ${id} -> ${finalId}`);
+          
+          // Delete old B-series record
+          await supabase.from(TABLE_NAME).delete().eq('"GEO ID"', id);
+          
+          // Insert new G-series record (bypass "Cannot change GEO ID" trigger by explicitly recreating)
+          const newSupabaseRecord = {
+             "GEO ID": finalId,
+             ...cleanSupabaseFields
+          };
+
+          const { error: insertErr } = await supabase.from(TABLE_NAME).insert(newSupabaseRecord);
+          if (insertErr) {
+            console.error("❌ Failed to insert new Supabase record after ID change:", insertErr);
+          } else {
+            console.log(`✅ Supabase record ${finalId} inserted securely.`);
+          }
         }
 
       } else {
