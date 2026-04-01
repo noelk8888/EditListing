@@ -225,6 +225,9 @@ export default function AddListingPage() {
         if (d.permissions?.sheet2) {
           setTargetTab("Sheet2");
         }
+        if (d.role === "ADMIN") {
+          setTelegramPostEnabled(true);
+        }
       })
       .catch(() => setPermissionsLoaded(true));
 
