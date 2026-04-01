@@ -727,7 +727,7 @@ export default function AddListingPage() {
     } finally {
       setSearching(false);
     }
-  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab]);
+  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab, permissions, batchActive, batchSheetUrl]);
 
   // Keep Map Link in sync with lat/long coordinates
   useEffect(() => {
