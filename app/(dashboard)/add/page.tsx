@@ -164,6 +164,7 @@ export default function AddListingPage() {
   const [batchPaused, setBatchPaused] = useState(false);
   const [isSendingOnly, setIsSendingOnly] = useState(false);
   const [batchAutoReview, setBatchAutoReview] = useState(false); // true = auto-skip identical, false = manual review every row
+  const [batchForceSheet1, setBatchForceSheet1] = useState(true); // default master override to Sheet1
   const [flashOn, setFlashOn] = useState(false);
   const [flashDismissed, setFlashDismissed] = useState(false);
   const [pendingExtractUpdate, setPendingExtractUpdate] = useState(false);
@@ -564,7 +565,7 @@ export default function AddListingPage() {
     setNewGeoId("");
     setGeoIdConfirmed(false);
     let finalTargetTab: "Sheet1" | "Sheet2" = permissions.sheet2 ? "Sheet2" : "Sheet1";
-    if (batchActive && batchSheetUrl && batchSheetUrl.includes("1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM")) {
+    if (batchActive && batchForceSheet1) {
       finalTargetTab = "Sheet1";
     }
     setTargetTab(finalTargetTab);
@@ -727,7 +728,7 @@ export default function AddListingPage() {
     } finally {
       setSearching(false);
     }
-  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab, permissions, batchActive, batchSheetUrl]);
+  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab, permissions, batchActive, batchForceSheet1]);
 
   // Keep Map Link in sync with lat/long coordinates
   useEffect(() => {
@@ -1482,8 +1483,8 @@ export default function AddListingPage() {
     setError(null);
     
     let finalTargetTab = overrideTargetTab || targetTab;
-    // IF batch mode is running and reading from the default spreadsheet link -> FORCE G-SERIES / SHEET1
-    if (batchActive && batchSheetUrl && batchSheetUrl.includes("1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM")) {
+    // IF batch mode is running and master toggle is ON -> FORCE G-SERIES / SHEET1
+    if (batchActive && batchForceSheet1) {
       finalTargetTab = "Sheet1";
     }
 
@@ -1861,6 +1862,18 @@ export default function AddListingPage() {
               onChange={e => setBatchSheetUrl(e.target.value)}
               className="h-8 text-sm flex-1"
             />
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <input 
+              type="checkbox" 
+              id="batchForceSheet1" 
+              checked={batchForceSheet1} 
+              onChange={e => setBatchForceSheet1(e.target.checked)} 
+              className="accent-blue-600 h-4 w-4 rounded"
+            />
+            <Label htmlFor="batchForceSheet1" className="text-sm font-medium cursor-pointer text-blue-700">
+              Force new batch listings to Sheet1 (G-Series)
+            </Label>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
