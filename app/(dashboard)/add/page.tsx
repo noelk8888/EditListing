@@ -1360,7 +1360,7 @@ export default function AddListingPage() {
           telegram_groups: telegramGroups,
           write_to_backup: backupStatus === "match" || (backupStatus === "conflict" && conflictResolved),
           // Primary target tab (Sheet1 or Sheet2)
-          targetTab: overrideTargetTab || sourceTab || "Sheet1",
+          targetTab: (batchActive && batchForceSheet1) ? "Sheet1" : (overrideTargetTab || sourceTab || "Sheet1"),
           // batch writeback: write existing GEO ID to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",

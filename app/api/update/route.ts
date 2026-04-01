@@ -249,6 +249,8 @@ export async function POST(request: Request) {
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .update({
+        "GEO ID": finalId,
+        "SOURCE_TAB": targetTab,
         "REGION": region || null,
         "PROVINCE": province || null,
         "CITY": city || null,
@@ -292,12 +294,10 @@ export async function POST(request: Request) {
         "SPONSOR START": sponsor_start || null,
         "SPONSOR END": sponsor_end || null,
         "PHOTO": photo_link || null,
-        "SOURCE_TAB": targetTab,
         "MAP VERIFIED": location_verified 
             ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
             : (bv_col || null),
       })
-
       .eq('"GEO ID"', id)
       .select('"GEO ID"');
 
@@ -529,55 +529,9 @@ export async function POST(request: Request) {
           await deleteRowFromSheet(spreadsheetId, sourceTab, oldRow);
         }
 
-        // 3. Handle Supabase record change if ID was transformed
-        if (isIdChanged) {
-          console.log(`🔄 Updating Supabase for ID change: ${id} -> ${finalId}`);
-          
-          // Delete old B-series record
-          await supabase.from(TABLE_NAME).delete().eq('"GEO ID"', id);
-          
-          // Insert new G-series record (most data already in the update object above, but we need to re-insert)
-          const newSupabaseRecord = {
-             ...body, // Use the incoming body as a base
-             "GEO ID": finalId,
-             "MAIN": finalId + "\n" + blastedFormat,
-             "SOURCE_TAB": targetTab,
-             // Ensure numeric fields are correctly typed
-             "LOT AREA": lot_area || null,
-             "FLOOR AREA": floor_area || null,
-             "Extracted Sale Price": price || null,
-             "Extracted Lease Price": lease_price || null,
-             "Sale Price/Sqm": sale_price_per_sqm || null,
-             "Lease Price/Sqm": lease_price_per_sqm || null,
-             // Ensure boolean/checkbox fields are correctly handled
-             "RESIDENTIAL": residential || null,
-             "COMMERCIAL": commercial || null,
-             "INDUSTRIAL": industrial || null,
-             "AGRICULTURAL": agricultural || null,
-             "MAP VERIFIED": location_verified 
-                ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
-                : (bv_col || null),
-          };
-
-          // Clean up fields that aren't in the Supabase schema
-          const fieldsToDelete = [
-            'id', 'send_telegram', 'telegram_post_message', 'telegram_groups', 
-            'batch_source_sheet_id', 'batch_source_sheet_gid', 'batch_row_number', 
-            'batch_source_tab_name', 'col_q', 'col_r', 'location_verified',
-            'summary', 'sale_or_lease', 'location_verified', 'bv_col'
-          ];
-          fieldsToDelete.forEach(f => delete (newSupabaseRecord as any)[f]);
-
-          const { error: insertErr } = await supabase.from(TABLE_NAME).insert(newSupabaseRecord);
-          if (insertErr) {
-            console.error("❌ Failed to insert new Supabase record after ID change:", insertErr);
-          } else {
-            console.log(`✅ Supabase record ${finalId} inserted.`);
-          }
-        }
       } else {
         // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-        await updateSyncColumns(id, syncData, summary || "", noteConfig, undefined, targetTab);
+        await updateSyncColumns(finalId, syncData, summary || "", noteConfig, undefined, targetTab);
         console.log("✅ GSheet columns A + Z-BO updated successfully");
 
         const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, targetTab);
@@ -623,8 +577,8 @@ export async function POST(request: Request) {
     let writebackError: string | null = null;
     if (!batch_source_tab_name && batch_source_sheet_id && batch_row_number) {
       try {
-        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, id, batch_source_sheet_gid || undefined, summary || undefined);
-        console.log(`✅ Batch writeback: wrote ${id} to MAIN!AC${batch_row_number}`);
+        await writeBatchSourceGeoId(batch_source_sheet_id, batch_row_number, finalId, batch_source_sheet_gid || undefined, summary || undefined);
+        console.log(`✅ Batch writeback: wrote ${finalId} to MAIN!AC${batch_row_number}`);
       } catch (err) {
         writebackError = err instanceof Error ? err.message : String(err);
         console.error("❌ Batch writeback failed:", writebackError);
