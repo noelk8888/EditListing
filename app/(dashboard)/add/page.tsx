@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { cn } from "@/lib/utils";
+import { cn, getPHLDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,7 +48,7 @@ const parseFormattedNumber = (value: string): string => {
 
 // Get today's date in YYYY-MM-DD format
 const getTodayDate = (): string => {
-  return new Date().toISOString().split('T')[0];
+  return getPHLDate();
 };
 
 // Normalize numeric styles in a string to allow "absolute" comparison
@@ -967,7 +967,7 @@ export default function AddListingPage() {
         else if (val.includes('cobroker') || val.includes('broker')) setDirectOrCobroker('With Cobroker');
       }
       setDateReceived(searchResult.date_received || normalizeGSheetDate(gsheet?.colM || '') || '');
-      const originalDate = searchResult.date_updated || normalizeGSheetDate(gsheet?.colN || '') || new Date().toISOString().split('T')[0];
+      const originalDate = searchResult.date_updated || normalizeGSheetDate(gsheet?.colN || '') || getPHLDate();
       setDateUpdated(originalDate);
       setOriginalDateUpdated(originalDate);
       setAvailable(searchResult.available || "");
@@ -1053,7 +1053,7 @@ export default function AddListingPage() {
   // Default Date Received to today when search returns no existing listing
   useEffect(() => {
     if (searchPerformed && !searchResult) {
-      setDateReceived(new Date().toISOString().split("T")[0]);
+      setDateReceived(getPHLDate());
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchPerformed, searchResult]);
@@ -1199,7 +1199,7 @@ export default function AddListingPage() {
     const today = `${month} ${day}, ${year}`;
 
     if (telegramPostEnabled) {
-      const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const today = new Date(getPHLDate()).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       const formatOwnership = (val: string) => {
         const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
         return result === "Listing Ownership" ? "" : result;
@@ -1434,7 +1434,7 @@ export default function AddListingPage() {
   // Directly perform the save without confirmation OR trigger modal
   const handleSaveNew = () => {
     if (telegramPostEnabled) {
-      const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const today = new Date(getPHLDate()).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       const formatOwnership = (val: string) => {
         const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
         return result === "Listing Ownership" ? "" : result;
@@ -1504,8 +1504,8 @@ export default function AddListingPage() {
           how_many_away: howManyAway,
           listing_ownership: cleanListingOwnership(listingOwnership),
           sale_or_lease: saleOrLease,
-          date_received: dateReceived || new Date().toISOString().split("T")[0],
-          date_updated: dateUpdated || new Date().toISOString().split("T")[0],
+          date_received: dateReceived || getPHLDate(),
+          date_updated: dateUpdated || getPHLDate(),
           map_link: mapLink,
           sale_price_per_sqm: salePricePerSqm ? parseFloat(salePricePerSqm) : null,
           lease_price_per_sqm: leasePricePerSqm ? parseFloat(leasePricePerSqm) : null,

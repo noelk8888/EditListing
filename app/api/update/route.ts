@@ -1,3 +1,4 @@
+import { getPHLDate } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab, appendDisplayRowToSheet } from "@/lib/google-sheets";
@@ -293,7 +294,7 @@ export async function POST(request: Request) {
         "PHOTO": photo_link || null,
         "SOURCE_TAB": targetTab,
         "MAP VERIFIED": location_verified 
-            ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+            ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
             : (bv_col || null),
       })
 
@@ -353,7 +354,7 @@ export async function POST(request: Request) {
         "MAP VERIFIED": locationChanged 
             ? null 
             : (location_verified 
-                ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+                ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
                 : (bv_col || null)),
       });
 
@@ -477,7 +478,7 @@ export async function POST(request: Request) {
         bvCol: locationChanged 
           ? "" 
           : (location_verified 
-              ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+              ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
               : (locationChanged ? "" : (bv_col || ""))),
         bwCol: bw_col || "",
         bxCol: bx_col || "",
@@ -554,7 +555,7 @@ export async function POST(request: Request) {
              "INDUSTRIAL": industrial || null,
              "AGRICULTURAL": agricultural || null,
              "MAP VERIFIED": location_verified 
-                ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split('T')[0])}` 
+                ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
                 : (bv_col || null),
           };
 

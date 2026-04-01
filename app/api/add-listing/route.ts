@@ -1,3 +1,4 @@
+import { getPHLDate } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { 
@@ -211,8 +212,8 @@ export async function POST(request: Request) {
       directCobroker: direct_or_broker || "",
       ownerBroker: owner_broker || "",
       away: how_many_away || "",
-      dateReceived: formatDisplayDate(date_received || new Date().toISOString().split("T")[0]),
-      dateResorted: formatDisplayDate(date_updated || new Date().toISOString().split("T")[0]),
+      dateReceived: formatDisplayDate(date_received || getPHLDate()),
+      dateResorted: formatDisplayDate(date_updated || getPHLDate()),
       available: status || "AVAILABLE",
       listingOwnership: listing_ownership || "",
       colQ: col_q || "",
@@ -250,8 +251,8 @@ export async function POST(request: Request) {
       name: owner_broker || "",
       away: how_many_away || "",
       monthlyDues: monthly_dues || "",
-      dateRecv: formatDisplayDate(date_received || new Date().toISOString().split("T")[0]),
-      dateUpdated: formatDisplayDate(date_updated || new Date().toISOString().split("T")[0]),
+      dateRecv: formatDisplayDate(date_received || getPHLDate()),
+      dateUpdated: formatDisplayDate(date_updated || getPHLDate()),
       listingOwnership: listing_ownership || "",
       latLong: latLongCombined,
       lat: lat || "",
@@ -270,7 +271,7 @@ export async function POST(request: Request) {
       bsPost: bs_post || "",
       btPost: bt_post || "",
       buPost: bu_post || "",
-      bvCol: location_verified ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split("T")[0])}` : "",
+      bvCol: location_verified ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` : "",
       bwCol: bw_col || "",
       bxCol: bx_col || "",
       byCol: by_col || "",
@@ -371,7 +372,7 @@ export async function POST(request: Request) {
       "MONTHLY DUES": monthly_dues || null,
       "SOURCE_TAB": targetTab,
       "MAP VERIFIED": location_verified 
-        ? `Location Verified by ${userGroup} on ${formatDisplayDate(new Date().toISOString().split("T")[0])}` 
+        ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
         : null,
     };
 
