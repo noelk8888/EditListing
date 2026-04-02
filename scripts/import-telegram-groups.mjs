@@ -40,8 +40,8 @@ const groups = [
   {"name":"BDO FORECLOSED PROPERTIES","link":"https://t.me/+xl74sRPHBQk5N2I1"},
   {"name":"BEL AIR","link":"https://t.me/+iV_40FzYE3Q5NjJl"},
   {"name":"BF HOMES","link":"https://t.me/+IaKuQ8IvPDU3YzA1"},
-  {"name":"BGC SALE","link":"https://t.me/+lWvwE12b6Q83M2M9"},
-  {"name":"BGC LEASE","link":"https://t.me/+WqQb9YABc5I5MGI9"},
+  {"name":"BGC SALE","link":"https://t.me/+lWvwE12b6Q83M2M9", "keywords": ["BGC SALE", "BGC", "Bonifacio Global City"]},
+  {"name":"BGC LEASE","link":"https://t.me/+WqQb9YABc5I5MGI9", "keywords": ["BGC LEASE", "BGC", "Bonifacio Global City"]},
   {"name":"BLUE RIDGE","link":"https://t.me/+nTSNs3UI7YdhMGNl"},
   {"name":"BULACAN","link":"https://t.me/+k9xYrwt4cqc0ZjRl"},
   {"name":"CALOOCAN CITY","link":"https://t.me/+_mGsdRrbWr4xNjJl"},
@@ -161,8 +161,8 @@ async function run() {
   const toInsert = groups.map(g => ({
     name: g.name,
     invite_link: g.link,
-    // Add name as the first keyword by default
-    keywords: [g.name],
+    // Use custom keywords if provided, otherwise default to group name
+    keywords: g.keywords || [g.name],
     is_active: true
   }));
 

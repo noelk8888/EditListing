@@ -239,14 +239,24 @@ export default function AddListingPage() {
       .catch(err => console.error("Failed to load Telegram groups:", err));
   }, []);
 
-  const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string) => {
+  const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string) => {
     if (allTelegramGroups.length === 0) return;
     
     const fields = [building, area, barangay, city, summary].map(f => (f || "").toLowerCase().trim());
+    const isLeaseListing = saleOrLease.toLowerCase().includes("lease");
+    const isSaleListing = saleOrLease.toLowerCase().includes("sale");
 
     setTelegramGroups(prev => {
       const selected = new Set(prev);
       allTelegramGroups.forEach(group => {
+        const groupNameUpper = group.name.toUpperCase();
+        const isLeaseGroup = groupNameUpper.includes("LEASE");
+        const isSaleGroup = groupNameUpper.includes("SALE");
+
+        // Skip mismatched types (e.g., don't auto-select SALE group if listing is ONLY Lease)
+        if (isLeaseGroup && !isLeaseListing) return;
+        if (isSaleGroup && !isSaleListing) return;
+
         // 1. Keyword match (existing)
         const kwMatch = group.keywords.some(kw => {
           const lowerKw = kw.toLowerCase().trim();
@@ -258,7 +268,11 @@ export default function AddListingPage() {
         const cleanName = group.name.replace(/\s*x\s*Luxe\s*Realty/i, "").toLowerCase().trim();
         const nameMatch = cleanName && cleanName.length > 3 && fields.some(field => field.includes(cleanName));
 
-        if (kwMatch || nameMatch) {
+        // 3. BGC Special Fallback
+        const isBGCGroup = cleanName.includes("bgc");
+        const bgcMatch = isBGCGroup && fields.some(field => field.includes("bonifacio global city"));
+
+        if (kwMatch || nameMatch || bgcMatch) {
           selected.add(group.name);
         }
       });
@@ -277,9 +291,9 @@ export default function AddListingPage() {
   // Auto-select Telegram groups when switching to 'check' step
   useEffect(() => {
     if (showTelegramProHub && step === "check" && (editArea || editBuilding || editBarangay || editCity)) {
-      autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText);
+      autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText, saleOrLease);
     }
-  }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, autoSelectGroups]);
+  }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, saleOrLease, autoSelectGroups]);
 
   const handlePaste = async () => {
     try {

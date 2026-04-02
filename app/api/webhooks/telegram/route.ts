@@ -42,7 +42,7 @@ export async function POST(req: Request) {
           .select("id, name")
           .is("chat_id", null);
 
-        const titleWords = normalizedTitle.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const titleWords = normalizedTitle.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2);
         
         // Match group where the name contains the most common words from the title
         const match = allGroups?.find(g => {
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
           const groupWords = groupNameNormalized.split(/\s+/);
           
           // Count how many words match (need at least 2 or 50% match)
-          const matchingWords = titleWords.filter(tw => groupWords.includes(tw));
+          const matchingWords = titleWords.filter((tw: string) => groupWords.includes(tw));
           return Math.max(matchingWords.length, 0) >= Math.min(3, Math.ceil(groupWords.length / 2));
         });
 
