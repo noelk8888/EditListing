@@ -65,6 +65,12 @@ export default function TelegramGroupsPage() {
     );
   }, [groups, search]);
 
+  const stats = useMemo(() => {
+    const total = groups.length;
+    const withLink = groups.filter(g => !!g.invite_link?.trim()).length;
+    return { total, withLink };
+  }, [groups]);
+
   async function handleSave(id: string) {
     setSaving(true);
     try {
@@ -152,7 +158,14 @@ export default function TelegramGroupsPage() {
               <thead className="bg-slate-50/50 border-b">
                 <tr className="text-left">
                   <th className="px-4 py-3 font-medium">Group Name</th>
-                  <th className="px-4 py-3 font-medium">Chat ID / Link</th>
+                  <th className="px-4 py-3 font-medium">
+                    <div className="flex items-center gap-2">
+                       Chat ID / Link
+                       <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-500 font-mono">
+                         {stats.withLink}/{stats.total}
+                       </span>
+                    </div>
+                  </th>
                   <th className="px-4 py-3 font-medium">Keywords</th>
                   <th className="px-4 py-3 font-medium text-center">Active</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
