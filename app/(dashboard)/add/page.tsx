@@ -268,9 +268,9 @@ export default function AddListingPage() {
         const cleanName = group.name.replace(/\s*x\s*Luxe\s*Realty/i, "").toLowerCase().trim();
         const nameMatch = cleanName && cleanName.length > 3 && fields.some(field => field.includes(cleanName));
 
-        // 3. BGC Special Fallback
-        const isBGCGroup = cleanName.includes("bgc");
-        const bgcMatch = isBGCGroup && fields.some(field => field.includes("bonifacio global city"));
+        // 3. BGC Special Fallback (Only for general city groups, not specific condos)
+        const isBGCGeneralGroup = cleanName === "bgc sale" || cleanName === "bgc lease" || cleanName === "bgc";
+        const bgcMatch = isBGCGeneralGroup && fields.some(field => field.includes("bonifacio global city") || field.includes("bgc"));
 
         if (kwMatch || nameMatch || bgcMatch) {
           selected.add(group.name);
