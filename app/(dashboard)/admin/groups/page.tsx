@@ -66,11 +66,18 @@ export default function TelegramGroupsPage() {
   }, [groups, search]);
 
   const stats = useMemo(() => {
-    // Only count groups that have a chat ID as "total"
-    const groupsWithId = groups.filter(g => !!g.chat_id?.trim());
-    const total = groupsWithId.length;
-    const withLink = groupsWithId.filter(g => !!g.invite_link?.trim()).length;
-    return { total, withLink };
+    const MAIN_GROUP_NAMES = [
+      'MAIN GROUPS', 'UPDATE LISTING', 'DIRECT', 'RESIDENTIAL', 
+      'COMMERCIAL AND INDUSTRIAL', 'BUSINESS FOR SALE', 'TEST'
+    ];
+    
+    // Filter out the "Main Group" headers/categories
+    const chatGroups = groups.filter(g => !MAIN_GROUP_NAMES.includes(g.name));
+    
+    const total = chatGroups.length;
+    const identified = chatGroups.filter(g => !!g.chat_id?.trim()).length;
+    
+    return { total, identified };
   }, [groups]);
 
   async function handleSave(id: string) {
@@ -164,7 +171,7 @@ export default function TelegramGroupsPage() {
                     <div className="flex items-center gap-2">
                        Chat ID / Link
                        <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-500 font-mono">
-                         {stats.withLink}/{stats.total}
+                         {stats.identified}/{stats.total}
                        </span>
                     </div>
                   </th>
