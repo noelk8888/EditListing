@@ -49,13 +49,11 @@ export async function sendTelegramNotification(
     }
   }
 
-  // Only fall back to TELEGRAM_CHAT_ID if no groups were explicitly selected
-  // (i.e. groups was undefined/empty — this prevents overriding user's unchecked selections)
+  // Only fall back to UPDATE LISTING if no groups were explicitly selected
   if (!groups || groups.length === 0) {
-    const mainGroup = process.env.TELEGRAM_CHAT_ID;
-    if (mainGroup) {
-      const mainIds = mainGroup.split(",").map(id => id.trim()).filter(Boolean);
-      chatIds = Array.from(new Set([...mainIds, ...chatIds]));
+    const updateListingId = process.env.TELEGRAM_CHAT_UPDATE_LISTING;
+    if (updateListingId) {
+      chatIds = [updateListingId.trim()];
     }
   }
 
