@@ -37,7 +37,8 @@ export default function TelegramGroupsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<Partial<TelegramGroup>>({});
+  type EditFormState = Partial<TelegramGroup> & { keywordsInput?: string };
+  const [editForm, setEditForm] = useState<EditFormState>({});
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
@@ -83,10 +84,17 @@ export default function TelegramGroupsPage() {
   async function handleSave(id: string) {
     setSaving(true);
     try {
+      // Parse keywords back to array right before saving
+      const payloadToSave = { ...editForm };
+      if (payloadToSave.keywordsInput !== undefined) {
+        payloadToSave.keywords = payloadToSave.keywordsInput.split(",").map(k => k.trim()).filter(Boolean);
+        delete payloadToSave.keywordsInput;
+      }
+
       const res = await fetch("/api/admin/groups", {
         method: id === "new" ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(id === "new" ? editForm : { id, ...editForm }),
+        body: JSON.stringify(id === "new" ? payloadToSave : { id, ...payloadToSave }),
       });
       if (res.ok) {
         toast({ title: "Success", description: "Group updated successfully" });
@@ -118,12 +126,12 @@ export default function TelegramGroupsPage() {
 
   function startEdit(group: TelegramGroup) {
     setEditingId(group.id);
-    setEditForm({ ...group });
+    setEditForm({ ...group, keywordsInput: group.keywords?.join(", ") || "" });
   }
 
   function startAdd() {
     setEditingId("new");
-    setEditForm({ name: "", keywords: [], invite_link: "", chat_id: "", is_active: true });
+    setEditForm({ name: "", keywords: [], keywordsInput: "", invite_link: "", chat_id: "", is_active: true });
   }
 
   return (
@@ -208,8 +216,8 @@ export default function TelegramGroupsPage() {
                     <td className="px-4 py-3">
                       <Input 
                         placeholder="Comma separated keywords" 
-                        value={editForm.keywords?.join(", ")} 
-                        onChange={e => setEditForm({...editForm, keywords: e.target.value.split(",").map(k => k.trim()).filter(Boolean)})}
+                        value={editForm.keywordsInput !== undefined ? editForm.keywordsInput : editForm.keywords?.join(", ")} 
+                        onChange={e => setEditForm({...editForm, keywordsInput: e.target.value})}
                         className="h-8"
                       />
                     </td>
@@ -276,8 +284,8 @@ export default function TelegramGroupsPage() {
                       <td className="px-4 py-3">
                          {editingId === group.id ? (
                            <Input 
-                            value={editForm.keywords?.join(", ")} 
-                            onChange={e => setEditForm({...editForm, keywords: e.target.value.split(",").map(k => k.trim()).filter(Boolean)})}
+                            value={editForm.keywordsInput !== undefined ? editForm.keywordsInput : editForm.keywords?.join(", ")} 
+                            onChange={e => setEditForm({...editForm, keywordsInput: e.target.value})}
                             className="h-8 shadow-inner"
                           />
                         ) : (
