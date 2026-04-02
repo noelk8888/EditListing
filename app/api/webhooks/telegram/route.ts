@@ -24,27 +24,39 @@ export async function POST(req: Request) {
         return reply(chatId, "This command only works in Groups and Channels with a Title.");
       }
 
-      const trimmedTitle = chatTitle.trim();
-      console.log(`Searching for group: "${trimmedTitle}" to link ID: ${chatId}`);
+      // Normalize whitespace (replace all types of spaces/newlines with a single space)
+      const normalizedTitle = chatTitle.replace(/\s+/g, " ").trim();
+      console.log(`Searching for group: "${normalizedTitle}" to link ID: ${chatId}`);
 
-      // Try exact match first (case-insensitive, trimmed)
+      // 1. Try exact match (case-insensitive, normalized)
       let { data, error } = await supabase
         .from("luxe_telegram_groups")
         .select("id, name")
-        .ilike("name", trimmedTitle)
+        .ilike("name", normalizedTitle)
         .single();
 
-      // Fallback: find DB group name contained within the Telegram title
+      // 2. Fallback: Keyword-based fuzzy search
       if (error || !data) {
         const { data: allGroups } = await supabase
           .from("luxe_telegram_groups")
           .select("id, name")
           .is("chat_id", null);
 
-        const titleLower = trimmedTitle.toLowerCase();
-        const match = allGroups?.find(g => titleLower.includes(g.name.trim().toLowerCase()));
+        const titleWords = normalizedTitle.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        
+        // Match group where the name contains the most common words from the title
+        const match = allGroups?.find(g => {
+          const groupNameNormalized = g.name.replace(/\s+/g, " ").trim().toLowerCase();
+          const groupWords = groupNameNormalized.split(/\s+/);
+          
+          // Count how many words match (need at least 2 or 50% match)
+          const matchingWords = titleWords.filter(tw => groupWords.includes(tw));
+          return Math.max(matchingWords.length, 0) >= Math.min(3, Math.ceil(groupWords.length / 2));
+        });
+
         if (match) {
           data = match;
+          console.log(`Fuzzy match found: "${match.name}"`);
         }
       }
 
