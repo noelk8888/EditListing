@@ -24,13 +24,14 @@ export async function POST(req: Request) {
         return reply(chatId, "This command only works in Groups and Channels with a Title.");
       }
 
-      console.log(`Searching for group: "${chatTitle}" to link ID: ${chatId}`);
+      const trimmedTitle = chatTitle.trim();
+      console.log(`Searching for group: "${trimmedTitle}" to link ID: ${chatId}`);
 
-      // Try exact match first (case-insensitive)
+      // Try exact match first (case-insensitive, trimmed)
       let { data, error } = await supabase
         .from("luxe_telegram_groups")
         .select("id, name")
-        .ilike("name", chatTitle)
+        .ilike("name", trimmedTitle)
         .single();
 
       // Fallback: find DB group name contained within the Telegram title
@@ -40,8 +41,8 @@ export async function POST(req: Request) {
           .select("id, name")
           .is("chat_id", null);
 
-        const titleLower = chatTitle.toLowerCase();
-        const match = allGroups?.find(g => titleLower.includes(g.name.toLowerCase()));
+        const titleLower = trimmedTitle.toLowerCase();
+        const match = allGroups?.find(g => titleLower.includes(g.name.trim().toLowerCase()));
         if (match) {
           data = match;
         }

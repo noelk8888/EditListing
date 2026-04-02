@@ -49,15 +49,16 @@ export async function sendTelegramNotification(
     }
   }
 
-  // Fallback to TELEGRAM_CHAT_ID if no group IDs resolved
+  // Always include TELEGRAM_CHAT_ID as the base destination
+  const mainGroup = process.env.TELEGRAM_CHAT_ID;
+  if (mainGroup) {
+    const mainIds = mainGroup.split(",").map(id => id.trim()).filter(Boolean);
+    chatIds = Array.from(new Set([...mainIds, ...chatIds]));
+  }
+
   if (chatIds.length === 0) {
-    const fallback = process.env.TELEGRAM_CHAT_ID;
-    if (!fallback) {
-      console.warn("⚠️ Telegram notification skipped: No chat IDs resolved and TELEGRAM_CHAT_ID is missing.");
-      return;
-    }
-    console.log("Falling back to TELEGRAM_CHAT_ID");
-    chatIds = fallback.split(",").map(id => id.trim()).filter(Boolean);
+    console.warn("⚠️ Telegram notification skipped: No chat IDs resolved (check TELEGRAM_CHAT_ID and category groups).");
+    return;
   }
 
   console.log(`Sending Telegram notification to ${chatIds.length} chat(s):`, chatIds);
