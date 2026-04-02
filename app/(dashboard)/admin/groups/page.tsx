@@ -69,7 +69,7 @@ export default function TelegramGroupsPage() {
   const stats = useMemo(() => {
     const MAIN_GROUP_NAMES = [
       'MAIN GROUPS', 'UPDATE LISTING', 'DIRECT', 'RESIDENTIAL', 
-      'COMMERCIAL AND INDUSTRIAL', 'BUSINESS FOR SALE', 'TEST'
+      'COML/INDL', 'BUSINESS FOR SALE', 'TEST'
     ];
     
     // Filter out the "Main Group" headers/categories

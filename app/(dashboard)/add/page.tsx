@@ -1244,7 +1244,7 @@ export default function AddListingPage() {
       const defaultGroups = [
         ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
-        ...(commercial || industrial ? ["COMMERCIAL AND INDUSTRIAL"] : []),
+        ...(commercial || industrial ? ["COML/INDL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
         "UPDATE LISTING",
@@ -1478,7 +1478,7 @@ export default function AddListingPage() {
       const autoGroups = [
         ...(isDirect ? ["DIRECT"] : []),
         ...(residential ? ["RESIDENTIAL"] : []),
-        ...(commercial || industrial ? ["COMMERCIAL AND INDUSTRIAL"] : []),
+        ...(commercial || industrial ? ["COML/INDL"] : []),
         ...(agricultural ? ["AGRICULTURAL"] : []),
         ...(isBusiness ? ["BUSINESS FOR SALE"] : []),
         "UPDATE LISTING",
@@ -3802,7 +3802,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
       )}
 
       {showTelegramModal && (() => {
-        const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COMMERCIAL AND INDUSTRIAL", "BUSINESS FOR SALE", "TEST"];
+        const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COML/INDL", "BUSINESS FOR SALE", "TEST"];
         const specificGroups = allTelegramGroups.filter(g => !META_GROUPS.includes(g.name));
         const toggleGroup = (name: string) =>
           setTelegramGroups(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]);
