@@ -66,8 +66,10 @@ export default function TelegramGroupsPage() {
   }, [groups, search]);
 
   const stats = useMemo(() => {
-    const total = groups.length;
-    const withLink = groups.filter(g => !!g.invite_link?.trim()).length;
+    // Only count groups that have a chat ID as "total"
+    const groupsWithId = groups.filter(g => !!g.chat_id?.trim());
+    const total = groupsWithId.length;
+    const withLink = groupsWithId.filter(g => !!g.invite_link?.trim()).length;
     return { total, withLink };
   }, [groups]);
 
