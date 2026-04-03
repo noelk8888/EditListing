@@ -406,6 +406,13 @@ export default function AddListingPage() {
       if (data.industrial) setIndustrial(true);
       if (data.agricultural) setAgricultural(true);
 
+      // Text-based fallback: auto-tick COMMERCIAL if listing text clearly indicates it
+      // (covers cases where AI misses "Commercial Vacant Lot", "Commercial Space", etc.)
+      const textLower = textToExtract.toLowerCase();
+      if (/commercial\s+(vacant\s+)?lot|commercial\s+space|commercial\s+building|commercial\s+unit|commercial\s+property|commercial\s+condo|zoning.*commercial|r2\s+zoning/i.test(textToExtract)) {
+        setCommercial(true);
+      }
+
       // Detect Sale/Lease from the extracted text (always overrides — uses textToExtract for USE THIS LISTING support)
       setSaleOrLease(prev => {
         if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(textToExtract)) return "Sale/Lease";
