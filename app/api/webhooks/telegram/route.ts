@@ -29,29 +29,43 @@ export async function POST(req: Request) {
       console.log(`Searching for group: "${normalizedTitle}" to link ID: ${chatId}`);
 
       // 1. Try exact match (case-insensitive, normalized)
-      let { data, error } = await supabase
+      let { data, error: fetchError } = await supabase
         .from("luxe_telegram_groups")
         .select("id, name")
         .ilike("name", normalizedTitle)
         .single();
 
-      // 2. Fallback: Keyword-based fuzzy search
-      if (error || !data) {
+      // 2. Fallback: Search by ID if the text is like "/id name" or "/id uuid"
+      if (!data && text.startsWith("/id ")) {
+        const query = text.replace("/id ", "").trim();
+        const { data: idMatch } = await supabase
+          .from("luxe_telegram_groups")
+          .select("id, name")
+          .or(`id.eq.${query},name.ilike.%${query}%`)
+          .single();
+        if (idMatch) data = idMatch;
+      }
+
+      // 3. Fallback: Keyword-based fuzzy search
+      if (!data) {
         const { data: allGroups } = await supabase
           .from("luxe_telegram_groups")
           .select("id, name")
           .is("chat_id", null);
 
-        const titleWords = normalizedTitle.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2);
+        // Common words to ignore for fuzzy matching
+        const ignoreWords = ["x", "luxe", "realty", "city", "properties", "property", "the", "&", "and"];
+        const titleWords = normalizedTitle.toLowerCase().split(/\s+/)
+          .filter((w: string) => w.length > 2 && !ignoreWords.includes(w));
         
-        // Match group where the name contains the most common words from the title
+        // Match group where the name contains the most unique words from the title
         const match = allGroups?.find(g => {
           const groupNameNormalized = g.name.replace(/\s+/g, " ").trim().toLowerCase();
           const groupWords = groupNameNormalized.split(/\s+/);
           
-          // Count how many words match (need at least 2 or 50% match)
           const matchingWords = titleWords.filter((tw: string) => groupWords.includes(tw));
-          return Math.max(matchingWords.length, 0) >= Math.min(3, Math.ceil(groupWords.length / 2));
+          // Need at least one unique word match (if title contains unique words)
+          return matchingWords.length > 0 && matchingWords.length >= Math.ceil(titleWords.length / 2);
         });
 
         if (match) {
