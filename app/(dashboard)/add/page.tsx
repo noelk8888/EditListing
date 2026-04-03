@@ -243,16 +243,13 @@ export default function AddListingPage() {
     if (allTelegramGroups.length === 0) return;
     
     const fields = [building, area, barangay, city, summary].map(f => (f || "").toLowerCase().trim());
-    const lowerCity = (city || "").toLowerCase().trim();
     const isLeaseListing = saleOrLease.toLowerCase().includes("lease");
     const isSaleListing = saleOrLease.toLowerCase().includes("sale");
 
-    // Groups that use city+commercial two-condition logic
-    const CITY_COMMERCIAL_GROUPS: Record<string, string> = {
-      "makati city commercial properties": "makati city",
-      "mandaluyong city commercial properties": "mandaluyong city",
-      "manila city commercial properties": "manila city",
-    };
+    // Groups that use location+commercial two-condition logic
+    // Any group whose clean name contains "commercial properties" uses this rule:
+    // - Location part (before "commercial properties") must appear in any listing field
+    // - AND the listing must be commercial or industrial
 
     setTelegramGroups(prev => {
       const selected = new Set(prev);
@@ -267,11 +264,10 @@ export default function AddListingPage() {
 
         const cleanName = group.name.replace(/\s*x\s*Luxe\s*Realty/i, "").toLowerCase().trim();
 
-        // 4. City Commercial Properties — special two-condition logic
-        const cityCommercialTarget = CITY_COMMERCIAL_GROUPS[cleanName];
-        if (cityCommercialTarget) {
-          // Only select if city matches AND listing is commercial or industrial
-          if (lowerCity === cityCommercialTarget && (isCommercial || isIndustrial)) {
+        // Commercial Properties groups: generalized two-condition logic
+        if (cleanName.includes("commercial properties")) {
+          const locationPart = cleanName.replace(/\s*commercial properties\s*/, "").trim();
+          if (locationPart && fields.some(field => field.includes(locationPart)) && (isCommercial || isIndustrial)) {
             selected.add(group.name);
           }
           return; // Skip all other matching for these groups
