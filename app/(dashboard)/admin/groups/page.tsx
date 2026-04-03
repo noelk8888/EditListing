@@ -17,7 +17,8 @@ import {
   Save,
   X,
   RefreshCw,
-  Hash
+  Hash,
+  ArrowUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -40,7 +41,14 @@ export default function TelegramGroupsPage() {
   type EditFormState = Partial<TelegramGroup> & { keywordsInput?: string };
   const [editForm, setEditForm] = useState<EditFormState>({});
   const [saving, setSaving] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const handleScroll = () => setShowScrollTop(window.scrollY > 200);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const fetchGroups = useCallback(async () => {
     setLoading(true);
@@ -354,6 +362,17 @@ export default function TelegramGroupsPage() {
           </p>
         </div>
       </div>
+      {/* Back to Top Button */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium px-3 py-2 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
+          aria-label="Back to top"
+        >
+          <ArrowUp className="h-3.5 w-3.5" />
+          Back to top
+        </button>
+      )}
     </div>
   );
 }
