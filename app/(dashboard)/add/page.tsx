@@ -242,8 +242,12 @@ export default function AddListingPage() {
   const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string, isCommercial: boolean, isIndustrial: boolean, ownerBroker: string) => {
     if (allTelegramGroups.length === 0) return;
     
-    const fields = [building, area, barangay, city, summary].map(f => (f || "").toLowerCase().trim());
-    const lowerOwner = (ownerBroker || "").toLowerCase();
+    // Normalize: strip diacritics so "Parañaque" matches "paranaque", etc.
+    const normalize = (s: string) =>
+      (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
+    const fields = [building, area, barangay, city, summary].map(f => normalize(f));
+    const lowerOwner = normalize(ownerBroker);
     const isLeaseListing = saleOrLease.toLowerCase().includes("lease");
     const isSaleListing = saleOrLease.toLowerCase().includes("sale");
 
@@ -263,7 +267,7 @@ export default function AddListingPage() {
         if (isLeaseGroup && !isLeaseListing) return;
         if (isSaleGroup && !isSaleListing) return;
 
-        const cleanName = group.name.replace(/\s*x\s*Luxe\s*Realty/i, "").toLowerCase().trim();
+        const cleanName = normalize(group.name.replace(/\s*x\s*Luxe\s*Realty/i, ""));
 
         // Commercial Properties groups: generalized two-condition logic
         if (cleanName.includes("commercial properties")) {
@@ -282,7 +286,7 @@ export default function AddListingPage() {
 
         // 1. Keyword match
         const kwMatch = group.keywords.some(kw => {
-          const lowerKw = kw.toLowerCase().trim();
+          const lowerKw = normalize(kw);
           if (!lowerKw) return false;
           return fields.some(field => field.includes(lowerKw));
         });
