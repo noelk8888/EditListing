@@ -239,10 +239,11 @@ export default function AddListingPage() {
       .catch(err => console.error("Failed to load Telegram groups:", err));
   }, []);
 
-  const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string, isCommercial: boolean, isIndustrial: boolean) => {
+  const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string, isCommercial: boolean, isIndustrial: boolean, ownerBroker: string) => {
     if (allTelegramGroups.length === 0) return;
     
     const fields = [building, area, barangay, city, summary].map(f => (f || "").toLowerCase().trim());
+    const lowerOwner = (ownerBroker || "").toLowerCase();
     const isLeaseListing = saleOrLease.toLowerCase().includes("lease");
     const isSaleListing = saleOrLease.toLowerCase().includes("sale");
 
@@ -271,6 +272,12 @@ export default function AddListingPage() {
             selected.add(group.name);
           }
           return; // Skip all other matching for these groups
+        }
+
+        // Special owner-based rule: METROSUMMIT group
+        if (cleanName === "metrosummit") {
+          if (lowerOwner.includes("metrosummit")) selected.add(group.name);
+          return;
         }
 
         // 1. Keyword match
@@ -307,9 +314,9 @@ export default function AddListingPage() {
   // Note: Must also run on "review" because new listings populate fields during extraction which jumps directly to review
   useEffect(() => {
     if (showTelegramProHub && step !== "paste" && (editArea || editBuilding || editBarangay || editCity)) {
-      autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText, saleOrLease, !!commercial, !!industrial);
+      autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText, saleOrLease, !!commercial, !!industrial, ownerBroker);
     }
-  }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, saleOrLease, commercial, industrial, autoSelectGroups]);
+  }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, saleOrLease, commercial, industrial, ownerBroker, autoSelectGroups]);
 
   const handlePaste = async () => {
     try {
