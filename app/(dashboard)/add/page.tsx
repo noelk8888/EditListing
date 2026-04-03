@@ -253,9 +253,12 @@ export default function AddListingPage() {
         const isLeaseGroup = groupNameUpper.includes("LEASE");
         const isSaleGroup = groupNameUpper.includes("SALE");
 
-        // Skip mismatched types (e.g., don't auto-select SALE group if listing is ONLY Lease)
-        if (isLeaseGroup && !isLeaseListing) return;
-        if (isSaleGroup && !isSaleListing) return;
+        // Skip mismatched types ONLY if saleOrLease is explicitly set
+        // If empty/unknown, allow all matching groups through
+        if (saleOrLease) {
+          if (isLeaseGroup && !isLeaseListing) return;
+          if (isSaleGroup && !isSaleListing) return;
+        }
 
         // 1. Keyword match (existing)
         const kwMatch = group.keywords.some(kw => {
