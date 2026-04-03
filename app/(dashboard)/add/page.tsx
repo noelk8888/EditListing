@@ -239,12 +239,20 @@ export default function AddListingPage() {
       .catch(err => console.error("Failed to load Telegram groups:", err));
   }, []);
 
-  const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string) => {
+  const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string, isCommercial: boolean, isIndustrial: boolean) => {
     if (allTelegramGroups.length === 0) return;
     
     const fields = [building, area, barangay, city, summary].map(f => (f || "").toLowerCase().trim());
+    const lowerCity = (city || "").toLowerCase().trim();
     const isLeaseListing = saleOrLease.toLowerCase().includes("lease");
     const isSaleListing = saleOrLease.toLowerCase().includes("sale");
+
+    // Groups that use city+commercial two-condition logic
+    const CITY_COMMERCIAL_GROUPS: Record<string, string> = {
+      "makati city commercial properties": "makati city",
+      "mandaluyong city commercial properties": "mandaluyong city",
+      "manila city commercial properties": "manila city",
+    };
 
     setTelegramGroups(prev => {
       const selected = new Set(prev);
@@ -257,15 +265,26 @@ export default function AddListingPage() {
         if (isLeaseGroup && !isLeaseListing) return;
         if (isSaleGroup && !isSaleListing) return;
 
-        // 1. Keyword match (existing)
+        const cleanName = group.name.replace(/\s*x\s*Luxe\s*Realty/i, "").toLowerCase().trim();
+
+        // 4. City Commercial Properties — special two-condition logic
+        const cityCommercialTarget = CITY_COMMERCIAL_GROUPS[cleanName];
+        if (cityCommercialTarget) {
+          // Only select if city matches AND listing is commercial or industrial
+          if (lowerCity === cityCommercialTarget && (isCommercial || isIndustrial)) {
+            selected.add(group.name);
+          }
+          return; // Skip all other matching for these groups
+        }
+
+        // 1. Keyword match
         const kwMatch = group.keywords.some(kw => {
           const lowerKw = kw.toLowerCase().trim();
           if (!lowerKw) return false;
           return fields.some(field => field.includes(lowerKw));
         });
 
-        // 2. Name match (new) — strip the " x Luxe Realty" part
-        const cleanName = group.name.replace(/\s*x\s*Luxe\s*Realty/i, "").toLowerCase().trim();
+        // 2. Name match — strip the " x Luxe Realty" part
         const nameMatch = cleanName && cleanName.length > 3 && fields.some(field => field.includes(cleanName));
 
         // 3. BGC Special Fallback (Only for general city groups, not specific condos)
@@ -292,9 +311,9 @@ export default function AddListingPage() {
   // Note: Must also run on "review" because new listings populate fields during extraction which jumps directly to review
   useEffect(() => {
     if (showTelegramProHub && step !== "paste" && (editArea || editBuilding || editBarangay || editCity)) {
-      autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText, saleOrLease);
+      autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText, saleOrLease, !!commercial, !!industrial);
     }
-  }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, saleOrLease, autoSelectGroups]);
+  }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, saleOrLease, commercial, industrial, autoSelectGroups]);
 
   const handlePaste = async () => {
     try {
