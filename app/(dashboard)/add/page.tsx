@@ -288,9 +288,10 @@ export default function AddListingPage() {
 
   const currentStepIndex = steps.findIndex(s => s.key === step);
 
-  // Auto-select Telegram groups when switching to 'check' step
+  // Auto-select Telegram groups whenever location fields are set (check AND review steps)
+  // Note: Must also run on "review" because new listings populate fields during extraction which jumps directly to review
   useEffect(() => {
-    if (showTelegramProHub && step === "check" && (editArea || editBuilding || editBarangay || editCity)) {
+    if (showTelegramProHub && step !== "paste" && (editArea || editBuilding || editBarangay || editCity)) {
       autoSelectGroups(editBuilding, editArea, editBarangay, editCity, editSummary || rawText, saleOrLease);
     }
   }, [step, editBuilding, editArea, editBarangay, editCity, editSummary, rawText, saleOrLease, autoSelectGroups]);
