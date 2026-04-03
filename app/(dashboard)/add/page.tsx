@@ -271,8 +271,17 @@ export default function AddListingPage() {
 
         // Commercial Properties groups: generalized two-condition logic
         if (cleanName.includes("commercial properties")) {
-          const locationPart = cleanName.replace(/\s*commercial properties\s*/, "").trim();
-          if (locationPart && fields.some(field => field.includes(locationPart)) && (isCommercial || isIndustrial)) {
+          const locationPart = cleanName.replace(/\s*commercial properties\s*/, "").replace(/\.$/, "").trim();
+
+          // Groups that trigger by address alone (no commercial checkbox needed)
+          const ADDRESS_ONLY_COMMERCIAL = ["quezon ave", "chino roces", "edsa", "alabang"];
+          const isAddressOnly = ADDRESS_ONLY_COMMERCIAL.some(a => locationPart.startsWith(a));
+
+          const locationMatch = locationPart && fields.some(field =>
+            field.includes(locationPart) || field.includes(locationPart.replace(/\.$/, ""))
+          );
+
+          if (locationMatch && (isAddressOnly || isCommercial || isIndustrial)) {
             selected.add(group.name);
           }
           return; // Skip all other matching for these groups
