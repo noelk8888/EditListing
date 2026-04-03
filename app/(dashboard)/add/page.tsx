@@ -409,16 +409,21 @@ export default function AddListingPage() {
       setLong(prev => data.long || prev);
       setMapLink(prev => data.mapLink || prev);
 
-      // Set property type checkboxes from parsed data (only enable, never disable existing)
-      if (data.residential) setResidential(true);
-      if (data.commercial) setCommercial(true);
-      if (data.industrial) setIndustrial(true);
+      // Set property type checkboxes from parsed data
+      if (data.residential) {
+        setResidential(true);
+        // If it's residential, usually it's not commercial/industrial unless explicitly stated
+        if (!data.commercial) setCommercial(false);
+        if (!data.industrial) setIndustrial(false);
+      } else {
+        if (data.commercial) setCommercial(true);
+        if (data.industrial) setIndustrial(true);
+      }
       if (data.agricultural) setAgricultural(true);
 
       // Text-based fallback: auto-tick COMMERCIAL if listing text clearly indicates it
       // (covers cases where AI misses "Commercial Vacant Lot", "Commercial Space", etc.)
-      const textLower = textToExtract.toLowerCase();
-      if (/commercial\s+(vacant\s+)?lot|commercial\s+space|commercial\s+building|commercial\s+unit|commercial\s+property|commercial\s+condo|zoning.*commercial|r2\s+zoning/i.test(textToExtract)) {
+      if (/\bcommercial\s+(vacant\s+)?lot\b|\bcommercial\s+space\b|\bcommercial\s+building\b|\bcommercial\s+unit\b|\bcommercial\s+property\b|\bcommercial\s+condo\b|\bzoning\s*:\s*commercial\b|\br2\s+zoning\b/i.test(textToExtract)) {
         setCommercial(true);
       }
 
