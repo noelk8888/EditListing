@@ -242,9 +242,9 @@ export default function AddListingPage() {
   const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string, isCommercial: boolean, isIndustrial: boolean, ownerBroker: string) => {
     if (allTelegramGroups.length === 0) return;
     
-    // Normalize: strip diacritics so "Parañaque" matches "paranaque", etc.
+    // Normalize: strip diacritics AND punctuation so "Sta. Mesa" matches "Sta Mesa", etc.
     const normalize = (s: string) =>
-      (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,]/g, "").replace(/\s+/g, " ").trim();
 
     const fields = [building, area, barangay, city, summary].map(f => normalize(f));
     const lowerOwner = normalize(ownerBroker);
