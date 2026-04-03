@@ -1484,7 +1484,8 @@ export default function AddListingPage() {
         "UPDATE LISTING",
         "TEST",
       ];
-      setTelegramGroups(autoGroups.length > 0 ? autoGroups : ["RESIDENTIAL", "UPDATE LISTING", "TEST"]);
+      // Merge with existing smart-matched groups instead of overwriting them
+      setTelegramGroups(prev => Array.from(new Set([...prev, ...autoGroups])));
       setShowTelegramModal(true);
     } else {
       confirmAddNew();
