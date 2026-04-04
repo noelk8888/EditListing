@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send, Copy } from "lucide-react";
+import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send, Copy, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 import { BackupModal } from "@/components/BackupModal";
@@ -45,6 +45,7 @@ export function Nav({ user, permissions }: NavProps) {
     { href: "/admin/permissions", label: "Permissions", icon: ShieldCheck },
     { href: "/admin/groups", label: "Telegram Hub", icon: Send },
     { href: "/admin/duplicates", label: "Duplicate Checking", icon: Copy },
+    { href: "/admin/compare-sheets", label: "Compare Sheets", icon: Scale },
   ];
 
   const badge = ROLE_BADGE[role];
