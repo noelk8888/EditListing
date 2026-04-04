@@ -107,24 +107,30 @@ export async function POST(req: Request) {
 
     // ── Step 4: Build output rows ──────────────────────────────────────────
     const outputRows: string[][] = [];
+    let maxMatches = 0;
 
-    for (const rowNums of photoMatches) {
-      const geoIds = rowNums
-        .map((n) => rowsMap.get(n)?.colAC)
-        .filter(Boolean)
-        .join(", ");
-      const sampleText = rowsMap.get(rowNums[0])?.colA || "";
-      outputRows.push([geoIds, rowNums.join(", "), sampleText, "Photo Match"]);
-    }
+    const processMatches = (matches: number[][], type: string) => {
+      for (const rowNums of matches) {
+        maxMatches = Math.max(maxMatches, rowNums.length);
+        const geoIds = rowNums
+          .map((n) => rowsMap.get(n)?.colAC)
+          .filter(Boolean)
+          .join(", ");
+        
+        // Collect Col A text for each row in the group
+        const rowTexts = rowNums.map((n) => rowsMap.get(n)?.colA || "");
+        
+        outputRows.push([
+          rowNums.join(", "),  // Col A: Row Numbers
+          type,                // Col B: Match Type
+          geoIds,              // Col C: GEO IDs
+          ...rowTexts          // Col D, E, F...: Listing Texts
+        ]);
+      }
+    };
 
-    for (const rowNums of fuzzyMatches) {
-      const geoIds = rowNums
-        .map((n) => rowsMap.get(n)?.colAC)
-        .filter(Boolean)
-        .join(", ");
-      const sampleText = rowsMap.get(rowNums[0])?.colA || "";
-      outputRows.push([geoIds, rowNums.join(", "), sampleText, "Fuzzy Match"]);
-    }
+    processMatches(photoMatches, "Photo Match");
+    processMatches(fuzzyMatches, "Fuzzy Match");
 
     const totalDuplicates = outputRows.length;
 
@@ -148,8 +154,12 @@ export async function POST(req: Request) {
       },
     });
 
-    // Write header + results
-    const header = ["GEO ID(s)", "Row Numbers", "Sample Format", "Match Type"];
+    // Dynamic Header: Row Numbers, Match Type, GEO IDs, then Col A (1), Col A (2)...
+    const header = ["Row Numbers", "Match Type", "GEO IDs"];
+    for (let i = 1; i <= maxMatches; i++) {
+      header.push(`Col A (${i})`);
+    }
+
     await sheets.spreadsheets.values.update({
       spreadsheetId,
       range: `${tabName}!A1`,
