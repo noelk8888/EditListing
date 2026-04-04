@@ -139,25 +139,6 @@ export default function AddListingPage() {
   const [sourceTab, setSourceTab] = useState<string | null>(null);
   
 
-  const [direct, setDirect] = useState(false);
-  const [test, setTest] = useState(false);
-  const [needsRefresh, setNeedsRefresh] = useState(false);
-
-  // 3-hour timer for refresh indicator
-  useEffect(() => {
-    const THREE_HOURS = 3 * 60 * 60 * 1000;
-    const timer = setTimeout(() => {
-      setNeedsRefresh(true);
-    }, THREE_HOURS);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Synchronize the DIRECT checkbox with the Direct/CoBrok dropdown
-
-  // Synchronize the DIRECT checkbox with the Direct/CoBrok dropdown
-  useEffect(() => {
-    setDirect(directOrCobroker === "Direct to Owner");
-  }, [directOrCobroker]);
 
   const [copied, setCopied] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -210,7 +191,16 @@ export default function AddListingPage() {
   const [telegramLine3Notes, setTelegramLine3Notes] = useState(""); // optional notes
   const [telegramLine3, setTelegramLine3] = useState(""); // broker
   const [telegramLine4, setTelegramLine4] = useState(""); // ownership
-  const [telegramGroups, setTelegramGroups] = useState<string[]>(["DIRECT", "RESIDENTIAL", "UPDATE LISTING", "TEST"]);
+  const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL", "UPDATE LISTING", "TEST"]);
+
+  // Sync DIRECT group with the Direct/CoBrok dropdown — this is the real connection
+  useEffect(() => {
+    if (directOrCobroker === "Direct to Owner") {
+      setTelegramGroups(prev => prev.includes("DIRECT") ? prev : ["DIRECT", ...prev]);
+    } else {
+      setTelegramGroups(prev => prev.filter(g => g !== "DIRECT"));
+    }
+  }, [directOrCobroker]);
   const [allTelegramGroups, setAllTelegramGroups] = useState<SupabaseTelegramGroup[]>([]);
   const [telegramSearch, setTelegramSearch] = useState("");
 
