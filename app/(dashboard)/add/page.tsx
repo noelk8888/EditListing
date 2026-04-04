@@ -141,6 +141,18 @@ export default function AddListingPage() {
 
   const [direct, setDirect] = useState(false);
   const [test, setTest] = useState(false);
+  const [needsRefresh, setNeedsRefresh] = useState(false);
+
+  // 3-hour timer for refresh indicator
+  useEffect(() => {
+    const THREE_HOURS = 3 * 60 * 60 * 1000;
+    const timer = setTimeout(() => {
+      setNeedsRefresh(true);
+    }, THREE_HOURS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Synchronize the DIRECT checkbox with the Direct/CoBrok dropdown
 
   // Synchronize the DIRECT checkbox with the Direct/CoBrok dropdown
   useEffect(() => {
@@ -584,6 +596,7 @@ export default function AddListingPage() {
     setSearchError(null);
     setSearchResult(null);
     setMatchedBy(null);
+    setDirectOrCobroker(""); // Reset sticky direct status
     setSourceTab(null);
     setNewGeoId("");
     setSuggestedGeoId("");
