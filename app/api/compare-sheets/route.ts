@@ -16,8 +16,8 @@ function extractPhotoSlug(text: string): string | null {
 function cleanListingText(text: string): string {
   if (!text) return "";
   
-  // Status patterns to ignore
-  const statusRegex = /^\*?(for sale|sold|leased out|for lease|leased|off the market|delisted|for sale\/lease|available)\*?$/im;
+  // Status patterns to ignore (handles asterisks, spaces, and punctuation around the keyword)
+  const statusRegex = /^[^\w]*(for sale|sold|leased out|for lease|leased|off the market|delisted|for sale\/lease|available)[^\w]*$/im;
   
   return text
     .split("\n")
