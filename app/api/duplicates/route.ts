@@ -76,7 +76,7 @@ export async function POST(req: Request) {
       if (!photoGroups.has(slug)) photoGroups.set(slug, []);
       photoGroups.get(slug)!.push(row.rowNumber);
     }
-    const photoMatches = [...photoGroups.values()].filter((g) => g.length >= 2);
+    const photoMatches = Array.from(photoGroups.values()).filter((g) => g.length >= 2);
     const matchedRowNumbers = new Set<number>(photoMatches.flat());
 
     // ── Step 3: Phase 2 — Fuzzy Text Matching (unmatched rows only) ────────
