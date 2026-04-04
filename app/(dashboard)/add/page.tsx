@@ -138,6 +138,10 @@ export default function AddListingPage() {
   const [matchedBy, setMatchedBy] = useState<string | null>(null);
   const [sourceTab, setSourceTab] = useState<string | null>(null);
   
+
+  const [direct, setDirect] = useState(false);
+  const [test, setTest] = useState(false);
+
   // Synchronize the DIRECT checkbox with the Direct/CoBrok dropdown
   useEffect(() => {
     setDirect(directOrCobroker === "Direct to Owner");
