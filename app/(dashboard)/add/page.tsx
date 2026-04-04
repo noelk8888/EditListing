@@ -137,6 +137,12 @@ export default function AddListingPage() {
   const [listingId, setListingId] = useState("");
   const [matchedBy, setMatchedBy] = useState<string | null>(null);
   const [sourceTab, setSourceTab] = useState<string | null>(null);
+  
+  // Synchronize the DIRECT checkbox with the Direct/CoBrok dropdown
+  useEffect(() => {
+    setDirect(directOrCobroker === "Direct to Owner");
+  }, [directOrCobroker]);
+
   const [copied, setCopied] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -397,7 +403,7 @@ export default function AddListingPage() {
       if (data.withIncome === true) setWithIncome("With Income");
       else if (data.withIncome === false) setWithIncome("NO");
       if (data.directOrCobroker === "Direct to Owner" || data.directOrCobroker === "With Cobroker") {
-        setDirectOrCobroker(prev => prev || data.directOrCobroker as "Direct to Owner" | "With Cobroker");
+        setDirectOrCobroker(data.directOrCobroker as "Direct to Owner" | "With Cobroker");
       }
       // Use functional setters for fields that may not appear in raw text —
       // preserves Supabase/GSheet values even when called with a stale closure.
@@ -3853,6 +3859,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
       {showTelegramModal && (() => {
         const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COM 'L / IND'L", "BUSINESS FOR SALE", "TEST"];
         const specificGroups = allTelegramGroups.filter(g => !META_GROUPS.includes(g.name));
+        
         const toggleGroup = (name: string) =>
           setTelegramGroups(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]);
 
