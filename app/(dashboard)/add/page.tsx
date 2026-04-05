@@ -2500,16 +2500,6 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   </CardContent>
                 </Card>
                 <div className="flex items-center gap-3 flex-wrap justify-end">
-                  <Button
-                    onClick={() => {
-                      setForceNewListingMode(true);
-                      setSearchResult(null);
-                      setTargetTab("Sheet1");
-                    }}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold tracking-wide h-auto py-2"
-                  >
-                    <span className="leading-tight text-center">ADD NEW<br/>LISTING</span>
-                  </Button>
                   {permissions.telegram_send !== false && (
                     <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium mr-1">
                       <input
@@ -2602,6 +2592,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   )}
+                  <Button
+                    onClick={() => {
+                      setForceNewListingMode(true);
+                      setSearchResult(null);
+                      setTargetTab("Sheet1");
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold tracking-wide h-auto py-2"
+                  >
+                    <span className="leading-tight text-center">ADD NEW<br/>LISTING</span>
+                  </Button>
                 </div>
               </div>
             )}
