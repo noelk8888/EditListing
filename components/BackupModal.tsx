@@ -126,6 +126,27 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
                       {isUrlLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4 text-amber-600" />}
                     </button>
                   </div>
+                  
+                  {!isUrlLocked && (
+                    <div className="mt-6 p-4 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 space-y-3 shadow-inner">
+                      <h4 className="font-bold flex items-center gap-2 text-sm">
+                        <AlertCircle className="h-4 w-4 text-blue-600" />
+                        Setting a New Destination?
+                      </h4>
+                      <p className="text-xs text-blue-800">The automatic backup needs permission to write to your new sheet.</p>
+                      <ol className="text-xs list-decimal list-inside space-y-2 text-blue-900/90 ml-1">
+                        <li>Open your new Google Sheet in the browser.</li>
+                        <li>Click the big <strong>Share</strong> button in the top right corner.</li>
+                        <li>Paste the following email address into the "Add people" box:
+                            <code className="block mt-2 mb-1 bg-blue-100 border border-blue-200 px-2 py-1.5 rounded select-all font-mono text-blue-800 text-[11px]">
+                              geo-id-sync@sync-geo-id.iam.gserviceaccount.com
+                            </code>
+                        </li>
+                        <li>Make sure the role is set to <strong>"Editor"</strong>.</li>
+                        <li>Click <strong>Send / Share</strong>.</li>
+                      </ol>
+                    </div>
+                  )}
                 </div>
               </div>
               <Button 
