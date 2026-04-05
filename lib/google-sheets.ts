@@ -2180,56 +2180,45 @@ export async function deleteListing(id: string, overrideSpreadsheetId?: string):
 
 /**
  * Manage daily backup tabs in the persistent spreadsheet.
- * Creates a new tab for today and deletes tabs older than retentionDays.
+ * Maintains a maximum of maxTabs (default 60). Deletes oldest tabs beyond this limit.
+ * Oldest tabs are identified by sorting those starting with backupPrefix.
  */
-async function manageBackupTabs(sheets: any, spreadsheetId: string, retentionDays: number) {
+async function manageBackupTabs(sheets: any, spreadsheetId: string, maxTabs: number = 60) {
   try {
     const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
     const sheetsList = spreadsheet.data.sheets || [];
     const backupPrefix = "Backup_";
 
-    const now = new Date();
-    const cutoffDate = new Date();
-    cutoffDate.setDate(now.getDate() - retentionDays);
+    console.log(`🧹 [BACKUP-CLEANUP] Scanning for backup tabs (max: ${maxTabs})...`);
 
-    console.log(`🧹 [BACKUP-CLEANUP] Scanning for tabs older than ${retentionDays} days...`);
+    // 1. Identify all backup tabs
+    const backupTabs = sheetsList
+      .map((s: any) => ({
+        title: s.properties.title as string,
+        sheetId: s.properties.sheetId as number
+      }))
+      .filter((t: { title: string; sheetId: number }) => t.title.startsWith(backupPrefix));
 
-    const requests: any[] = [];
-    const tabsFound: string[] = [];
+    // 2. Sort by title (title includes date/time: Backup_2026_04_05_09_51_22)
+    backupTabs.sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title));
 
-    sheetsList.forEach((s: any) => {
-      const title = s.properties.title;
-      if (title.startsWith(backupPrefix)) {
-        // Expected format: Backup_Mar_29_2026
-        const parts = title.split("_");
-        if (parts.length === 4) {
-          const month = parts[1];
-          const day = parseInt(parts[2], 10);
-          const year = parseInt(parts[3], 10);
-          
-          const monthIndex = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(month);
-          if (monthIndex !== -1) {
-            const tabDate = new Date(year, monthIndex, day);
-            if (tabDate < cutoffDate) {
-              requests.push({
-                deleteSheet: { sheetId: s.properties.sheetId }
-              });
-              tabsFound.push(title);
-            }
-          }
-        }
-      }
-    });
+    if (backupTabs.length > maxTabs) {
+      const deleteCount = backupTabs.length - maxTabs;
+      const tabsToDelete = backupTabs.slice(0, deleteCount); // Take the oldest ones
 
-    if (requests.length > 0) {
-      console.log(`🗑️ [BACKUP-CLEANUP] Deleting ${requests.length} old tabs: ${tabsFound.join(", ")}`);
+      console.log(`🗑️ [BACKUP-CLEANUP] Deleting ${deleteCount} old tabs: ${tabsToDelete.map((t: { title: string }) => t.title).join(", ")}`);
+      
+      const requests = tabsToDelete.map((t: { sheetId: number }) => ({
+        deleteSheet: { sheetId: t.sheetId }
+      }));
+
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: { requests }
       });
       console.log("✅ [BACKUP-CLEANUP] Cleanup complete.");
     } else {
-      console.log("✨ [BACKUP-CLEANUP] No old tabs found to delete.");
+      console.log(`✨ [BACKUP-CLEANUP] Total backup tabs: ${backupTabs.length}. No deletion needed.`);
     }
   } catch (err: any) {
     console.warn("⚠️ [BACKUP-CLEANUP] Non-fatal cleanup warning:", err.message);
@@ -2246,18 +2235,30 @@ async function performSyncBackup(
   sourceId: string, 
   targetId: string, 
   label: string, 
-  retentionDays: number
+  maxTabs: number = 60
 ) {
   const now = new Date();
-  const dateStr = now.toLocaleDateString("en-US", {
+  
+  // Technical tab name: sortable and unique
+  // Backup_2026_04_05_09_51_22
+  const dateParts = {
+    year: now.getFullYear(),
+    month: String(now.getMonth() + 1).padStart(2, '0'),
+    day: String(now.getDate()).padStart(2, '0'),
+    hours: String(now.getHours()).padStart(2, '0'),
+    minutes: String(now.getMinutes()).padStart(2, '0'),
+    seconds: String(now.getSeconds()).padStart(2, '0'),
+  };
+  const tabName = `Backup_${dateParts.year}_${dateParts.month}_${dateParts.day}_${dateParts.hours}_${dateParts.minutes}_${dateParts.seconds}`;
+  
+  // Descriptive label for the spreadsheet itself
+  const dateDisplay = now.toLocaleDateString("en-US", {
     month: "short",
     day: "2-digit",
     year: "numeric",
     timeZone: "Asia/Manila",
-  }).replace(/ /g, "_").replace(/,/g, ""); // Mar_29_2026
-  
-  const tabName = `Backup_${dateStr}`;
-  const backupTitle = `${label} - ${dateStr.replace(/_/g, " ")}`;
+  });
+  const backupTitle = `${label} - ${dateDisplay}`;
 
   console.log(`🚀 [BACKUP-${label}] Starting sync from ${sourceId} to Tab: "${tabName}" in Target (${targetId})...`);
 
@@ -2272,26 +2273,18 @@ async function performSyncBackup(
     throw new Error(`${label} source sheet is empty - nothing to backup.`);
   }
 
-  // 2. CREATE NEW TAB (OR BEYOND IF IT ALREADY EXISTS)
-  try {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId: targetId,
-      requestBody: {
-        requests: [{
-          addSheet: {
-            properties: { title: tabName }
-          }
-        }]
-      }
-    });
-    console.log(`🆕 [BACKUP-${label}] Created new tab: "${tabName}"`);
-  } catch (err: any) {
-    if (err.message.includes("already exists")) {
-      console.log(`🔄 [BACKUP-${label}] Tab "${tabName}" already exists, overwriting content.`);
-    } else {
-      throw err;
+  // 2. CREATE NEW TAB
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: targetId,
+    requestBody: {
+      requests: [{
+        addSheet: {
+          properties: { title: tabName }
+        }
+      }]
     }
-  }
+  });
+  console.log(`🆕 [BACKUP-${label}] Created new tab: "${tabName}"`);
 
   // 3. WRITE TO SPECIFIC TAB
   await sheets.spreadsheets.values.update({
@@ -2305,37 +2298,42 @@ async function performSyncBackup(
 
   console.log(`✅ [BACKUP-${label}] Data synced into tab: "${tabName}".`);
 
-  // 4. RENAME TARGET FILE FOR VISIBILITY
-  await drive.files.update({
-    fileId: targetId,
-    requestBody: {
-      name: backupTitle,
-    },
-  });
+  // 4. RENAME TARGET FILE FOR VISIBILITY (Optional, but keeps it descriptive)
+  try {
+    await drive.files.update({
+      fileId: targetId,
+      requestBody: {
+        name: backupTitle,
+      },
+    });
+  } catch (err) {
+    console.warn(`⚠️ [BACKUP-${label}] Could not rename file:`, err instanceof Error ? err.message : err);
+  }
 
-  // 5. RUN AUTO-DELETE CLEANUP
-  await manageBackupTabs(sheets, targetId, retentionDays);
+  // 5. RUN AUTO-DELETE CLEANUP (Limit to 60 tabs)
+  await manageBackupTabs(sheets, targetId, maxTabs);
 
-  return { id: targetId, name: backupTitle };
+  return { id: targetId, name: backupTitle, tabName };
 }
 
 /**
  * Perform parallel backups for the Master Listing and LUXE Copy spreadsheets.
  */
-export async function createSpreadsheetBackup(): Promise<{ id: string; name: string; url: string }> {
+export async function createSpreadsheetBackup(customCopyTargetId?: string): Promise<{ id: string; name: string; url: string }> {
   const auth = getAuth();
   const sheets = google.sheets({ version: "v4", auth });
   const drive = google.drive({ version: "v3", auth });
 
-  const retentionDays = parseInt(process.env.BACKUP_RETENTION_DAYS || "14", 10);
+  const maxTabs = 60;
 
   // 1. MASTER LISTING BACKUP
   const masterId = process.env.SPREADSHEET_ID;
   const targetId = process.env.BACKUP_TARGET_SHEET_ID;
   
-  // 2. LUXE COPY BACKUP (Parallel)
+  // 2. LUXE COPY BACKUP
   const copyId = process.env.COPY_SPREADSHEET_ID;
-  const copyTargetId = process.env.COPY_BACKUP_TARGET_ID;
+  // Use custom URL if provided, else fallback to env
+  const copyTargetId = customCopyTargetId || process.env.COPY_BACKUP_TARGET_ID;
 
   if (!masterId || !targetId) {
     throw new Error("Master backup IDs not configured");
@@ -2344,9 +2342,9 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
   console.log("👯 [PARALLEL-BACKUP] Triggering dual syncs...");
 
   const results = await Promise.all([
-    performSyncBackup(sheets, drive, masterId, targetId, "LUXE Master Backup", retentionDays),
+    performSyncBackup(sheets, drive, masterId, targetId, "LUXE Master Backup", maxTabs),
     copyId && copyTargetId 
-      ? performSyncBackup(sheets, drive, copyId, copyTargetId, "LUXE Copy Backup", retentionDays)
+      ? performSyncBackup(sheets, drive, copyId, copyTargetId, "LUXE Copy Backup", maxTabs)
       : Promise.resolve(null)
   ]);
 
@@ -2354,17 +2352,19 @@ export async function createSpreadsheetBackup(): Promise<{ id: string; name: str
   const copyResult = results[1];
 
   const now = new Date();
-  const dateStr = now.toLocaleDateString("en-US", {
+  const dateTimeDisplay = now.toLocaleString("en-US", {
     month: "short",
     day: "2-digit",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
     timeZone: "Asia/Manila",
   });
 
   // Return the Copy Backup info if available, otherwise Master
   return {
     id: copyResult ? copyResult.id : masterResult.id,
-    name: `Backup Created Successfully- ${dateStr}`,
+    name: `Backup Created Successfully - ${dateTimeDisplay}`,
     url: copyResult 
       ? `https://docs.google.com/spreadsheets/d/${copyResult.id}/edit`
       : `https://docs.google.com/spreadsheets/d/${masterResult.id}/edit`,

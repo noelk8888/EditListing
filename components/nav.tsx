@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -33,6 +33,36 @@ export function Nav({ user, permissions }: NavProps) {
   const isAdmin = role === "SUPERADMIN" || role === "ADMIN";
   const isSuperAdmin = role === "SUPERADMIN";
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isAdmin) {
+      const fetchBackupState = async () => {
+        try {
+          const res = await fetch("/api/admin/backup");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.last_backup_at) {
+              setLastBackupAt(data.last_backup_at);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch backup state:", e);
+        }
+      };
+
+      fetchBackupState();
+      const interval = setInterval(fetchBackupState, 5 * 60 * 1000); // Poll every 5 minutes
+      return () => clearInterval(interval);
+    }
+  }, [isAdmin]);
+
+  const isBackupUrgent = () => {
+    if (!lastBackupAt) return true; // If no record, assume urgent
+    const lastBackupTime = new Date(lastBackupAt).getTime();
+    const sixHours = 6 * 60 * 60 * 1000;
+    return Date.now() - lastBackupTime > sixHours;
+  };
 
   const links = [
     { href: "/add", label: "Add Listing", icon: Plus },
@@ -86,7 +116,12 @@ export function Nav({ user, permissions }: NavProps) {
               {isAdmin && (
                 <button
                   onClick={() => setIsBackupOpen(true)}
-                  className="flex items-center gap-2 transition-colors hover:text-foreground/80 text-sm font-medium text-foreground/60"
+                  className={cn(
+                    "flex items-center gap-2 transition-colors text-sm",
+                    isBackupUrgent() 
+                      ? "text-red-600 font-bold hover:text-red-700" 
+                      : "text-foreground/60 font-medium hover:text-foreground/80"
+                  )}
                 >
                   <Database className="h-4 w-4" />
                   Backup

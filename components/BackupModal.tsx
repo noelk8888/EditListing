@@ -10,8 +10,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, Database, ExternalLink, AlertCircle, CheckCircle2, Copy } from "lucide-react";
+import { Loader2, Database, ExternalLink, AlertCircle, CheckCircle2, Copy, Lock, Unlock } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { useEffect } from "react";
 
 interface BackupModalProps {
   isOpen: boolean;
@@ -22,6 +23,21 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ name: string; url: string; id: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [destinationUrl, setDestinationUrl] = useState("https://docs.google.com/spreadsheets/d/1_COUN2E42JCCAPk_IEEfiIAOaVOqrknJ-XodBSJg9rU/edit?gid=1307446787#gid=1307446787");
+  const [isUrlLocked, setIsUrlLocked] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch("/api/admin/backup")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.destination_url) {
+            setDestinationUrl(data.destination_url);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [isOpen]);
 
   const handleRunBackup = async () => {
     setLoading(true);
@@ -31,6 +47,8 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
     try {
       const res = await fetch("/api/admin/backup", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ destinationUrl })
       });
       const data = await res.json();
 
@@ -84,11 +102,31 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
         <div className="py-6 w-full max-w-full overflow-hidden">
           {!result && !error && (
             <div className="text-center space-y-4 w-full">
-              <div className="p-4 bg-muted/50 rounded-lg border border-dashed">
+              <div className="p-4 bg-muted/50 rounded-lg border border-dashed text-left space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Running a backup will clone the current listings spreadsheet into the Service Account's Google Drive. 
-                  The new file will be named with today's date.
+                  Running a backup will clone the current listings spreadsheet into the Google Drive - maximum 60 tabs. 
+                  The new file will be named with today's date/time.
                 </p>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Destination URL (LUXE Copy)</label>
+                  <div className="flex bg-white border rounded-md overflow-hidden focus-within:ring-2 focus-within:ring-slate-400 transition-shadow">
+                    <input 
+                      type="text" 
+                      value={destinationUrl}
+                      onChange={(e) => setDestinationUrl(e.target.value)}
+                      disabled={isUrlLocked}
+                      className="flex-1 px-3 py-2 text-sm outline-none bg-transparent disabled:opacity-60 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                    />
+                    <button 
+                      type="button"
+                      onClick={() => setIsUrlLocked(!isUrlLocked)}
+                      className="px-3 bg-slate-100 hover:bg-slate-200 border-l border-slate-200 text-slate-600 transition-colors"
+                      title={isUrlLocked ? "Unlock to edit" : "Lock"}
+                    >
+                      {isUrlLocked ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4 text-amber-600" />}
+                    </button>
+                  </div>
+                </div>
               </div>
               <Button 
                 onClick={handleRunBackup} 

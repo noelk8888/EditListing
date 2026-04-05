@@ -103,7 +103,7 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const result = await model.generateContent(EXTRACTION_PROMPT + text);
       const responseText = result.response.text();
 
