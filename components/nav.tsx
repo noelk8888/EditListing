@@ -124,7 +124,9 @@ export function Nav({ user, permissions }: NavProps) {
                   )}
                 >
                   <Database className="h-4 w-4" />
-                  Backup
+                  {isBackupUrgent() && lastBackupAt 
+                    ? `Backup (${new Date(lastBackupAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})` 
+                    : "Backup"}
                 </button>
               )}
             </nav>
