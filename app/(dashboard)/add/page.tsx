@@ -132,6 +132,7 @@ export default function AddListingPage() {
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<SupabaseListing | null>(null);
+  const [forceNewListingMode, setForceNewListingMode] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [listingId, setListingId] = useState("");
@@ -562,6 +563,7 @@ export default function AddListingPage() {
     if (targetStep === "check") {
       extractPhotosAndPreview(overrideText);
       setSearchResult(null);
+      setForceNewListingMode(false);
       setSearchPerformed(false);
       setMatchedBy(null);
       setSourceTab(null);
@@ -585,6 +587,7 @@ export default function AddListingPage() {
     setError(null);
     setSearchError(null);
     setSearchResult(null);
+    setForceNewListingMode(false);
     setMatchedBy(null);
     setDirectOrCobroker(""); // Reset sticky direct status
     setSourceTab(null);
@@ -1771,6 +1774,7 @@ export default function AddListingPage() {
     setMonthlyDues("");
     setComments("");
     setSearchResult(null);
+    setForceNewListingMode(false);
     setSearchPerformed(false);
     setListingId("");
     setMatchedBy(null);
@@ -2266,11 +2270,13 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 <CheckCircle2 className="h-16 w-16 text-green-500" />
                 <div>
                   <p className="text-3xl font-bold text-green-700 leading-snug">
-                    No existing listing found
+                    {forceNewListingMode ? "Add New Listing" : "No existing listing found"}
                   </p>
-                  <p className="mt-2 text-2xl font-semibold text-green-600">
-                    {listingId ? `ID ${listingId} not in database — verify below` : "This appears to be new!"}
-                  </p>
+                  {!forceNewListingMode && (
+                    <p className="mt-2 text-2xl font-semibold text-green-600">
+                      {listingId ? `ID ${listingId} not in database — verify below` : "This appears to be new!"}
+                    </p>
+                  )}
                 </div>
                 {/* GEO ID confirm + Extract */}
                 <div className="flex flex-col items-center gap-3 w-full max-w-sm">
@@ -2494,6 +2500,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   </CardContent>
                 </Card>
                 <div className="flex items-center gap-3 flex-wrap justify-end">
+                  <Button
+                    onClick={() => {
+                      setForceNewListingMode(true);
+                      setSearchResult(null);
+                      setTargetTab("Sheet1");
+                    }}
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold tracking-wide"
+                  >
+                    ADD NEW LISTING
+                  </Button>
                   {permissions.telegram_send !== false && (
                     <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
                       <input
