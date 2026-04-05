@@ -2310,17 +2310,7 @@ async function performSyncBackup(
 
   console.log(`✅ [BACKUP-${label}] Data synced into tab: "${tabName}".`);
 
-  // 4. RENAME TARGET FILE FOR VISIBILITY (Optional, but keeps it descriptive)
-  try {
-    await drive.files.update({
-      fileId: targetId,
-      requestBody: {
-        name: backupTitle,
-      },
-    });
-  } catch (err) {
-    console.warn(`⚠️ [BACKUP-${label}] Could not rename file:`, err instanceof Error ? err.message : err);
-  }
+  // 4. RENAME TARGET FILE (Removed as per user request to maintain original file name)
 
   // 5. RUN AUTO-DELETE CLEANUP (Limit to 60 tabs)
   await manageBackupTabs(sheets, targetId, maxTabs);
