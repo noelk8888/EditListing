@@ -2318,100 +2318,6 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
             {/* RIGHT: Existing Listing Info */}
             {searchResult && (
               <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-3 flex-wrap justify-end">
-                  {permissions.telegram_send !== false && (
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
-                      <input
-                        type="checkbox"
-                        checked={telegramPostEnabled}
-                        onChange={() => setTelegramPostEnabled(v => !v)}
-                        className="h-4 w-4 accent-blue-600 cursor-pointer"
-                      />
-                      <Send className="h-3.5 w-3.5 text-blue-600" />
-                      TELEGRAM POST
-                    </label>
-                  )}
-                  <Button
-                    onClick={() => handleUpdateExisting()}
-                    disabled={updating}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    {updating ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
-                    ) : (
-                      <><Save className="mr-2 h-4 w-4" />Update Existing</>
-                    )}
-                  </Button>
-                  
-                  {permissions.sheet2 === true && sourceTab === "Sheet2" && (
-                    <Button
-                      variant="outline"
-                      className="border-red-600 text-red-600 hover:bg-red-50 shadow-lg border-2 ring-2 ring-red-500 ring-offset-2 transition-all"
-                      onClick={() => {
-                        const isBSeries = searchResult?.id?.startsWith("B");
-                        const msg = isBSeries 
-                          ? `Promote this listing to Sheet1? \n\nThe GEO ID will be transformed from ${searchResult.id} to ${searchResult.id.replace(/^B/, "G")}.`
-                          : `Promote this listing to Sheet1? \n\nThe GEO ID (${searchResult.id}) will remain the same.`;
-                        
-                        if (window.confirm(msg)) {
-                          handleUpdateExisting("Sheet1");
-                        }
-                      }}
-                      disabled={updating}
-                    >
-                      <Sparkles className="h-4 w-4 mr-2 text-red-500" />
-                      Promote to Sheet1
-                    </Button>
-                  )}
-                  {permissions.ai_extract !== false && (
-                    <Button onClick={handleExtractData} disabled={loading} variant="default">
-                      {loading ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
-                      ) : (
-                        <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
-                      )}
-                    </Button>
-                  )}
-                  {batchActive && permissions.ai_extract !== false && searchResult && (
-                    <Button
-                      onClick={handleExtractAndUpdate}
-                      disabled={loading || updating}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                    >
-                      {loading || (pendingExtractUpdate && updating) ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
-                      ) : (
-                        <><Sparkles className="mr-2 h-4 w-4" />Extract / Update</>
-                      )}
-                    </Button>
-                  )}
-                  {batchActive && batchIndex > 0 && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setError(null);
-                        setBatchIndex(prev => prev - 1);
-                      }}
-                    >
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Back
-                    </Button>
-                  )}
-                  {batchActive && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        const current = batchRows[batchIndex];
-                        if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
-                        setError(null);
-                        setBatchIndex(prev => prev + 1);
-                      }}
-                    >
-                      Next
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
                 {/* Backup: no-match warning (SUPERADMIN only) */}
                 {permissions.sheet2 === true && backupStatus === "not-found" && (
                   <div className="flex items-start gap-2 rounded-md border border-yellow-400 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
@@ -2587,6 +2493,100 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </div>
                   </CardContent>
                 </Card>
+                <div className="flex items-center gap-3 flex-wrap justify-end">
+                  {permissions.telegram_send !== false && (
+                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
+                      <input
+                        type="checkbox"
+                        checked={telegramPostEnabled}
+                        onChange={() => setTelegramPostEnabled(v => !v)}
+                        className="h-4 w-4 accent-blue-600 cursor-pointer"
+                      />
+                      <Send className="h-3.5 w-3.5 text-blue-600" />
+                      TELEGRAM POST
+                    </label>
+                  )}
+                  <Button
+                    onClick={() => handleUpdateExisting()}
+                    disabled={updating}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {updating ? (
+                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+                    ) : (
+                      <><Save className="mr-2 h-4 w-4" />Update Existing</>
+                    )}
+                  </Button>
+                  
+                  {permissions.sheet2 === true && sourceTab === "Sheet2" && (
+                    <Button
+                      variant="outline"
+                      className="border-red-600 text-red-600 hover:bg-red-50 shadow-lg border-2 ring-2 ring-red-500 ring-offset-2 transition-all"
+                      onClick={() => {
+                        const isBSeries = searchResult?.id?.startsWith("B");
+                        const msg = isBSeries 
+                          ? `Promote this listing to Sheet1? \n\nThe GEO ID will be transformed from ${searchResult.id} to ${searchResult.id.replace(/^B/, "G")}.`
+                          : `Promote this listing to Sheet1? \n\nThe GEO ID (${searchResult.id}) will remain the same.`;
+                        
+                        if (window.confirm(msg)) {
+                          handleUpdateExisting("Sheet1");
+                        }
+                      }}
+                      disabled={updating}
+                    >
+                      <Sparkles className="h-4 w-4 mr-2 text-red-500" />
+                      Promote to Sheet1
+                    </Button>
+                  )}
+                  {permissions.ai_extract !== false && (
+                    <Button onClick={handleExtractData} disabled={loading} variant="default">
+                      {loading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
+                      ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
+                      )}
+                    </Button>
+                  )}
+                  {batchActive && permissions.ai_extract !== false && searchResult && (
+                    <Button
+                      onClick={handleExtractAndUpdate}
+                      disabled={loading || updating}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {loading || (pendingExtractUpdate && updating) ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                      ) : (
+                        <><Sparkles className="mr-2 h-4 w-4" />Extract / Update</>
+                      )}
+                    </Button>
+                  )}
+                  {batchActive && batchIndex > 0 && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setError(null);
+                        setBatchIndex(prev => prev - 1);
+                      }}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back
+                    </Button>
+                  )}
+                  {batchActive && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        const current = batchRows[batchIndex];
+                        if (current) setBatchSkips(prev => [...prev, current.rowNumber]);
+                        setError(null);
+                        setBatchIndex(prev => prev + 1);
+                      }}
+                    >
+                      Next
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             )}
           </div>{/* end grid */}
