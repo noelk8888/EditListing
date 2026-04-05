@@ -2191,13 +2191,12 @@ async function manageBackupTabs(sheets: any, spreadsheetId: string, maxTabs: num
 
     console.log(`🧹 [BACKUP-CLEANUP] Scanning for backup tabs (max: ${maxTabs})...`);
 
-    // 1. Identify all backup tabs
     const backupTabs = sheetsList
       .map((s: any) => ({
         title: s.properties.title as string,
         sheetId: s.properties.sheetId as number
       }))
-      .filter((t: { title: string; sheetId: number }) => t.title.startsWith(backupPrefix));
+      .filter((t: { title: string; sheetId: number }) => t.title.startsWith("Backup_") || t.title.startsWith("Back_Up_"));
 
     // 2. Sort by title (title includes date/time: Backup_2026_04_05_09_51_22)
     backupTabs.sort((a: { title: string }, b: { title: string }) => a.title.localeCompare(b.title));
@@ -2239,17 +2238,27 @@ async function performSyncBackup(
 ) {
   const now = new Date();
   
-  // Technical tab name: sortable and unique
-  // Backup_2026_04_05_09_51_22
-  const dateParts = {
-    year: now.getFullYear(),
-    month: String(now.getMonth() + 1).padStart(2, '0'),
-    day: String(now.getDate()).padStart(2, '0'),
-    hours: String(now.getHours()).padStart(2, '0'),
-    minutes: String(now.getMinutes()).padStart(2, '0'),
-    seconds: String(now.getSeconds()).padStart(2, '0'),
-  };
-  const tabName = `Backup_${dateParts.year}_${dateParts.month}_${dateParts.day}_${dateParts.hours}_${dateParts.minutes}_${dateParts.seconds}`;
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Manila",
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false
+  });
+  
+  const parts = formatter.formatToParts(now);
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+  
+  const month = getPart("month");
+  const day = getPart("day");
+  const year = getPart("year");
+  const hour = getPart("hour");
+  const minute = getPart("minute");
+  
+  // Format requested: Back_Up_Apr_05_2026_10h36m
+  const tabName = `Back_Up_${month}_${day}_${year}_${hour}h${minute}m`;
   
   // Descriptive label for the spreadsheet itself
   const dateDisplay = now.toLocaleDateString("en-US", {
@@ -2273,13 +2282,16 @@ async function performSyncBackup(
     throw new Error(`${label} source sheet is empty - nothing to backup.`);
   }
 
-  // 2. CREATE NEW TAB
+  // 2. CREATE NEW TAB AT THE LEFTMOST POSITION
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: targetId,
     requestBody: {
       requests: [{
         addSheet: {
-          properties: { title: tabName }
+          properties: { 
+            title: tabName,
+            index: 0 
+          }
         }
       }]
     }
