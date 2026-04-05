@@ -21,10 +21,12 @@ export default async function DashboardLayout({
 
   const permissions = await getUserPermissions(session.user.email, session.user.role || "EDITOR");
 
+  const isSuperAdmin = session.user.role === "SUPERADMIN";
+
   return (
     <div className="relative flex min-h-screen flex-col">
       <Nav user={session.user} permissions={permissions} />
-      <main className="flex-1">
+      <main className={`flex-1 ${isSuperAdmin ? "pb-16" : ""}`}>
         <div className="container py-6">{children}</div>
       </main>
     </div>
