@@ -2506,31 +2506,31 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       setSearchResult(null);
                       setTargetTab("Sheet1");
                     }}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold tracking-wide"
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold tracking-wide h-auto py-2"
                   >
-                    ADD NEW LISTING
+                    <span className="leading-tight text-center">ADD NEW<br/>LISTING</span>
                   </Button>
                   {permissions.telegram_send !== false && (
-                    <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium mr-1">
+                    <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium mr-1">
                       <input
                         type="checkbox"
                         checked={telegramPostEnabled}
                         onChange={() => setTelegramPostEnabled(v => !v)}
-                        className="h-4 w-4 accent-blue-600 cursor-pointer"
+                        className="h-4 w-4 accent-blue-600 cursor-pointer flex-shrink-0"
                       />
-                      <Send className="h-3.5 w-3.5 text-blue-600" />
-                      TELEGRAM POST
+                      <Send className="h-3.5 w-3.5 text-blue-600 flex-shrink-0" />
+                      <span className="leading-tight text-center">TELEGRAM<br/>POST</span>
                     </label>
                   )}
                   <Button
                     onClick={() => handleUpdateExisting()}
                     disabled={updating}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-green-600 hover:bg-green-700 text-white h-auto py-2"
                   >
                     {updating ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Updating...</>
+                      <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="leading-tight text-center">UPDATING<br/>EXISTING</span></span>
                     ) : (
-                      <><Save className="mr-2 h-4 w-4" />Update Existing</>
+                      <span className="flex items-center gap-2"><Save className="h-4 w-4" /><span className="leading-tight text-center">UPDATE<br/>EXISTING</span></span>
                     )}
                   </Button>
                   
@@ -2555,11 +2555,11 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </Button>
                   )}
                   {permissions.ai_extract !== false && (
-                    <Button onClick={handleExtractData} disabled={loading} variant="default">
+                    <Button onClick={handleExtractData} disabled={loading} variant="default" className="h-auto py-2">
                       {loading ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
+                        <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="leading-tight text-center">EXTRACTING<br/>DATA</span></span>
                       ) : (
-                        <><Sparkles className="mr-2 h-4 w-4" />Extract & Review</>
+                        <span className="flex items-center gap-2"><Sparkles className="h-4 w-4" /><span className="leading-tight text-center">EXTRACT<br/>&amp; REVIEW</span></span>
                       )}
                     </Button>
                   )}
@@ -2567,12 +2567,12 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     <Button
                       onClick={handleExtractAndUpdate}
                       disabled={loading || updating}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      className="bg-blue-600 hover:bg-blue-700 text-white h-auto py-2"
                     >
                       {loading || (pendingExtractUpdate && updating) ? (
-                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                        <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="leading-tight text-center">PROCESSING<br/>BATCH</span></span>
                       ) : (
-                        <><Sparkles className="mr-2 h-4 w-4" />Extract / Update</>
+                        <span className="flex items-center gap-2"><Sparkles className="h-4 w-4" /><span className="leading-tight text-center">EXTRACT<br/>&amp; UPDATE</span></span>
                       )}
                     </Button>
                   )}
