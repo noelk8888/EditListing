@@ -1685,11 +1685,15 @@ export default function AddListingPage() {
   };
 
   const handleStartBatch = async () => {
-    const start = parseInt(batchStartRow, 10);
-    const end = parseInt(batchEndRow, 10);
+    let start = parseInt(batchStartRow, 10);
+    let end = parseInt(batchEndRow, 10);
     if (isNaN(start) || isNaN(end) || start < 2 || end < start) {
       setError("Start row must be ≥ 2 and end row must be ≥ start row");
       return;
+    }
+    if (end - start > 50) {
+      end = start + 50;
+      setBatchEndRow(String(end));
     }
     setBatchLoading(true);
     setError(null);
@@ -1964,7 +1968,14 @@ export default function AddListingPage() {
                 type="number"
                 min={2}
                 value={batchStartRow}
-                onChange={e => setBatchStartRow(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  setBatchStartRow(val);
+                  const num = parseInt(val, 10);
+                  if (val && !isNaN(num)) {
+                    setBatchEndRow(String(num + 50));
+                  }
+                }}
                 className="h-8 w-24 text-sm"
               />
             </div>
@@ -1974,7 +1985,16 @@ export default function AddListingPage() {
                 type="number"
                 min={2}
                 value={batchEndRow}
-                onChange={e => setBatchEndRow(e.target.value)}
+                onChange={e => {
+                  const val = e.target.value;
+                  const newEnd = parseInt(val, 10);
+                  const start = parseInt(batchStartRow, 10);
+                  if (!isNaN(newEnd) && !isNaN(start) && newEnd - start > 50) {
+                    setBatchEndRow(String(start + 50));
+                  } else {
+                    setBatchEndRow(val);
+                  }
+                }}
                 className="h-8 w-24 text-sm"
               />
             </div>
