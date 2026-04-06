@@ -32,11 +32,12 @@ export function Nav({ user, permissions }: NavProps) {
   const { theme, setTheme } = useTheme();
   const isAdmin = role === "SUPERADMIN" || role === "ADMIN";
   const isSuperAdmin = role === "SUPERADMIN";
+  const canBackup = isAdmin || role === "EDITOR";
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isAdmin) {
+    if (canBackup) {
       const fetchBackupState = async () => {
         try {
           const res = await fetch("/api/admin/backup");
@@ -55,7 +56,7 @@ export function Nav({ user, permissions }: NavProps) {
       const interval = setInterval(fetchBackupState, 5 * 60 * 1000); // Poll every 5 minutes
       return () => clearInterval(interval);
     }
-  }, [isAdmin]);
+  }, [canBackup]);
 
   const isBackupUrgent = () => {
     if (!lastBackupAt) return true; // If no record, assume urgent
@@ -112,8 +113,8 @@ export function Nav({ user, permissions }: NavProps) {
                 );
               })}
 
-              {/* Backup Modal Trigger (Admin only) */}
-              {isAdmin && (
+              {/* Backup Modal Trigger */}
+              {canBackup && (
                 <button
                   onClick={() => setIsBackupOpen(true)}
                   className={cn(
