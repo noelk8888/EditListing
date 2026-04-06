@@ -18,7 +18,7 @@ function extractSpreadsheetId(urlOrId: string) {
 export async function GET(req: Request) {
   try {
     const session = await auth();
-    if (session?.user?.role !== "SUPERADMIN" && session?.user?.role !== "ADMIN") {
+    if (session?.user?.role !== "SUPERADMIN" && session?.user?.role !== "ADMIN" && session?.user?.role !== "EDITOR") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     let isAdmin = false;
     if (!isCron) {
       const session = await auth();
-      if (session?.user?.role === "SUPERADMIN" || session?.user?.role === "ADMIN") {
+      if (session?.user?.role === "SUPERADMIN" || session?.user?.role === "ADMIN" || session?.user?.role === "EDITOR") {
         isAdmin = true;
       }
     }

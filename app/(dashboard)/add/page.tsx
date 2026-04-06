@@ -259,7 +259,36 @@ export default function AddListingPage() {
     const normalize = (s: string) =>
       (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[.,]/g, "").replace(/\s+/g, " ").trim();
 
-    const fields = [building, area, barangay, city, summary].map(f => normalize(f));
+    const locationFields = [building, area, barangay, city].map(f => normalize(f));
+    const normalizedSummary = normalize(summary);
+    const fields = [...locationFields, normalizedSummary];
+    
+    // Helper to check if a keyword is only present as a false positive in the summary
+    const isFalsePositiveInSummary = (kw: string) => {
+      const kwLower = normalize(kw);
+      if (locationFields.some(f => f.includes(kwLower))) return false; // Valid if in a location field
+      if (!normalizedSummary.includes(kwLower)) return false; // Not even in summary
+      
+      // If it's ONLY in the summary, check if it's preceded by "facing", "near", "view", etc.
+      // We look for these words within a ~30 character window before the keyword.
+      const rawLower = (summary || "").toLowerCase();
+      const regex = new RegExp(`\\b${kwLower.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'g');
+      const kwMatches: RegExpExecArray[] = [];
+      let match;
+      while ((match = regex.exec(rawLower)) !== null) {
+        kwMatches.push(match);
+      }
+      
+      // If there are matches, but EVERY single match is preceded by a false-positive indicator, then it's a false positive.
+      if (kwMatches.length > 0) {
+        const falsePositiveRegex = /(?:facing|near|view of|overlooking|proximity to|close to|minutes away from|minutes to)[^.?!]{0,40}$/i;
+        return kwMatches.every(m => {
+          const pretext = rawLower.substring(Math.max(0, m.index! - 40), m.index!);
+          return falsePositiveRegex.test(pretext);
+        });
+      }
+      return false;
+    };
     const lowerOwner = normalize(ownerBroker);
     const isLeaseListing = saleOrLease.toLowerCase().includes("lease");
     const isSaleListing = saleOrLease.toLowerCase().includes("sale");
@@ -310,15 +339,16 @@ export default function AddListingPage() {
         const kwMatch = group.keywords.some(kw => {
           const lowerKw = normalize(kw);
           if (!lowerKw) return false;
+          if (isFalsePositiveInSummary(kw)) return false;
           return fields.some(field => field.includes(lowerKw));
         });
 
         // 2. Name match — strip the " x Luxe Realty" part
-        const nameMatch = cleanName && cleanName.length > 3 && fields.some(field => field.includes(cleanName));
+        const nameMatch = cleanName && cleanName.length > 3 && !isFalsePositiveInSummary(cleanName) && fields.some(field => field.includes(cleanName));
 
         // 3. BGC Special Fallback (Only for general city groups, not specific condos)
         const isBGCGeneralGroup = cleanName === "bgc sale" || cleanName === "bgc lease" || cleanName === "bgc";
-        const bgcMatch = isBGCGeneralGroup && fields.some(field => field.includes("bonifacio global city") || field.includes("bgc"));
+        const bgcMatch = isBGCGeneralGroup && !isFalsePositiveInSummary("bgc") && !isFalsePositiveInSummary("bonifacio global city") && fields.some(field => field.includes("bonifacio global city") || field.includes("bgc"));
 
         if (kwMatch || nameMatch || bgcMatch) {
           selected.add(group.name);

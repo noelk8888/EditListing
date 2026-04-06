@@ -9,7 +9,7 @@ const supabase = createClient(
 );
 
 function canManage(role: string) {
-  return role === "SUPERADMIN" || role === "ADMIN";
+  return role === "SUPERADMIN";
 }
 
 // GET role-level permissions or per-user overrides
@@ -32,10 +32,8 @@ export async function GET(request: NextRequest) {
   }
 
   // Role-level permissions
-  // SA can see/edit AD+BR+V; AD can only see/edit BR+V
-  const roles = session.user.role === "SUPERADMIN"
-    ? ["ADMIN", "EDITOR"]
-    : ["EDITOR"];
+  // SA can see/edit ADMIN and EDITOR
+  const roles = ["ADMIN", "EDITOR"];
 
   const { data, error } = await supabase
     .from("role_permissions")
@@ -61,17 +59,6 @@ export async function PUT(request: NextRequest) {
 
   if (userEmail) {
     // Per-user override
-    if (session.user.role === "ADMIN") {
-      // AD can only override BR/V users
-      const { data: targetUser } = await supabase
-        .from("app_users")
-        .select("role")
-        .eq("email", userEmail.toLowerCase())
-        .single();
-      if (!targetUser || !["EDITOR"].includes(targetUser.role)) {
-        return NextResponse.json({ error: "ADMIN can only override EDITOR user permissions" }, { status: 403 });
-      }
-    }
 
     const { error } = await supabase
       .from("user_permission_overrides")
@@ -86,10 +73,7 @@ export async function PUT(request: NextRequest) {
   // Role-level toggle
   if (!targetRole) return NextResponse.json({ error: "targetRole is required" }, { status: 400 });
 
-  // AD cannot change AD-level permissions
-  if (session.user.role === "ADMIN" && targetRole === "ADMIN") {
-    return NextResponse.json({ error: "ADMIN cannot change ADMIN-level permissions" }, { status: 403 });
-  }
+
   // Only SA can change AD-level permissions
   if (targetRole === "SUPERADMIN") {
     return NextResponse.json({ error: "Cannot change SUPERADMIN permissions" }, { status: 403 });

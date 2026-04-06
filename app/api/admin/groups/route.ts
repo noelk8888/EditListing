@@ -9,7 +9,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function checkAccess() {
+async function checkReadAccess() {
+  const session = await auth();
+  if (!session?.user?.email) return false;
+  const role = (session.user as any).role || "";
+  return role === "SUPERADMIN" || role === "ADMIN" || role === "EDITOR";
+}
+
+async function checkWriteAccess() {
   const session = await auth();
   if (!session?.user?.email) return false;
   
@@ -22,7 +29,7 @@ async function checkAccess() {
 }
 
 export async function GET() {
-  if (!(await checkAccess())) {
+  if (!(await checkReadAccess())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -36,7 +43,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  if (!(await checkAccess())) {
+  if (!(await checkWriteAccess())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -58,7 +65,7 @@ export async function PATCH(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!(await checkAccess())) {
+  if (!(await checkWriteAccess())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -77,7 +84,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  if (!(await checkAccess())) {
+  if (!(await checkWriteAccess())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
