@@ -191,6 +191,7 @@ function supabaseToResult(row: SupabaseResult) {
     sponsor_start: row["SPONSOR START"] || null,
     sponsor_end: row["SPONSOR END"] || null,
     map_verified: row["MAP VERIFIED"] || null,
+    row_index: null as number | null,
   };
 }
 
@@ -258,6 +259,7 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow): ReturnType<
     sponsor_start: gsheetRow.supabaseSponsorStart || null,
     sponsor_end: gsheetRow.supabaseSponsorEnd || null,
     map_verified: gsheetRow.mapVerified || null,
+    row_index: gsheetRow.rowNumber ?? null,
   };
 }
 
@@ -321,6 +323,7 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
       area: fallback(result.area, gsheetRow.supabaseArea),
       // Monthly dues: GSheet BB (supabaseMonthlyDues)
       monthly_dues: fallback(result.monthly_dues, gsheetRow.supabaseMonthlyDues),
+      row_index: gsheetRow.rowNumber ?? null,
     };
   } catch (gsheetError) {
     console.error("GSheet fallback error:", gsheetError);

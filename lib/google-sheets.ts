@@ -679,7 +679,9 @@ export async function getRowByGeoId(geoId: string): Promise<GSheetFullRow | null
   });
 
   const row = response.data.values?.[0] || [];
-  return parseGSheetRow(row);
+  const parsed = parseGSheetRow(row);
+  parsed.rowNumber = result.rowNumber;
+  return parsed;
 }
 
 /**

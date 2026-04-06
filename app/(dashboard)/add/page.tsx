@@ -2236,7 +2236,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
               <CardContent className="space-y-4">
                 {/* Preview of listing */}
                 <div className="space-y-2">
-                  <Label>Listing Preview</Label>
+                  <Label>Listing Preview of the NEW INPUT</Label>
                   {searchPerformed && !searching && !searchResult ? (
                     <Textarea 
                       value={rawText}
@@ -2485,7 +2485,9 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 <Card className={batchAutoPaused && !flashDismissed ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">Listing ID: {searchResult.id}</CardTitle>
+                      <CardTitle className="text-lg uppercase">
+                        EXISTING LISTING ID: {searchResult.id} {searchResult.row_index ? `(ROW ${searchResult.row_index})` : ''}
+                      </CardTitle>
                       <label className="flex items-center gap-2 cursor-pointer select-none">
                         <input
                           type="radio"
