@@ -1943,18 +1943,20 @@ export default function AddListingPage() {
               className="h-8 text-sm flex-1"
             />
           </div>
-          <div className="flex items-center gap-2 mt-1">
-            <input 
-              type="checkbox" 
-              id="batchForceSheet1" 
-              checked={batchForceSheet1} 
-              onChange={e => setBatchForceSheet1(e.target.checked)} 
-              className="accent-blue-600 h-4 w-4 rounded"
-            />
-            <Label htmlFor="batchForceSheet1" className="text-sm font-medium cursor-pointer text-blue-700">
-              Force new batch listings to Sheet1 (G-Series)
-            </Label>
-          </div>
+          {permissions.promote_to_sheet1 !== false && (
+            <div className="flex items-center gap-2 mt-1">
+              <input 
+                type="checkbox" 
+                id="batchForceSheet1" 
+                checked={batchForceSheet1} 
+                onChange={e => setBatchForceSheet1(e.target.checked)} 
+                className="accent-blue-600 h-4 w-4 rounded"
+              />
+              <Label htmlFor="batchForceSheet1" className="text-sm font-medium cursor-pointer text-blue-700">
+                Force new batch listings to Sheet1 (G-Series)
+              </Label>
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <Label className="text-xs shrink-0">Start Row</Label>
@@ -1988,13 +1990,15 @@ export default function AddListingPage() {
                 <>Start Batch ({Math.max(0, parseInt(batchEndRow || "0") - parseInt(batchStartRow || "0") + 1)} rows)</>
               )}
             </Button>
-            <Button
-              size="sm"
-              onClick={() => setBatchAutoReview(!batchAutoReview)}
-              className={`h-8 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"}`}
-            >
-              {batchAutoReview ? "▶ AUTO" : "✋ MANUAL"}
-            </Button>
+            {permissions.promote_to_sheet1 !== false && (
+              <Button
+                size="sm"
+                onClick={() => setBatchAutoReview(!batchAutoReview)}
+                className={`h-8 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"}`}
+              >
+                {batchAutoReview ? "▶ AUTO" : "✋ MANUAL"}
+              </Button>
+            )}
           </div>
         </div>
       )}
