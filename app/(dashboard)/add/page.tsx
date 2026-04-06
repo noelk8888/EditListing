@@ -1691,8 +1691,8 @@ export default function AddListingPage() {
       setError("Start row must be ≥ 2 and end row must be ≥ start row");
       return;
     }
-    if (end - start > 50) {
-      end = start + 50;
+    if (end - start > 49) {
+      end = start + 49;
       setBatchEndRow(String(end));
     }
     setBatchLoading(true);
@@ -1973,7 +1973,7 @@ export default function AddListingPage() {
                   setBatchStartRow(val);
                   const num = parseInt(val, 10);
                   if (val && !isNaN(num)) {
-                    setBatchEndRow(String(num + 50));
+                    setBatchEndRow(String(num + 49));
                   }
                 }}
                 className="h-8 w-24 text-sm"
@@ -1989,8 +1989,8 @@ export default function AddListingPage() {
                   const val = e.target.value;
                   const newEnd = parseInt(val, 10);
                   const start = parseInt(batchStartRow, 10);
-                  if (!isNaN(newEnd) && !isNaN(start) && newEnd - start > 50) {
-                    setBatchEndRow(String(start + 50));
+                  if (!isNaN(newEnd) && !isNaN(start) && newEnd - start > 49) {
+                    setBatchEndRow(String(start + 49));
                   } else {
                     setBatchEndRow(val);
                   }
