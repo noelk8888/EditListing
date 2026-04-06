@@ -335,6 +335,7 @@ export async function POST(request: Request) {
     const userRole = (session?.user as any)?.role || "EDITOR";
     const permissions = userEmail ? await getUserPermissions(userEmail, userRole) : null;
     const isSuperAdmin = permissions?.sheet2 === true;
+    const canPromote = permissions?.promote_to_sheet1 === true;
 
     const { photoLink, listingId, previewText } = await request.json();
 
@@ -382,7 +383,9 @@ export async function POST(request: Request) {
 
         // If it is in Sheet2 and user is NOT SuperAdmin, report as matchedBy: "restricted"
         // This keeps the Admin unaware but allows the frontend to optionally use the data as a template.
+        // If the user lacks promote_to_sheet1 permission, ignore the match entirely.
         if (sourceTab === "Sheet2" && !isSuperAdmin) {
+           if (!canPromote) return NextResponse.json({ result: null });
            return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
         }
 
@@ -398,6 +401,7 @@ export async function POST(request: Request) {
           const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
           
           if (sourceTab === "Sheet2" && !isSuperAdmin) {
+            if (!canPromote) return NextResponse.json({ result: null });
             return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
           }
 
@@ -441,7 +445,9 @@ export async function POST(request: Request) {
           const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
 
           if (sourceTab === "Sheet2" && !isSuperAdmin) {
-            if (!restrictedMatch) restrictedMatch = { result, sourceTab };
+            if (canPromote) {
+              if (!restrictedMatch) restrictedMatch = { result, sourceTab };
+            }
             continue; // Keep looking for a Sheet1 match
           }
           
@@ -516,7 +522,9 @@ export async function POST(request: Request) {
 
                 if (sourceTab === "Sheet2" && !isSuperAdmin) {
                   console.log("  [Strategy A] Restricted Sheet2 match, continuing search...");
-                  if (!restrictedMatchLine2) restrictedMatchLine2 = { result, sourceTab: "Sheet2" };
+                  if (canPromote) {
+                    if (!restrictedMatchLine2) restrictedMatchLine2 = { result, sourceTab: "Sheet2" };
+                  }
                   continue;
                 }
 
@@ -571,7 +579,9 @@ export async function POST(request: Request) {
 
                 if (sourceTab === "Sheet2" && !isSuperAdmin) {
                   console.log("  [Strategy B] Restricted Sheet2 match, continuing search...");
-                  if (!restrictedMatchLine3) restrictedMatchLine3 = { result, sourceTab: "Sheet2" };
+                  if (canPromote) {
+                    if (!restrictedMatchLine3) restrictedMatchLine3 = { result, sourceTab: "Sheet2" };
+                  }
                   continue;
                 }
 
@@ -610,6 +620,7 @@ export async function POST(request: Request) {
           const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
           
           if (sourceTab === "Sheet2" && !isSuperAdmin) {
+            if (!canPromote) return NextResponse.json({ result: null });
             return NextResponse.json({ result, matchedBy: "restricted", sourceTab: "Sheet2" });
           }
 

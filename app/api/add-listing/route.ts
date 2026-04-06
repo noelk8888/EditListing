@@ -124,9 +124,12 @@ export async function POST(request: Request) {
 
     let finalGeoId = geo_id;
 
+    const canPromote = permissions?.promote_to_sheet1 === true;
+
     // --- Silent Transfer Logic ---
     // If adding to Sheet1, check if it secretly exists in Sheet2.
-    if (targetTab === "Sheet1" && summary) {
+    // Only query Sheet2 if user is SuperAdmin OR has promote_to_sheet1 permission enabled.
+    if (targetTab === "Sheet1" && summary && (isSuperAdmin || canPromote)) {
       try {
         const spreadsheetId = process.env.SPREADSHEET_ID!;
         // Search Sheet2 (specifically) for a content match
