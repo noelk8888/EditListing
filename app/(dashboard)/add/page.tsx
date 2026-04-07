@@ -608,6 +608,32 @@ export default function AddListingPage() {
     setError(null);
   };
 
+  const assignNextGeoId = useCallback(async (isSheet2: boolean) => {
+    const targetSeries = isSheet2 ? "B" : "G";
+    const lastMatch = lastAssignedGeoId?.match(/^([A-Z])(\d+)$/);
+    if (lastMatch && lastMatch[1].toUpperCase() === targetSeries) {
+      const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
+      setSuggestedGeoId(next);
+      setNewGeoId(next);
+      return next;
+    } else {
+      try {
+        const geoRes = await fetch(`/api/next-geo-id?series=${targetSeries}`, { cache: "no-store" });
+        const geoData = await geoRes.json();
+        if (geoData.geoId) {
+          setSuggestedGeoId(geoData.geoId);
+          setNewGeoId(geoData.geoId);
+          return geoData.geoId;
+        } else if (geoData.error) {
+          console.error("Server error generating ID:", geoData.error);
+        }
+      } catch (err) {
+        console.error("Fetch failed generating ID:", err);
+      }
+    }
+    return null;
+  }, [lastAssignedGeoId]);
+
   const handleSearch = useCallback(async () => {
     if (!photosLink && !listingId && !previewLines) {
       setError("No data available to search");
@@ -804,32 +830,8 @@ export default function AddListingPage() {
           setSuggestedGeoId(listingId);
           setNewGeoId(listingId);
         } else {
-          // If we just saved a listing this session with the same series, derive the next ID locally (avoids race condition)
-          const targetSeries = finalTargetTab === "Sheet2" ? "B" : "G";
-          const lastMatch = lastAssignedGeoId.match(/^([A-Z])(\d+)$/);
-          if (lastMatch && lastMatch[1].toUpperCase() === targetSeries) {
-            const next = `${lastMatch[1]}${parseInt(lastMatch[2]) + 1}`;
-            setSuggestedGeoId(next);
-            setNewGeoId(next);
-          } else {
-            // First new listing this session or different series — must query the sheet
-            try {
-              const geoRes = await fetch(
-                `/api/next-geo-id?series=${targetSeries}`,
-                { cache: "no-store" }
-              );
-              const geoData = await geoRes.json();
-              console.log("GEO ID fetch result in handleSearch:", geoData);
-              if (geoData.geoId) {
-                setSuggestedGeoId(geoData.geoId);
-                setNewGeoId(geoData.geoId);
-              } else if (geoData.error) {
-                console.error("Server error generating ID in handleSearch:", geoData.error);
-              }
-            } catch (err) {
-              console.error("Fetch failed in handleSearch:", err);
-            }
-          }
+          // If we don't have a pasted ID, fetch the next one in sequence
+          await assignNextGeoId(finalTargetTab === "Sheet2");
         }
       }
     } catch (err) {
@@ -837,7 +839,7 @@ export default function AddListingPage() {
     } finally {
       setSearching(false);
     }
-  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab, permissions, batchActive, batchForceSheet1]);
+  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab, permissions, batchActive, batchForceSheet1, assignNextGeoId]);
 
   // Keep Map Link in sync with lat/long coordinates
   useEffect(() => {
@@ -2692,10 +2694,11 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </Button>
                   )}
                   <Button
-                    onClick={() => {
+                    onClick={async () => {
                       setForceNewListingMode(true);
                       setSearchResult(null);
                       setTargetTab("Sheet1");
+                      await assignNextGeoId(false);
                     }}
                     className="bg-red-600 hover:bg-red-700 text-white font-bold tracking-wide h-auto py-2"
                   >
