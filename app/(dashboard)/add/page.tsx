@@ -1327,7 +1327,8 @@ export default function AddListingPage() {
         editStatus === "LEASED OUT" ? "LEASED OUT" :
         editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
         editStatus === "UNDER NEGO" ? "UNDER NEGO" :
-        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : ""
+        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
+        editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
       setTelegramLine3Notes("");
       setTelegramLine3(ownerBroker);
@@ -1562,7 +1563,8 @@ export default function AddListingPage() {
         editStatus === "LEASED OUT" ? "LEASED OUT" :
         editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
         editStatus === "UNDER NEGO" ? "UNDER NEGO" :
-        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : ""
+        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
+        editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
       setTelegramLine3Notes("");
       setTelegramLine3(ownerBroker);
