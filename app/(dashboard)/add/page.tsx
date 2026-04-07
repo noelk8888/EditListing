@@ -2490,10 +2490,13 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <CardTitle className="text-lg">
                         <div className="block mb-1 text-sm font-bold text-muted-foreground uppercase">Existing Listing ID:</div>
                         <div className="flex items-center gap-2">
-                          <span className="uppercase">{searchResult.id} {searchResult.row_index ? `(row ${searchResult.row_index})` : ''}</span>
-                          {batchActive && batchRows[batchIndex] && searchResult.row_index ? (
+                          <span>
+                            <span className="uppercase">{searchResult.id}</span>
+                            {searchResult.row_index ? ` (Row ${searchResult.row_index})` : ''}
+                          </span>
+                          {batchMode && batchRows[batchIndex] && searchResult.row_index ? (
                             <span>
-                              - {searchResult.row_index === batchRows[batchIndex].rowNumber ? (
+                              - {String(searchResult.row_index) === String(batchRows[batchIndex].rowNumber) ? (
                                 <span className="font-semibold text-foreground">Match</span>
                               ) : (
                                 <span className="text-red-600 font-bold uppercase">UNMATCHED</span>
