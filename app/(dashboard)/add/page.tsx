@@ -132,6 +132,7 @@ export default function AddListingPage() {
   const [error, setError] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [searchResult, setSearchResult] = useState<SupabaseListing | null>(null);
+  const [manualMatchRow, setManualMatchRow] = useState<number | null>(null);
   const [forceNewListingMode, setForceNewListingMode] = useState(false);
   const [searchPerformed, setSearchPerformed] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -985,7 +986,22 @@ export default function AddListingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchActive, batchIndex, batchRows]);
 
-  // Auto-fill fields from search result
+  // MATCH ROW CHECK FOR MANUAL SEARCHES
+  useEffect(() => {
+    if (searchResult?.id && !batchMode) {
+      setManualMatchRow(null);
+      fetch(`/api/check-batch-row?geoId=${encodeURIComponent(searchResult.id)}&spreadsheetUrl=${encodeURIComponent(batchSheetUrl)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.rowNumber) setManualMatchRow(data.rowNumber);
+        })
+        .catch(err => console.error("Failed to check manual match row:", err));
+    } else {
+      setManualMatchRow(null);
+    }
+  }, [searchResult?.id, batchMode, batchSheetUrl]);
+
+  // AUTO EXTRACT MAP LINK IF FOUND DURING PARSE
   useEffect(() => {
     if (searchResult) {
       // Populate editable listing fields
@@ -2497,6 +2513,14 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                           {batchMode && batchRows[batchIndex] && searchResult.row_index ? (
                             <span>
                               - {String(searchResult.row_index) === String(batchRows[batchIndex].rowNumber) ? (
+                                <span className="font-semibold text-foreground">Match</span>
+                              ) : (
+                                <span className="text-red-600 font-bold uppercase">UNMATCHED</span>
+                              )}
+                            </span>
+                          ) : !batchMode && searchResult.row_index && manualMatchRow ? (
+                            <span>
+                              - {String(searchResult.row_index) === String(manualMatchRow) ? (
                                 <span className="font-semibold text-foreground">Match</span>
                               ) : (
                                 <span className="text-red-600 font-bold uppercase">UNMATCHED</span>
