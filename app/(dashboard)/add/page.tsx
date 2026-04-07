@@ -3999,6 +3999,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <option value="OFF THE MARKET">OFF THE MARKET</option>
                       <option value="UNDER NEGO">UNDER NEGO</option>
                       <option value="UNDECISIVE SELLER">UNDECISIVE SELLER</option>
+                      <option value="ON HOLD">ON HOLD</option>
                     </select>
                   </div>
                   <div>
