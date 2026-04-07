@@ -1914,13 +1914,15 @@ export default function AddListingPage() {
             </div>
             {/* Right cluster */}
             <div className="flex items-center gap-2 shrink-0">
-              <Button
-                size="sm"
-                onClick={() => setBatchAutoReview(!batchAutoReview)}
-                className={`h-7 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"}`}
-              >
-                {batchAutoReview ? "▶ AUTO" : "✋ MANUAL"}
-              </Button>
+              {permissions.sheet2 === true && (
+                <Button
+                  size="sm"
+                  onClick={() => setBatchAutoReview(!batchAutoReview)}
+                  className={`h-7 px-3 text-[12px] font-bold uppercase tracking-wider ${batchAutoReview ? "bg-blue-600 hover:bg-blue-700 text-white" : "bg-blue-100 text-blue-700 hover:bg-blue-200 border border-blue-300"}`}
+                >
+                  {batchAutoReview ? "▶ AUTO" : "✋ MANUAL"}
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant={batchPaused ? "default" : "secondary"}
@@ -2058,7 +2060,7 @@ export default function AddListingPage() {
                 <>Start Batch ({Math.max(0, parseInt(batchEndRow || "0") - parseInt(batchStartRow || "0") + 1)} rows)</>
               )}
             </Button>
-            {permissions.promote_to_sheet1 !== false && (
+            {permissions.sheet2 === true && (
               <Button
                 size="sm"
                 onClick={() => setBatchAutoReview(!batchAutoReview)}
