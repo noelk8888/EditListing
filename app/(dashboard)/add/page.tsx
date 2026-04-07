@@ -988,7 +988,7 @@ export default function AddListingPage() {
 
   // MATCH ROW CHECK FOR MANUAL SEARCHES
   useEffect(() => {
-    if (searchResult?.id && !batchMode) {
+    if (searchResult?.id && !(batchActive || batchMode)) {
       setManualMatchRow(null);
       fetch(`/api/check-batch-row?geoId=${encodeURIComponent(searchResult.id)}&spreadsheetUrl=${encodeURIComponent(batchSheetUrl)}`)
         .then(res => res.json())
@@ -999,7 +999,7 @@ export default function AddListingPage() {
     } else {
       setManualMatchRow(null);
     }
-  }, [searchResult?.id, batchMode, batchSheetUrl]);
+  }, [searchResult?.id, batchMode, batchActive, batchSheetUrl]);
 
   // AUTO EXTRACT MAP LINK IF FOUND DURING PARSE
   useEffect(() => {
@@ -2512,7 +2512,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                             <span className="uppercase">{searchResult.id}</span>
                             {searchResult.row_index ? ` (Row ${searchResult.row_index})` : ''}
                           </span>
-                          {batchMode && batchRows[batchIndex] && searchResult.row_index ? (
+                          {(batchActive || batchMode) && batchRows[batchIndex] && searchResult.row_index ? (
                             <span>
                               - {String(searchResult.row_index) === String(batchRows[batchIndex].rowNumber) ? (
                                 <span className="font-semibold text-foreground">Match</span>
@@ -2520,7 +2520,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                                 <span className="text-red-600 font-bold uppercase">UNMATCHED</span>
                               )}
                             </span>
-                          ) : !batchMode && searchResult.row_index && manualMatchRow ? (
+                          ) : !(batchActive || batchMode) && searchResult.row_index && manualMatchRow ? (
                             <span>
                               - {String(searchResult.row_index) === String(manualMatchRow) ? (
                                 <span className="font-semibold text-foreground">Match</span>
