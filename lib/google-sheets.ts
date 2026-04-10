@@ -2284,7 +2284,12 @@ async function performSyncBackup(
     throw new Error(`${label} source sheet is empty - nothing to backup.`);
   }
 
-  // 2. CREATE NEW TAB AT THE LEFTMOST POSITION
+  // 2. PRE-CLEAN: Delete old tabs BEFORE creating the new one to avoid hitting the
+  //    10,000,000-cell workbook limit. We run with (maxTabs - 1) so there is always
+  //    room for the new tab we are about to add.
+  await manageBackupTabs(sheets, targetId, maxTabs - 1);
+
+  // 3. CREATE NEW TAB AT THE LEFTMOST POSITION
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: targetId,
     requestBody: {
@@ -2300,7 +2305,7 @@ async function performSyncBackup(
   });
   console.log(`🆕 [BACKUP-${label}] Created new tab: "${tabName}"`);
 
-  // 3. WRITE TO SPECIFIC TAB
+  // 4. WRITE TO SPECIFIC TAB
   await sheets.spreadsheets.values.update({
     spreadsheetId: targetId,
     range: `${tabName}!A1`,
@@ -2312,10 +2317,7 @@ async function performSyncBackup(
 
   console.log(`✅ [BACKUP-${label}] Data synced into tab: "${tabName}".`);
 
-  // 4. RENAME TARGET FILE (Removed as per user request to maintain original file name)
-
-  // 5. RUN AUTO-DELETE CLEANUP (Limit to 60 tabs)
-  await manageBackupTabs(sheets, targetId, maxTabs);
+  // 5. RENAME TARGET FILE (Removed as per user request to maintain original file name)
 
   return { id: targetId, name: backupTitle, tabName };
 }
