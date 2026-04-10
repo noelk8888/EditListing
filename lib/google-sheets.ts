@@ -2330,7 +2330,7 @@ export async function createSpreadsheetBackup(customCopyTargetId?: string): Prom
   const sheets = google.sheets({ version: "v4", auth });
   const drive = google.drive({ version: "v3", auth });
 
-  const maxTabs = 20; // Reduced from 60 — each tab holds ~67 cols × 2500+ rows ≈ 167k cells; 60 tabs would exceed the 10M cell workbook limit
+  const maxTabs = 12; // Capped at 12 — each tab holds ~67 cols × 2500+ rows ≈ 167k cells; keeps total well under the 10M cell workbook limit
 
   // 1. MASTER LISTING BACKUP
   const masterId = process.env.SPREADSHEET_ID;
