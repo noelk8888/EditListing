@@ -1,9 +1,26 @@
 import { NextResponse } from "next/server";
 import { getSheets } from "@/lib/google-sheets";
 
-function extractSpreadsheetId(url: string): string | null {
-  const match = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  return match ? match[1] : null;
+function extractSpreadsheetId(url: string): { id: string | null; gid: string | null } {
+  const idMatch = url.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  const gidMatch = url.match(/[#?&]gid=([0-9]+)/);
+  return {
+    id: idMatch ? idMatch[1] : null,
+    gid: gidMatch ? gidMatch[1] : null
+  };
+}
+
+async function getTabNameFromGid(sheets: any, spreadsheetId: string, gid: string | null): Promise<string> {
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const allSheets = meta.data.sheets || [];
+  
+  if (gid) {
+    const found = allSheets.find((s: any) => s.properties?.sheetId?.toString() === gid);
+    if (found?.properties?.title) return found.properties.title;
+  }
+  
+  // Default to first sheet if gid not found or not provided
+  return allSheets[0]?.properties?.title || "Sheet1";
 }
 
 function extractPhotoSlug(text: string): string | null {
@@ -42,17 +59,26 @@ export async function POST(req: Request) {
     const { url1, url2 } = await req.json();
     if (!url1 || !url2) return NextResponse.json({ error: "Missing sheet URLs" }, { status: 400 });
 
-    const id1 = extractSpreadsheetId(url1);
-    const id2 = extractSpreadsheetId(url2);
+    const { id: id1, gid: gid1 } = extractSpreadsheetId(url1);
+    const { id: id2, gid: gid2 } = extractSpreadsheetId(url2);
+    
     if (!id1 || !id2) return NextResponse.json({ error: "Invalid sheet URLs" }, { status: 400 });
 
     const sheets = getSheets();
 
+    // Resolve Dynamic Tab Names
+    const [tabName1, tabName2] = await Promise.all([
+      getTabNameFromGid(sheets, id1, gid1),
+      getTabNameFromGid(sheets, id2, gid2)
+    ]);
+
+    console.log(`Comparing "${id1}" [${tabName1}] vs "${id2}" [${tabName2}]`);
+
     // 1. Fetch both sheets (Columns A and AC)
     // we fetch A to AC to get Listing Text (0) and GEO ID (28)
     const [res1, res2] = await Promise.all([
-      sheets.spreadsheets.values.get({ spreadsheetId: id1, range: "Sheet1!A2:AC" }),
-      sheets.spreadsheets.values.get({ spreadsheetId: id2, range: "Sheet1!A2:AC" })
+      sheets.spreadsheets.values.get({ spreadsheetId: id1, range: `${tabName1}!A2:AC` }),
+      sheets.spreadsheets.values.get({ spreadsheetId: id2, range: `${tabName2}!A2:AC` })
     ]);
 
     const rows1 = res1.data.values || [];

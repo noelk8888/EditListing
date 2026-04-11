@@ -336,20 +336,29 @@ export default function AddListingPage() {
           return;
         }
 
-        // 1. Keyword match
+        const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // 1. Keyword match with word boundaries
         const kwMatch = group.keywords.some(kw => {
           const lowerKw = normalize(kw);
           if (!lowerKw) return false;
           if (isFalsePositiveInSummary(kw)) return false;
-          return fields.some(field => field.includes(lowerKw));
+          const regex = new RegExp(`\\b${escapeRegExp(lowerKw)}\\b`, 'i');
+          return fields.some(field => regex.test(field));
         });
 
-        // 2. Name match — strip the " x Luxe Realty" part
-        const nameMatch = cleanName && cleanName.length > 3 && !isFalsePositiveInSummary(cleanName) && fields.some(field => field.includes(cleanName));
+        // 2. Name match with word boundaries — strip the " x Luxe Realty" part
+        const nameMatch = cleanName && cleanName.length > 3 && !isFalsePositiveInSummary(cleanName) && (() => {
+          const regex = new RegExp(`\\b${escapeRegExp(cleanName)}\\b`, 'i');
+          return fields.some(field => regex.test(field));
+        })();
 
         // 3. BGC Special Fallback (Only for general city groups, not specific condos)
         const isBGCGeneralGroup = cleanName === "bgc sale" || cleanName === "bgc lease" || cleanName === "bgc";
-        const bgcMatch = isBGCGeneralGroup && !isFalsePositiveInSummary("bgc") && !isFalsePositiveInSummary("bonifacio global city") && fields.some(field => field.includes("bonifacio global city") || field.includes("bgc"));
+        const bgcMatch = isBGCGeneralGroup && !isFalsePositiveInSummary("bgc") && !isFalsePositiveInSummary("bonifacio global city") && fields.some(field => {
+          const bgcRegex = /\b(bgc|bonifacio global city)\b/i;
+          return bgcRegex.test(field);
+        });
 
         if (kwMatch || nameMatch || bgcMatch) {
           selected.add(group.name);

@@ -143,12 +143,20 @@ export default function CompareSheetsPage() {
                         <div className="text-sm text-amber-800">
                           <p>A comparison report has been generated in a new tab: <strong>{result.tabName}</strong></p>
                         </div>
-                        <Button variant="outline" size="sm" asChild className="bg-white hover:bg-amber-100">
-                          <a href={result.outputUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="mr-2 h-3 w-3" />
-                            Open GSheet 2 Results
-                          </a>
-                        </Button>
+                        <div className="space-y-3">
+                          <Button variant="outline" size="sm" asChild className="bg-white hover:bg-amber-100">
+                            <a href={result.outputUrl} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="mr-2 h-3 w-3" />
+                              Open GSheet 2 Results
+                            </a>
+                          </Button>
+                          <div className="flex flex-col gap-1">
+                             <p className="text-[10px] uppercase font-bold text-amber-700 tracking-wider">Direct Link:</p>
+                             <p className="text-xs break-all font-mono text-amber-800 bg-white/50 p-2 rounded border border-amber-200 select-all cursor-text">
+                               {result.outputUrl}
+                             </p>
+                          </div>
+                        </div>
                       </>
                     )}
                     {result.message && <p className="text-sm text-emerald-800">{result.message}</p>}
