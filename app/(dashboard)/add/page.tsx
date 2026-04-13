@@ -1164,6 +1164,7 @@ export default function AddListingPage() {
       setCompound(searchResult.compound || "");
       setMonthlyDues(searchResult.monthly_dues || "");
       setComments(searchResult.comments || "");
+      setSocmedLink(searchResult.fb_link || "");
       setLocationVerified(!!searchResult.map_verified);
     }
   }, [searchResult]);
