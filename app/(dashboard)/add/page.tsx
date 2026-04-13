@@ -213,6 +213,7 @@ export default function AddListingPage() {
   const [pendingUpdateTab, setPendingUpdateTab] = useState<"Sheet1" | "Sheet2" | null>(null);
   const [permissions, setPermissions] = useState<Record<string, boolean>>({});
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [userRole, setUserRole] = useState<string>("");
   const showTelegramProHub = !!(permissions.sheet2 || permissions.telegram_pro_hub);
 
   // Normalize MM/DD/YYYY or "Month DD, YYYY" → YYYY-MM-DD for date inputs
@@ -237,6 +238,7 @@ export default function AddListingPage() {
       .then((r) => r.json())
       .then((d) => { 
         setPermissions(d.permissions || {}); 
+        setUserRole(d.role || "");
         setPermissionsLoaded(true); 
         if (d.permissions?.sheet2) {
           setTargetTab("Sheet2");
@@ -520,6 +522,12 @@ export default function AddListingPage() {
       }
 
       setStep("review");
+      
+      // Ensure TODAY is active for Admins/Editors after extraction
+      if (!permissions.sheet2 && (userRole === "ADMIN" || userRole === "EDITOR")) {
+        setTodayToggle(true);
+        setDateUpdated(getTodayDate());
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to parse listing");
     } finally {
@@ -589,7 +597,12 @@ export default function AddListingPage() {
     setDateUpdated("");
     setOriginalDateUpdated("");
     setAvailable("");
-    setTodayToggle(false);
+    // Admins and Editors keep TODAY active by default
+    const isAdmin = !permissions.sheet2 && (userRole === "ADMIN" || userRole === "EDITOR");
+    setTodayToggle(isAdmin);
+    if (isAdmin) setDateUpdated(getTodayDate());
+    else setDateUpdated("");
+
     // MORE INFO fields
     setMapLink("");
     setSalePricePerSqm("");
@@ -698,7 +711,11 @@ export default function AddListingPage() {
     setDateUpdated("");
     setOriginalDateUpdated("");
     setAvailable("");
-    setTodayToggle(false);
+    
+    // Admins and Editors keep TODAY active by default
+    const isAdmin = !permissions.sheet2 && (userRole === "ADMIN" || userRole === "EDITOR");
+    setTodayToggle(isAdmin);
+    if (isAdmin) setDateUpdated(getTodayDate());
     // MORE INFO fields
     setMapLink("");
     setSalePricePerSqm("");
@@ -1820,7 +1837,12 @@ export default function AddListingPage() {
     setDateUpdated("");
     setOriginalDateUpdated("");
     setAvailable("");
-    setTodayToggle(false);
+    // Admins and Editors keep TODAY active by default
+    const isAdmin = !permissions.sheet2 && (userRole === "ADMIN" || userRole === "EDITOR");
+    setTodayToggle(isAdmin);
+    if (isAdmin) setDateUpdated(getTodayDate());
+    else setDateUpdated("");
+
     setEditSummary("");
     setEditArea("");
     setEditBarangay("");
