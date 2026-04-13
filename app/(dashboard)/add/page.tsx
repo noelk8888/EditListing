@@ -102,6 +102,7 @@ export default function AddListingPage() {
   const [compound, setCompound] = useState("");
   const [monthlyDues, setMonthlyDues] = useState("");
   const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
+  const [socmedLink, setSocmedLink] = useState("");
 
   useEffect(() => {
     fetchSpearheadedByNames().then(setDynamicOptions);
@@ -242,6 +243,10 @@ export default function AddListingPage() {
         }
         if (d.role === "ADMIN" || d.role === "EDITOR" || d.role === "SUPERADMIN") {
           setTelegramPostEnabled(true);
+        }
+        if (d.role === "ADMIN" || d.role === "EDITOR") {
+          setTodayToggle(true);
+          setDateUpdated(getTodayDate());
         }
       })
       .catch(() => setPermissionsLoaded(true));
@@ -458,9 +463,14 @@ export default function AddListingPage() {
       setHowManyAway(prev => data.howManyAway || prev);
       setSalePricePerSqm(prev => data.salePricePerSqm || prev);
       setLeasePricePerSqm(prev => data.leasePricePerSqm || prev);
-      setLat(prev => data.lat || prev);
-      setLong(prev => data.long || prev);
-      setMapLink(prev => data.mapLink || prev);
+      setSocmedLink(prev => data.socmedLink || prev);
+
+      // Preserve Location Verified status and coordinates if already verified
+      if (!locationVerified) {
+        setLat(prev => data.lat || prev);
+        setLong(prev => data.long || prev);
+        setMapLink(prev => data.mapLink || prev);
+      }
 
       // Set property type checkboxes from parsed data
       if (data.residential) {
@@ -813,6 +823,7 @@ export default function AddListingPage() {
           setDateUpdated(template.date_updated || getTodayDate());
           setOriginalDateUpdated(template.date_updated || getTodayDate());
           setAvailable(template.available || "");
+          setSocmedLink(template.fb_link || "");
           setMapLink(template.map_link || "");
           setSalePricePerSqm(template.sale_price_per_sqm ? template.sale_price_per_sqm.toString() : "");
           setLeasePricePerSqm(template.lease_price_per_sqm ? template.lease_price_per_sqm.toString() : "");
@@ -1489,6 +1500,7 @@ export default function AddListingPage() {
           compound: compound,
           monthly_dues: monthlyDues,
           comments: comments,
+          fb_link: socmedLink,
 
           photo_link: photosLink,
           send_telegram: telegramPostEnabled,
@@ -1671,6 +1683,7 @@ export default function AddListingPage() {
           monthly_dues: monthlyDues,
           comments: comments,
           photo_link: photosLink,
+          fb_link: socmedLink,
           geo_id: (geoIdConfirmed && newGeoId) ? newGeoId : undefined,
           // batch: always pass source sheet + row so GEO ID is written back to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
@@ -2520,9 +2533,9 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                         <div className="block mb-1 text-sm font-bold text-muted-foreground uppercase">Existing Listing ID:</div>
                         <div className="flex items-center gap-2">
                           <span>
-                            <span className="uppercase">{searchResult.id}</span>
-                            {searchResult.row_index ? ` (Row ${searchResult.row_index})` : ''}
-                          </span>
+                             <span className="uppercase">{searchResult.id}</span>
+                             {searchResult.row_index ? ` (${sourceTab || 'Sheet1'} - Row ${searchResult.row_index})` : ''}
+                           </span>
                           {(batchActive || batchMode) && batchRows[batchIndex] && searchResult.row_index ? (
                             <span>
                               - {String(searchResult.row_index) === String(batchRows[batchIndex].rowNumber) ? (
@@ -3069,6 +3082,10 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
                       <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Socmed Link</Label>
+                      <Input value={socmedLink} onChange={(e) => handleInputChange(setSocmedLink)(e.target.value)} className="h-8 text-sm" placeholder="Facebook / Instagram / TikTok link" />
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -3356,6 +3373,10 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
                       <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Socmed Link</Label>
+                      <Input value={socmedLink} onChange={(e) => handleInputChange(setSocmedLink)(e.target.value)} className="h-8 text-sm" placeholder="Facebook / Instagram / TikTok link" />
                     </div>
                   </div>
                 </div>
@@ -3889,6 +3910,10 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
                     <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Socmed Link</Label>
+                    <Input value={socmedLink} onChange={(e) => handleInputChange(setSocmedLink)(e.target.value)} className="h-8 text-sm" placeholder="Facebook / Instagram / TikTok link" />
                   </div>
                 </div>
               </div>
