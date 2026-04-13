@@ -1815,6 +1815,7 @@ function rowToListing(row: string[], rowIndex: number): Listing {
     corner: row[24]?.toLowerCase() === "true" || row[24] === "1",
     compound: row[25]?.toLowerCase() === "true" || row[25] === "1",
     photos: row[26] || "",
+    fbLink: "",
     mapLink: "",
     rawListing: row[27] || "",
     withIncome: row[29]?.toLowerCase() === "true" || row[29] === "1",
