@@ -27,6 +27,7 @@ export interface Listing {
   corner: boolean;
   compound: boolean;
   photos: string;
+  fbLink: string;
   mapLink: string;
   rawListing: string;
   // New fields

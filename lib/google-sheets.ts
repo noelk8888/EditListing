@@ -442,7 +442,10 @@ export async function findRowAndTabByGeoId(geoId: string): Promise<{ rowNumber: 
     .filter((title: string) => !!title);
 
   // 2. Search all tabs for the GEO ID in column AC
-  for (const tabTitle of allTabs) {
+  // Prioritize non-Sheet1 tabs (like Sheet2) so that archived listings are correctly identified
+  // even if they still exist in Sheet1 Row AC (or legacy Row A).
+  const sortedTabs = [...allTabs.filter(t => t !== SHEET_NAME), SHEET_NAME];
+  for (const tabTitle of sortedTabs) {
     // Ensure AC column (29) exists for this tab
     await ensureSheetDimensions(sheets, spreadsheetId, 29);
 

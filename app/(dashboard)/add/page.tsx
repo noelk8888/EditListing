@@ -463,7 +463,7 @@ export default function AddListingPage() {
       setHowManyAway(prev => data.howManyAway || prev);
       setSalePricePerSqm(prev => data.salePricePerSqm || prev);
       setLeasePricePerSqm(prev => data.leasePricePerSqm || prev);
-      setSocmedLink(prev => data.socmedLink || prev);
+      setSocmedLink(prev => data.fbLink || data.socmedLink || prev);
 
       // Preserve Location Verified status and coordinates if already verified
       if (!locationVerified) {

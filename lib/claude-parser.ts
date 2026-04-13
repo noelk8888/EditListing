@@ -23,6 +23,7 @@ IMPORTANT RULES:
     - "OFF MARKET" or "Sold" means what they say.
     - "UNDECISIVE" or "UNDECISIVE SELLER" means status is "UNDECISIVE SELLER".
 9. Extract photo URLs if present (lines with "Photos:", "Photo Link:", etc.)
+9a. Extract Facebook / Social Media links if present (FB, Instagram, TikTok links).
 9b. Extract Google Map / map link URLs if present (lines with "Google Map:", "Map Link:", "MAP LINK:", etc.)
 10. For areas, extract numeric values with unit (e.g., "15430" for "15,430 sqm"). CRITICAL: "Lot Area" and "Floor Area" are DIFFERENT things. ONLY set lotArea if the listing explicitly says "Lot Area" or "Land Area". ONLY set floorArea if the listing explicitly says "Floor Area", "Unit Size", "GFA", or similar. A condo/unit listing that says "Floor Area: 147 sqm" has floorArea=147 and lotArea="" (empty). Never copy the floor area value into lotArea.
 11. Look for keywords like "corner lot", "inside compound" to set corner and compound flags
@@ -68,6 +69,7 @@ Return a JSON object with these fields (use empty string "" for unknown values, 
   "compound": boolean,
   "withIncome": boolean,
   "photos": "string (photo album URL if found)",
+  "fbLink": "string (Facebook / Social Media link if found)",
   "mapLink": "string (Google Map / map URL if found)",
   "directOrCobroker": "Direct to Owner" | "With Cobroker" | "",
   "ownerBroker": "string (broker/agent name only, no phone number)",
@@ -152,6 +154,7 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
       compound: Boolean(parsed.compound),
       withIncome: Boolean(parsed.withIncome),
       photos: parsed.photos || "",
+      fbLink: parsed.fbLink || "",
       mapLink: parsed.mapLink || "",
       directOrCobroker: (parsed.directOrCobroker === "Direct to Owner" || parsed.directOrCobroker === "With Cobroker")
         ? parsed.directOrCobroker
