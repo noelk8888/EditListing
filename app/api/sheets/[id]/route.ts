@@ -70,6 +70,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       corner: Boolean(data.corner),
       compound: Boolean(data.compound),
       photos: data.photos || "",
+      fbLink: data.fbLink || "",
       mapLink: data.mapLink || "",
       rawListing: data.rawListing || "",
       withIncome: Boolean(data.withIncome),

@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       corner: Boolean(data.corner),
       compound: Boolean(data.compound),
       photos: data.photos || "",
+      fbLink: data.fbLink || "",
       mapLink: data.mapLink || "",
       rawListing: data.rawListing || "",
       withIncome: Boolean(data.withIncome),
