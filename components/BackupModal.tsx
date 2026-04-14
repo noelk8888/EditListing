@@ -104,7 +104,7 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
             <div className="text-center space-y-4 w-full">
               <div className="p-4 bg-muted/50 rounded-lg border border-dashed text-left space-y-4">
                 <p className="text-sm text-muted-foreground">
-                  Running a backup will clone the current listings spreadsheet into the Google Drive - maximum 60 tabs. 
+                  Running a backup will clone the current listings spreadsheet into the Google Drive - maximum 12 tabs. 
                   The new file will be named with today's date/time.
                 </p>
                 <div className="space-y-1.5">
