@@ -120,7 +120,7 @@ const groups = [
   {"name":"SAN MIGUEL VILLAGE","link":"https://t.me/+VbYsZkOMVKg4NTg1"},
   {"name":"SAN LORENZO","link":"https://t.me/+eqtzix20FzowOTY1"},
   {"name":"SCOUT AREA","link":"https://t.me/+DYga1Do9Xhs5ODI1"},
-  {"name":"SHANG PROPERTIES","link":"https://t.me/+zdNddfXI-eVlZjc9"},
+  {"name":"SHANG PROPERTIES x Luxe Realty","link":"https://t.me/+zdNddfXI-eVlZjc9", "keywords": ["SHANG PROPERTIES", "Shang Salcedo Place", "Shang Summit", "Shang Wack Wack", "Shang Aurelia"]},
   {"name":"SITIO SEVILLE","link":"https://t.me/+j_i47woC-BRhNWVl"},
   {"name":"SOUTHVALE PRIMERA SONERA","link":"https://t.me/+1ngrUCr_7tNiMDA1"},
   {"name":"ST. IGNATIUS","link":"https://t.me/+Jg4SKpa5Nzg5Yzhl"},
