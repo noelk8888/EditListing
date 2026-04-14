@@ -162,7 +162,7 @@ export function Nav({ user, permissions }: NavProps) {
           </div>
         </div>
 
-        <BackupModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
+        <BackupModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} onBackupSuccess={(at) => setLastBackupAt(at)} />
       </header>
 
       {/* SUPERADMIN-only sticky footer */}

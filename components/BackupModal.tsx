@@ -17,9 +17,10 @@ import { useEffect } from "react";
 interface BackupModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onBackupSuccess?: (backupAt: string) => void;
 }
 
-export function BackupModal({ isOpen, onClose }: BackupModalProps) {
+export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ name: string; url: string; id: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export function BackupModal({ isOpen, onClose }: BackupModalProps) {
       }
 
       setResult(data.backup);
+      onBackupSuccess?.(new Date().toISOString());
       toast({
         title: "Backup Created",
         description: `Successfully backed up to ${data.backup.name}`,
