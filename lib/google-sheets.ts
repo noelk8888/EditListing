@@ -298,7 +298,7 @@ const _ensuredCols = new Map<string, number>();
  * Google Sheets sometimes creates new sheets with only a few columns (e.g. 18-26).
  * Our app requires columns Z-BO (up to column 67).
  */
-export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number, minRows?: number, tabName?: string) {
+export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, minCols: number, minRows?: number, tabName?: string, spreadsheetMetadata?: any) {
   const targetTab = tabName || SHEET_NAME;
   // Use a composite key for caching: spreadsheetId + tabName
   const cacheKey = `${spreadsheetId}|${targetTab}`;
@@ -316,7 +316,7 @@ export async function ensureSheetDimensions(sheets: any, spreadsheetId: string, 
 
   try {
     log(`Checking dimensions for ${spreadsheetId} [${targetTab}], target: ${minCols} cols, ${minRows ?? "any"} rows`);
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const spreadsheet = spreadsheetMetadata || await sheets.spreadsheets.get({ spreadsheetId });
 
     // Find sheet by title
     let sheet = spreadsheet.data.sheets?.find((s: any) => s.properties?.title === targetTab);
@@ -428,51 +428,55 @@ export async function runWithExpansion<T>(
 /**
  * Find row number and tab name by GEO ID (column AC) across all tabs
  */
-export async function findRowAndTabByGeoId(geoId: string): Promise<{ rowNumber: number; tabName: string } | null> {
+export async function findRowAndTabByGeoId(geoId: string): Promise<{ rowNumber: number; tabName: string; meta?: any } | null> {
   const sheets = getSheets();
   const spreadsheetId = process.env.SPREADSHEET_ID;
   if (!spreadsheetId) {
     throw new Error("SPREADSHEET_ID not configured");
   }
 
-  // 1. Get all tabs in the spreadsheet
+  // 1. Get spreadsheet metadata once
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const allTabs = (meta.data.sheets || [])
     .map((s: any) => s.properties?.title as string)
     .filter((title: string) => !!title);
 
-  // 2. Search all tabs for the GEO ID in column AC
-  // Prioritize non-Sheet1 tabs (like Sheet2) so that archived listings are correctly identified
-  // even if they still exist in Sheet1 Row AC (or legacy Row A).
+  // 2. Search all tabs but prioritize non-Sheet1 tabs (like Sheet2)
   const sortedTabs = [...allTabs.filter(t => t !== SHEET_NAME), SHEET_NAME];
-  for (const tabTitle of sortedTabs) {
-    // Ensure AC column (29) exists for this tab
-    await ensureSheetDimensions(sheets, spreadsheetId, 29);
+  
+  // 3. Optimized: Use batchGet to fetch all GEO IDs (Col AC) and Fallback IDs (Col A) from all tabs in one go
+  const acRanges = sortedTabs.map(tab => `${tab}!AC2:AC`);
+  const aRanges = sortedTabs.map(tab => `${tab}!A2:A`);
+  
+  const response = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId,
+    ranges: [...acRanges, ...aRanges],
+  });
+  
+  const valueRanges = response.data.valueRanges || [];
+  const acResults = valueRanges.slice(0, sortedTabs.length);
+  const aResults = valueRanges.slice(sortedTabs.length);
 
-    const acResponse = await runWithExpansion(sheets, spreadsheetId, 29, () =>
-      sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: `${tabTitle}!AC2:AC`,
-      })
-    );
-    const acColumn = acResponse.data.values || [];
-    const acIndex = acColumn.findIndex((row) => row[0] === geoId);
+  // Check Col AC first (preferred)
+  for (let i = 0; i < sortedTabs.length; i++) {
+    const tabTitle = sortedTabs[i];
+    const acValues = acResults[i].values || [];
+    const acIndex = acValues.findIndex((row: any[]) => row[0] === geoId);
     if (acIndex !== -1) {
-      return { rowNumber: acIndex + 2, tabName: tabTitle };
+      return { rowNumber: acIndex + 2, tabName: tabTitle, meta };
     }
+  }
 
-    // Fallback search in column A for this tab
-    const aResponse = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range: `${tabTitle}!A2:A`,
-    });
-    const aColumn = aResponse.data.values || [];
-    const aIndex = aColumn.findIndex((row) => {
+  // Fallback to Col A search
+  for (let i = 0; i < sortedTabs.length; i++) {
+    const tabTitle = sortedTabs[i];
+    const aValues = aResults[i].values || [];
+    const aIndex = aValues.findIndex((row: any[]) => {
       const firstLine = (row[0] || "").split("\n")[0].trim();
       return firstLine === geoId;
     });
     if (aIndex !== -1) {
-      return { rowNumber: aIndex + 2, tabName: tabTitle };
+      return { rowNumber: aIndex + 2, tabName: tabTitle, meta };
     }
   }
 
@@ -965,23 +969,34 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
   }
 
   // Ensure enough columns for Z-BZ (78 cols)
-  await ensureSheetDimensions(sheets, spreadsheetId, 78, undefined, tabName);
-  let rowNumber: number | null;
+  let rowNumber: number | null = null;
+  let spreadsheetMeta: any = null;
+
   if (sheetTabName) {
     rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
   } else if (overrideSpreadsheetId) {
     rowNumber = await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId);
   } else {
-    rowNumber = await findRowByGeoId(geoId);
+    // Optimized: findRowAndTabByGeoId now returns meta too
+    const result = await findRowAndTabByGeoId(geoId);
+    if (result) {
+      rowNumber = result.rowNumber;
+      spreadsheetMeta = result.meta;
+    }
   }
+
   if (!rowNumber && fallbackText && !overrideSpreadsheetId && !sheetTabName) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
     rowNumber = await findRowNumberByColAText(fallbackText);
   }
+  
   if (!rowNumber) {
     console.error(`GEO ID ${geoId} not found in GSheet (COL AC or COL A)`);
     return false;
   }
+
+  // Ensure enough columns for Z-BZ (78 cols) - Pass meta to avoid extra GET
+  await ensureSheetDimensions(sheets, spreadsheetId, 78, undefined, tabName, spreadsheetMeta);
 
   // Build array for Z-BZ (53 columns, indices 25-77 absolute, 0-52 relative)
   const rowData = [
@@ -1084,9 +1099,10 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
   // Insert notes only on columns that actually changed
   if (noteConfig && noteConfig.cols.size > 0) {
     try {
-      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+      // Optimized: reuse metadata if we have it
+      const spreadsheet = spreadsheetMeta || await sheets.spreadsheets.get({ spreadsheetId });
       const sheet = spreadsheet.data.sheets?.find(
-        (s) => s.properties?.title === tabName
+        (s: any) => s.properties?.title === tabName
       );
       const sheetId = sheet?.properties?.sheetId;
       if (sheetId !== undefined) {
@@ -1135,24 +1151,34 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
   }
 
   // Ensure enough columns for BZ (up to col 78)
-  await ensureSheetDimensions(sheets, spreadsheetId, 78, undefined, tabName);
+  let rowNumber: number | null = null;
+  let spreadsheetMeta: any = null;
 
-  let rowNumber: number | null;
   if (sheetTabName) {
     rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
   } else if (overrideSpreadsheetId) {
     rowNumber = await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId);
   } else {
-    rowNumber = await findRowByGeoId(geoId);
+    // Optimized: reuse meta
+    const result = await findRowAndTabByGeoId(geoId);
+    if (result) {
+      rowNumber = result.rowNumber;
+      spreadsheetMeta = result.meta;
+    }
   }
+
   if (!rowNumber && fallbackText && !overrideSpreadsheetId && !sheetTabName) {
     console.log(`GEO ID ${geoId} not in COL AC — trying COL A text match as fallback`);
     rowNumber = await findRowNumberByColAText(fallbackText);
   }
+
   if (!rowNumber) {
     console.error(`GEO ID ${geoId} not found in GSheet (COL AC or COL A)`);
     return false;
   }
+
+  // Ensure enough columns for BZ (up to col 78) - Pass meta to avoid extra GET
+  await ensureSheetDimensions(sheets, spreadsheetId, 78, undefined, tabName, spreadsheetMeta);
 
   // Build row array for columns A-R (18 columns)
   const rowData = [
@@ -1211,10 +1237,10 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 
   // Apply font formatting: Calibri, size 11, no bold
   try {
-    // Get sheet ID
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    // Optimized: reuse meta
+    const spreadsheet = spreadsheetMeta || await sheets.spreadsheets.get({ spreadsheetId });
     const sheet = spreadsheet.data.sheets?.find(
-      (s) => s.properties?.title === tabName
+      (s: any) => s.properties?.title === tabName
     );
     const sheetId = sheet?.properties?.sheetId;
 
@@ -1593,21 +1619,20 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     rowData[77] = syncData.bzCol || ""; // BZ
   }
 
-  // Resolve the actual sheet tab name
-  let resolvedTabName: string;
-  if (sheetTabName) {
-    // Explicitly provided (e.g., "Sheet2" for batch mode)
-    resolvedTabName = sheetTabName;
-  } else if (overrideSpreadsheetId) {
-    // Override spreadsheet — resolve from metadata
-    resolvedTabName = SHEET_NAME;
-    try {
-      const meta = await sheets.spreadsheets.get({ spreadsheetId });
-      const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
-      resolvedTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
-    } catch { /* keep SHEET_NAME as fallback */ }
-  } else {
-    resolvedTabName = SHEET_NAME;
+  // Resolve the actual sheet tab name and get metadata once
+  let resolvedTabName = SHEET_NAME;
+  let spreadsheetMeta: any = null;
+  try {
+    spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    if (sheetTabName) {
+      resolvedTabName = sheetTabName;
+    } else {
+      const found = spreadsheetMeta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+      resolvedTabName = found?.properties?.title ?? spreadsheetMeta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+    }
+  } catch (err) {
+    console.warn("⚠️ Could not fetch metadata for addNewGSheetRow:", err);
+    resolvedTabName = sheetTabName || SHEET_NAME;
   }
 
   // Determine target row: use provided row number (Sheet2 batch in-place) or find next empty row
@@ -1627,8 +1652,8 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     nextRow = Math.max(rowsInColA, rowsInColAC) + 1;
   }
 
-  // Ensure dimensions (especially rows) before updating
-  await ensureSheetDimensions(sheets, spreadsheetId, 78, nextRow, resolvedTabName);
+  // Ensure dimensions (especially rows) before updating - Pass meta
+  await ensureSheetDimensions(sheets, spreadsheetId, 78, nextRow, resolvedTabName, spreadsheetMeta);
 
   // Write with an explicit A{n}:BZ{n} reference — col A is always index 0
   await sheets.spreadsheets.values.update({
@@ -1644,9 +1669,9 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
 
   // Apply font formatting
   try {
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const spreadsheet = spreadsheetMeta || await sheets.spreadsheets.get({ spreadsheetId });
     const sheet = spreadsheet.data.sheets?.find(
-      (s) => s.properties?.title === resolvedTabName
+      (s: any) => s.properties?.title === resolvedTabName
     );
     const sheetId = sheet?.properties?.sheetId;
 
@@ -1688,8 +1713,8 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   // Insert cell note on Col AC (GEO ID) to record who created this listing
   if (updatedBy) {
     try {
-      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-      const sheet = spreadsheet.data.sheets?.find(s => s.properties?.title === resolvedTabName);
+      const spreadsheet = spreadsheetMeta || await sheets.spreadsheets.get({ spreadsheetId });
+      const sheet = spreadsheet.data.sheets?.find((s: any) => s.properties?.title === resolvedTabName);
       const sheetId = sheet?.properties?.sheetId;
       if (sheetId !== undefined) {
         const now = new Date().toLocaleString("en-PH", {
@@ -1728,12 +1753,13 @@ export async function appendDisplayRowToSheet(
 ): Promise<void> {
   const sheets = getSheets();
 
-  // Resolve actual tab name (fallback to first sheet)
+  // Resolve actual tab name and get metadata once
   let sheetTabName = SHEET_NAME;
+  let spreadsheetMeta: any = null;
   try {
-    const meta = await sheets.spreadsheets.get({ spreadsheetId });
-    const found = meta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
-    sheetTabName = found?.properties?.title ?? meta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
+    spreadsheetMeta = await sheets.spreadsheets.get({ spreadsheetId });
+    const found = spreadsheetMeta.data.sheets?.find((s: any) => s.properties?.title === SHEET_NAME);
+    sheetTabName = found?.properties?.title ?? spreadsheetMeta.data.sheets?.[0]?.properties?.title ?? SHEET_NAME;
   } catch { /* keep SHEET_NAME */ }
 
   // Find next empty row
