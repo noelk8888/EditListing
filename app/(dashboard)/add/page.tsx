@@ -66,6 +66,7 @@ export default function AddListingPage() {
   const [rawText, setRawText] = useState("");
   const [photosLink, setPhotosLink] = useState("");
   const [previewLines, setPreviewLines] = useState("");
+  const [statusReplacement, setStatusReplacement] = useState<string>("");
 
   // Property type checkboxes
   const [residential, setResidential] = useState(false);
@@ -567,6 +568,7 @@ export default function AddListingPage() {
 
   // Clear all editable fields
   const clearEditFields = () => {
+    setStatusReplacement("");
     setNewGeoId("");
     setSuggestedGeoId("");
     setGeoIdConfirmed(false);
@@ -2158,6 +2160,22 @@ export default function AddListingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/\bFOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\b/i.test(rawText) && (
+              <div className="flex flex-wrap gap-2 pt-2">
+                {["SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                  <Button
+                    key={status}
+                    type="button"
+                    variant={statusReplacement === status ? "default" : "outline"}
+                    size="sm"
+                    className="rounded-full text-xs"
+                    onClick={() => setStatusReplacement(status === statusReplacement ? "" : status)}
+                  >
+                    {status}
+                  </Button>
+                ))}
+              </div>
+            )}
             <div className="relative">
               <Textarea
                 placeholder={`G01333
@@ -2201,12 +2219,26 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 onClick={() => {
                   setRawText("");
                   setError(null);
+                  setStatusReplacement("");
                 }}
               >
                 Clear
               </Button>
-              <Button onClick={() => goToStep("check")} disabled={!canProceedFromPaste}>
-                Next: Check & Info
+              <Button 
+                disabled={!canProceedFromPaste}
+                onClick={() => {
+                  let finalRawText = rawText;
+                  if (statusReplacement) {
+                    const regex = /^.*?\bFOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\b.*$/im;
+                    if (regex.test(finalRawText)) {
+                      finalRawText = finalRawText.replace(regex, `* ${statusReplacement} *`);
+                      setRawText(finalRawText);
+                    }
+                  }
+                  goToStep("check", finalRawText);
+                }} 
+              >
+                Next: Check the Listing
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
