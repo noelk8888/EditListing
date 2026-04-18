@@ -15,12 +15,12 @@ IMPORTANT RULES:
 5. Calculate price per sqm if you have both price and lot area
 6. Determine property categories (can be multiple): RESIDENTIAL, COMMERCIAL, INDUSTRIAL, AGRICULTURAL
 7. Determine property type: TOWNHOUSE, WAREHOUSE, VACANT LOT, HOUSE AND LOT, CONDO, OFFICE/COMMERCIAL, BUILDING, CLUB SHARE/BUSINESS
-8. Status should be: AVAILABLE, SOLD, LEASED OUT, OFF MARKET, ON HOLD, UNDER NEGO, or UNDECISIVE SELLER (default to AVAILABLE if not specified).
+8. Status should be: AVAILABLE, SOLD, LEASED OUT, OFF THE MARKET, ON HOLD, UNDER NEGO, or UNDECISIVE SELLER (default to AVAILABLE if not specified).
 19. CRITICAL indicators:
     - "UNDER NEGO", "Under Negotiation", or "Negotiation" means status is "UNDER NEGO".
     - "FOR LEASE" or "FOR RENT" in the listing means the property IS AVAILABLE to be leased — set status to "AVAILABLE". Do NOT confuse "FOR LEASE" with "LEASED OUT".
     - Only set status to "LEASED OUT" if the listing explicitly says "LEASED OUT", "already leased", "currently leased", "tenant occupied and not available", or similar meaning the property is no longer available.
-    - "OFF MARKET" or "Sold" means what they say.
+    - "OFF THE MARKET" or "Sold" means what they say.
     - "UNDECISIVE" or "UNDECISIVE SELLER" means status is "UNDECISIVE SELLER".
 9. Extract photo URLs if present (lines with "Photos:", "Photo Link:", etc.)
 9a. Extract Facebook / Social Media links if present (FB, Instagram, TikTok links).
@@ -55,7 +55,7 @@ Return a JSON object with these fields (use empty string "" for unknown values, 
   "agricultural": boolean,
   "lotArea": "string (numeric value with sqm)",
   "floorArea": "string (numeric value with sqm)",
-  "status": "AVAILABLE" | "SOLD" | "LEASED OUT" | "OFF MARKET" | "ON HOLD" | "UNDER NEGO" | "UNDECISIVE SELLER",
+  "status": "AVAILABLE" | "SOLD" | "LEASED OUT" | "OFF THE MARKET" | "ON HOLD" | "UNDER NEGO" | "UNDECISIVE SELLER",
   "type": "TOWNHOUSE" | "WAREHOUSE" | "VACANT LOT" | "HOUSE AND LOT" | "CONDO" | "OFFICE/COMMERCIAL" | "BUILDING" | "CLUB SHARE/BUSINESS" | "",
   "salePrice": "string (numeric value only)",
   "salePricePerSqm": "string (calculated or extracted)",
@@ -86,7 +86,8 @@ const STATUS_MAP: Record<string, string> = {
   "leased": "LEASED OUT",
   "leased out": "LEASED OUT",
   "on hold": "ON HOLD",
-  "off market": "OFF MARKET",
+  "off market": "OFF THE MARKET",
+  "off the market": "OFF THE MARKET",
   "under nego": "UNDER NEGO",
   "under negotiation": "UNDER NEGO",
   "negotiation": "UNDER NEGO",

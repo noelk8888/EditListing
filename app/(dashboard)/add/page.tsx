@@ -23,7 +23,8 @@ const STATUS_MAP: Record<string, string> = {
   "sold": "SOLD",
   "leased": "LEASED OUT",
   "leased out": "LEASED OUT",
-  "off market": "OFF MARKET",
+  "off market": "OFF THE MARKET",
+  "off the market": "OFF THE MARKET",
   "on hold": "ON HOLD",
   "under nego": "UNDER NEGO",
   "under negotiation": "UNDER NEGO",
@@ -2162,7 +2163,7 @@ export default function AddListingPage() {
           <CardContent className="space-y-4">
             {/\bFOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\b/i.test(rawText) && (
               <div className="flex flex-wrap gap-2 pt-2">
-                {["SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                {["SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                   <Button
                     key={status}
                     type="button"
@@ -2798,7 +2799,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     <span className={`text-xs min-w-[100px] font-medium ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -3162,7 +3163,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     <span className="text-xs min-w-[100px] font-medium">
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -3660,7 +3661,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   <span className="text-xs min-w-[100px] font-medium">
                     {editStatus || "—"}
                   </span>
-                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                     <div key={status} className="flex items-center gap-1">
                       <input
                         type="radio"
