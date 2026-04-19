@@ -2232,7 +2232,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   if (statusReplacement) {
                     const regex = /^.*?\bFOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\b.*$/im;
                     if (regex.test(finalRawText)) {
-                      finalRawText = finalRawText.replace(regex, `* ${statusReplacement} *`);
+                      finalRawText = finalRawText.replace(regex, `*${statusReplacement}*`);
                       setRawText(finalRawText);
                     }
                   }
