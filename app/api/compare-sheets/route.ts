@@ -35,15 +35,21 @@ function cleanListingText(text: string): string {
   
   // Status patterns to ignore (handles asterisks, spaces, and punctuation around the keyword)
   const statusRegex = /^[^\w]*(for sale|sold|leased out|for lease|leased|off the market|delisted|for sale\/lease|available)[^\w]*$/im;
+
+  // Map/pin lines to ignore (lines starting with these prefixes)
+  const mapLineRegex = /^[*\s]*(google pin|verified map location)\b/i;
   
   return text
     .split("\n")
     .map(line => line.trim())
     // Filter out lines that are JUST a status keyword
     .filter(line => line && !statusRegex.test(line))
+    // Filter out lines starting with GOOGLE PIN or VERIFIED MAP LOCATION
+    .filter(line => !mapLineRegex.test(line))
     .join("\n")
     .toLowerCase();
 }
+
 
 // Significant lines for fuzzy matching (fallback)
 function getSignificantLines(text: string): string[] {
