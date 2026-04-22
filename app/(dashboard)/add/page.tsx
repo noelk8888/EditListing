@@ -2161,8 +2161,9 @@ export default function AddListingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/FOR\s+(SALE|LEASE)/i.test(rawText) && (
-              <div className="flex flex-wrap gap-2 pt-2">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Update Status (optional)</p>
+              <div className="flex flex-wrap gap-2">
                 {["SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                   <Button
                     key={status}
@@ -2176,7 +2177,8 @@ export default function AddListingPage() {
                   </Button>
                 ))}
               </div>
-            )}
+            </div>
+
             <div className="relative">
               <Textarea
                 placeholder={`G01333
