@@ -2161,7 +2161,7 @@ export default function AddListingPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/\bFOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\b/i.test(rawText) && (
+            {/FOR\s+(SALE|LEASE)/i.test(rawText) && (
               <div className="flex flex-wrap gap-2 pt-2">
                 {["SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                   <Button
