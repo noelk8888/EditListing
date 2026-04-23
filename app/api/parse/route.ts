@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseListingText, geocodeAddress } from "@/lib/claude-parser";
+import { parseListingText, geocodeAddress, extractCoordsFromMapLink } from "@/lib/claude-parser";
 import { auth } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -20,8 +20,20 @@ export async function POST(request: NextRequest) {
 
     const parsed = await parseListingText(text);
 
-    // Try to geocode — prefer AI-generated geocodableAddress for accuracy
-    if (parsed.geocodableAddress || parsed.city || parsed.barangay || parsed.area) {
+    let coordsFoundFromMap = false;
+
+    // Try to extract LAT LONG directly from a Google Maps URL if present
+    if (parsed.mapLink && (parsed.mapLink.includes('goo.gl') || parsed.mapLink.includes('google.com/maps'))) {
+      const coords = await extractCoordsFromMapLink(parsed.mapLink);
+      if (coords && coords.lat && coords.long) {
+        parsed.lat = coords.lat;
+        parsed.long = coords.long;
+        coordsFoundFromMap = true;
+      }
+    }
+
+    // Try to geocode — prefer AI-generated geocodableAddress for accuracy, but skip if we already found exact coords from a map link
+    if (!coordsFoundFromMap && (parsed.geocodableAddress || parsed.city || parsed.barangay || parsed.area)) {
       const address = parsed.geocodableAddress || [
         parsed.building,
         parsed.area,

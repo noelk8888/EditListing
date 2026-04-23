@@ -217,3 +217,41 @@ export async function geocodeAddress(address: string): Promise<{ lat: string; lo
 
   return { lat: "", long: "" };
 }
+
+export async function extractCoordsFromMapLink(mapLink: string): Promise<{ lat: string; long: string } | null> {
+  if (!mapLink) return null;
+  
+  try {
+    // Extract url if it's embedded in some text
+    const urlMatch = mapLink.match(/https?:\/\/[^\s]+/i);
+    const urlToFetch = urlMatch ? urlMatch[0] : mapLink;
+    
+    // Follow redirect to get the final google maps URL
+    const response = await fetch(urlToFetch, { redirect: 'follow' });
+    const finalUrl = response.url;
+    
+    // Format 1: !3dLat!4dLong (exact pin coordinates)
+    // e.g. !3d14.575335!4d121.072098
+    const pinMatch = finalUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (pinMatch) {
+      return { lat: pinMatch[1], long: pinMatch[2] };
+    }
+
+    // Format 2: /@lat,long (map view center, use as fallback)
+    // e.g. https://www.google.com/maps/place/.../@14.575335,121.0714543,223m/
+    const atMatch = finalUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (atMatch) {
+      return { lat: atMatch[1], long: atMatch[2] };
+    }
+    
+    // Format 3: query string ?q=lat,long
+    const qMatch = finalUrl.match(/[?&]q=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (qMatch) {
+      return { lat: qMatch[1], long: qMatch[2] };
+    }
+  } catch (err) {
+    console.error("Failed to extract coords from map link:", err);
+  }
+  
+  return null;
+}
