@@ -329,7 +329,7 @@ export default function AddListingPage() {
           const ADDRESS_ONLY_COMMERCIAL = ["quezon ave", "chino roces", "edsa", "alabang"];
           const isAddressOnly = ADDRESS_ONLY_COMMERCIAL.some(a => locationPart.startsWith(a));
 
-          const locationMatch = locationPart && fields.some(field =>
+          const locationMatch = locationPart && !isFalsePositiveInSummary(locationPart) && fields.some(field =>
             field.includes(locationPart) || field.includes(locationPart.replace(/\.$/, ""))
           );
 
