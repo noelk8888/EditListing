@@ -16,7 +16,7 @@ async function formatSpreadsheet(spreadsheetId: string) {
     const tabName = sheet.properties?.title;
     const sheetId = sheet.properties?.sheetId;
 
-    if (!tabName || sheetId === undefined) continue;
+    if (!tabName || sheetId == null) continue;
 
     // Only format primary data sheets (Sheet1, Sheet2)
     if (tabName !== "Sheet1" && tabName !== "Sheet2") continue;

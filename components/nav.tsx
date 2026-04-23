@@ -77,7 +77,7 @@ export function Nav({ user, permissions }: NavProps) {
     { href: "/admin/groups", label: "Telegram Hub", icon: Send },
     { href: "/admin/duplicates", label: "Duplicate Checking", icon: Copy },
     { href: "/admin/compare-sheets", label: "Compare Sheets", icon: Scale },
-    { href: "/admin/cross-check", label: "CROSS CHECK", icon: SearchCheck },
+    { href: "/admin/cross-check", label: "Cross Check", icon: SearchCheck },
     { href: "/admin/format-rows", label: "Format Rows", icon: Copy },
   ];
 
