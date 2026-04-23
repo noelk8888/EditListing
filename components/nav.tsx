@@ -169,7 +169,7 @@ export function Nav({ user, permissions }: NavProps) {
       {/* SUPERADMIN-only sticky footer */}
       {isSuperAdmin && (
         <footer className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-11 items-center justify-center gap-10">
+          <div className="container flex h-11 items-center justify-center gap-6 overflow-x-auto whitespace-nowrap px-4 hide-scrollbar">
             {superAdminFooterLinks.map((link) => {
               const Icon = link.icon;
               return (
