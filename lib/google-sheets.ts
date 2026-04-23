@@ -20,6 +20,64 @@ const formatPriceForSheet = (val: string): string => {
 
 console.log("🚀 GOOGLE-SHEETS.TS v4 (FOOLPROOF) LOADED");
 
+export function getRowFormattingRequest(sheetId: number, rowNumber: number, statusRaw: string) {
+  const statusGroup = (statusRaw || "").trim().toUpperCase();
+  
+  // Default: AVAILABLE or unknown (Transparent background, Black text, normal)
+  let backgroundColor: any = null; // null clears the background
+  let isBold = false;
+  let textColor: any = { red: 0, green: 0, blue: 0 }; // black
+
+  if (statusGroup === "SOLD") {
+    backgroundColor = { red: 153/255, green: 0, blue: 1/255 }; // #990001
+    textColor = { red: 1, green: 1, blue: 1 }; // white
+    isBold = true;
+  } else if (statusGroup === "LEASED OUT") {
+    backgroundColor = { red: 217/255, green: 104/255, blue: 108/255 }; // #d9686c
+    textColor = { red: 1, green: 1, blue: 1 }; // white
+    isBold = true;
+  } else if (statusGroup === "OFF THE MARKET") {
+    backgroundColor = { red: 255/255, green: 229/255, blue: 152/255 }; // #ffe598
+  } else if (statusGroup === "ON HOLD") {
+    backgroundColor = { red: 168/255, green: 203/255, blue: 175/255 }; // #a8cbaf
+  } else if (statusGroup === "UNDECISIVE SELLER") {
+    backgroundColor = { red: 141/255, green: 156/255, blue: 206/255 }; // #8d9cce
+  } else if (statusGroup === "UNDER NEGO") {
+    backgroundColor = { red: 115/255, green: 26/255, blue: 71/255 }; // #731a47
+    textColor = { red: 1, green: 1, blue: 1 }; // white
+    isBold = true;
+  }
+
+  // Format fields payload depending on if we are clearing or setting background
+  const fields = backgroundColor !== null 
+    ? "userEnteredFormat.textFormat,userEnteredFormat.backgroundColor" 
+    : "userEnteredFormat.textFormat,userEnteredFormat.backgroundColor";
+
+  return {
+    repeatCell: {
+      range: {
+        sheetId,
+        startRowIndex: rowNumber - 1,
+        endRowIndex: rowNumber,
+        startColumnIndex: 0,
+        endColumnIndex: 17, // A-Q columns
+      },
+      cell: {
+        userEnteredFormat: {
+          backgroundColor: backgroundColor,
+          textFormat: {
+            fontFamily: "Calibri",
+            fontSize: 11,
+            bold: isBold,
+            foregroundColor: textColor
+          },
+        },
+      },
+      fields,
+    },
+  };
+}
+
 // GSheet Column Mapping (A-P = Display columns, Z-BO = Supabase sync columns)
 // Column AC is GEO ID - used as the lookup key
 export const GSHEET_COLUMNS = {
@@ -1246,27 +1304,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 
     if (sheetId !== undefined) {
       const requests: object[] = [
-        {
-          repeatCell: {
-            range: {
-              sheetId,
-              startRowIndex: rowNumber - 1,
-              endRowIndex: rowNumber,
-              startColumnIndex: 0,
-              endColumnIndex: 16, // A-P (16 columns)
-            },
-            cell: {
-              userEnteredFormat: {
-                textFormat: {
-                  fontFamily: "Calibri",
-                  fontSize: 11,
-                  bold: false,
-                },
-              },
-            },
-            fields: "userEnteredFormat.textFormat",
-          },
-        },
+        getRowFormattingRequest(sheetId, rowNumber, data.available)
       ];
 
       // Insert notes only on columns that actually changed
@@ -1440,6 +1478,24 @@ export async function updateDisplayColumnsInSheet(
       requestBody: { values: [rowData] },
     })
   );
+
+  // Apply row formatting
+  try {
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+    const sheet = spreadsheet.data.sheets?.find(
+      (s: any) => s.properties?.title === SHEET_NAME
+    );
+    if (sheet?.properties?.sheetId !== undefined) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [getRowFormattingRequest(sheet.properties.sheetId, rowNumber, data.available)],
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("⚠️ Could not apply backup font formatting:", err);
+  }
 
   console.log(`✅ Backup sync: GEO ID ${geoId} → row ${rowNumber} in ${spreadsheetId} (A-R + AC updated)`);
   return true;
@@ -1701,6 +1757,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
                 fields: "userEnteredFormat.textFormat",
               },
             },
+            getRowFormattingRequest(sheetId, rowNumber, data.available)
           ],
         },
       });
@@ -1800,6 +1857,22 @@ export async function appendDisplayRowToSheet(
     valueInputOption: "USER_ENTERED",
     requestBody: { values: [rowData] },
   });
+
+  // Apply font formatting
+  try {
+    const sheetId = spreadsheetMeta?.data?.sheets?.find((s: any) => s.properties?.title === sheetTabName)?.properties?.sheetId;
+    if (sheetId !== undefined) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [getRowFormattingRequest(sheetId, nextRow, data.available)],
+        },
+      });
+    }
+  } catch (err) {
+    console.warn("⚠️ Could not apply formatting on append:", err);
+  }
+
   console.log(`✅ Backup row appended for ${geoId} (row ${nextRow}, cols A-R + AC)`);
 }
 
