@@ -622,6 +622,7 @@ export default function AddListingPage() {
     setCompound("");
     setMonthlyDues("");
     setComments("");
+    setTelegramGroups([]);
     setTargetTab(permissions.sheet2 ? "Sheet2" : "Sheet1");
   };
 
@@ -735,6 +736,7 @@ export default function AddListingPage() {
     setCompound("");
     setMonthlyDues("");
     setComments("");
+    setTelegramGroups([]);
     setSuggestedGeoId("");
     setNewGeoId("");
     setGeoIdConfirmed(false);
@@ -975,6 +977,7 @@ export default function AddListingPage() {
       setCorner("");
       setCompound("");
       setComments("");
+      setTelegramGroups([]);
       setNewGeoId("");
       setSuggestedGeoId("");
       setGeoIdConfirmed(false);
