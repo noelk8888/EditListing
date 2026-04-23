@@ -2393,7 +2393,7 @@ async function performSyncBackup(
   await manageBackupTabs(sheets, targetId, maxTabs - 1);
 
   // 3. CREATE NEW TAB AT THE LEFTMOST POSITION
-  await sheets.spreadsheets.batchUpdate({
+  const addSheetResponse = await sheets.spreadsheets.batchUpdate({
     spreadsheetId: targetId,
     requestBody: {
       requests: [{
@@ -2407,6 +2407,7 @@ async function performSyncBackup(
     }
   });
   console.log(`🆕 [BACKUP-${label}] Created new tab: "${tabName}"`);
+  const newSheetId = addSheetResponse.data.replies?.[0]?.addSheet?.properties?.sheetId;
 
   // 4. WRITE TO SPECIFIC TAB
   await sheets.spreadsheets.values.update({
@@ -2418,9 +2419,31 @@ async function performSyncBackup(
     },
   });
 
-  console.log(`✅ [BACKUP-${label}] Data synced into tab: "${tabName}".`);
+  // 5. COPY ROW FORMATTING
+  if (newSheetId != null) {
+      const formatRequests: object[] = [];
+      for (let i = 1; i < rows.length; i++) {
+        // Col O is at index 14
+        const status = rows[i][14] || "";
+        formatRequests.push(getRowFormattingRequest(newSheetId, i + 1, status));
+      }
+      
+      if (formatRequests.length > 0) {
+        console.log(`🎨 [BACKUP-${label}] Applying formatting to ${formatRequests.length} rows...`);
+        const BATCH_SIZE = 5000;
+        for (let i = 0; i < formatRequests.length; i += BATCH_SIZE) {
+            const batch = formatRequests.slice(i, i + BATCH_SIZE);
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: targetId,
+                requestBody: { requests: batch }
+            });
+        }
+      }
+  }
 
-  // 5. RENAME TARGET FILE (Removed as per user request to maintain original file name)
+  console.log(`✅ [BACKUP-${label}] Data synced and formatted into tab: "${tabName}".`);
+
+  // 6. RENAME TARGET FILE (Removed as per user request to maintain original file name)
 
   return { id: targetId, name: backupTitle, tabName };
 }
