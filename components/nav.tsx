@@ -119,6 +119,7 @@ export function Nav({ user, permissions }: NavProps) {
               {canBackup && (
                 <button
                   onClick={() => setIsBackupOpen(true)}
+                  title={lastBackupAt ? `Last Backup: ${new Date(lastBackupAt).toLocaleString('en-US')}` : "Trigger Backup"}
                   className={cn(
                     "flex items-center gap-2 transition-colors text-sm",
                     isBackupUrgent() 
@@ -127,9 +128,7 @@ export function Nav({ user, permissions }: NavProps) {
                   )}
                 >
                   <Database className="h-4 w-4" />
-                  {lastBackupAt
-                    ? `Backup (${new Date(lastBackupAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(lastBackupAt).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })})`
-                    : "Backup"}
+                  Backup
                 </button>
               )}
             </nav>
