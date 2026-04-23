@@ -26,6 +26,8 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
   const [error, setError] = useState<string | null>(null);
   const [destinationUrl, setDestinationUrl] = useState("https://docs.google.com/spreadsheets/d/1_COUN2E42JCCAPk_IEEfiIAOaVOqrknJ-XodBSJg9rU/edit?gid=1307446787#gid=1307446787");
   const [isUrlLocked, setIsUrlLocked] = useState(true);
+  const [backupDuration, setBackupDuration] = useState<string | null>(null);
+  const [backupDate, setBackupDate] = useState<Date | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +46,10 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
     setLoading(true);
     setError(null);
     setResult(null);
+    setBackupDuration(null);
+    setBackupDate(null);
+
+    const startTime = Date.now();
 
     try {
       const res = await fetch("/api/admin/backup", {
@@ -56,6 +62,13 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
       if (!res.ok) {
         throw new Error(data.error || "Failed to create backup");
       }
+
+      const endTime = Date.now();
+      const elapsedMs = endTime - startTime;
+      const minutes = Math.floor(elapsedMs / 60000);
+      const seconds = Math.floor((elapsedMs % 60000) / 1000);
+      setBackupDuration(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+      setBackupDate(new Date());
 
       setResult(data.backup);
       onBackupSuccess?.(new Date().toISOString());
@@ -85,6 +98,8 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
   const handleClose = () => {
     setResult(null);
     setError(null);
+    setBackupDuration(null);
+    setBackupDate(null);
     onClose();
   };
 
@@ -222,8 +237,14 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
                   <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
                 </div>
                 <div className="min-w-0 w-full overflow-hidden">
-                  <h4 className="font-bold truncate text-base" title={result.name}>{result.name}</h4>
-                  <p className="text-sm mt-0.5 opacity-80">Your Parallel syncs are now secure.</p>
+                  <h4 className="font-bold text-base text-green-900">Backup Created Successfully</h4>
+                  <div className="text-sm font-semibold text-green-800 mt-1">
+                    {backupDate ? new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).format(backupDate) : ''}
+                  </div>
+                  <div className="text-[11px] font-medium text-green-700/80 mt-0.5 uppercase tracking-wide">
+                    DONE in {backupDuration}
+                  </div>
+                  <p className="text-sm mt-2 opacity-90 text-green-800">Your Parallel syncs are now secure.</p>
                   
                   <div className="mt-4 p-3 bg-white/80 rounded-lg border border-green-100 space-y-2 shadow-sm">
                     <p className="text-[10px] uppercase tracking-wider font-bold text-green-700/70">BACKUP GSHEET LINK</p>
