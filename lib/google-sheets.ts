@@ -1302,9 +1302,9 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     );
     const sheetId = sheet?.properties?.sheetId;
 
-    if (sheetId !== undefined) {
+    if (sheetId != null) {
       const requests: object[] = [
-        getRowFormattingRequest(sheetId, rowNumber, data.available)
+        getRowFormattingRequest(sheetId as number, rowNumber, data.available)
       ];
 
       // Insert notes only on columns that actually changed
@@ -1485,11 +1485,11 @@ export async function updateDisplayColumnsInSheet(
     const sheet = spreadsheet.data.sheets?.find(
       (s: any) => s.properties?.title === SHEET_NAME
     );
-    if (sheet?.properties?.sheetId !== undefined) {
+    if (sheet?.properties?.sheetId != null) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
-          requests: [getRowFormattingRequest(sheet.properties.sheetId, rowNumber, data.available)],
+          requests: [getRowFormattingRequest(sheet.properties.sheetId as number, rowNumber, data.available)],
         },
       });
     }
@@ -1731,7 +1731,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     );
     const sheetId = sheet?.properties?.sheetId;
 
-    if (sheetId !== undefined && rowNumber > 1) {
+    if (sheetId != null && rowNumber > 1) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
@@ -1757,7 +1757,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
                 fields: "userEnteredFormat.textFormat",
               },
             },
-            getRowFormattingRequest(sheetId, rowNumber, data.available)
+            getRowFormattingRequest(sheetId as number, rowNumber, data.available)
           ],
         },
       });
@@ -1861,11 +1861,11 @@ export async function appendDisplayRowToSheet(
   // Apply font formatting
   try {
     const sheetId = spreadsheetMeta?.data?.sheets?.find((s: any) => s.properties?.title === sheetTabName)?.properties?.sheetId;
-    if (sheetId !== undefined) {
+    if (sheetId != null) {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
-          requests: [getRowFormattingRequest(sheetId, nextRow, data.available)],
+          requests: [getRowFormattingRequest(sheetId as number, nextRow, data.available)],
         },
       });
     }
