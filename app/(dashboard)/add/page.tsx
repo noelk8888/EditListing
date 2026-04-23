@@ -890,12 +890,8 @@ export default function AddListingPage() {
   useEffect(() => {
     if (lat && long) {
       setMapLink(`https://www.google.com/maps/search/?api=1&query=${lat},${long}`);
-      // Auto-clear verification if coordinates change (prevents re-sending old verification)
-      if (searchResult && (lat !== searchResult.lat || long !== searchResult.long)) {
-        setLocationVerified(false);
-      }
     }
-  }, [lat, long, searchResult]);
+  }, [lat, long]);
 
   // Auto-trigger search when entering Step 2
   useEffect(() => {

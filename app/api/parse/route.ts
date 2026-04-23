@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
         parsed.lat = coords.lat;
         parsed.long = coords.long;
         parsed.locationVerified = true;
+        parsed.mapLink = `https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.long}`;
         coordsFoundFromMap = true;
       }
     }
