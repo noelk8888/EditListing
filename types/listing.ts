@@ -70,6 +70,7 @@ export const LISTING_OWNERSHIP_OPTIONS = [] as const;
 export interface ParsedListing extends Partial<Listing> {
   confidence?: number;
   geocodableAddress?: string;
+  locationVerified?: boolean;
 }
 
 export interface SheetRow {

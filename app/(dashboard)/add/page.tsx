@@ -474,6 +474,9 @@ export default function AddListingPage() {
         setLat(prev => data.lat || prev);
         setLong(prev => data.long || prev);
         setMapLink(prev => data.mapLink || prev);
+        if (data.locationVerified) {
+          setLocationVerified(true);
+        }
       }
 
       // Set property type checkboxes from parsed data

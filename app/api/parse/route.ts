@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
       if (coords && coords.lat && coords.long) {
         parsed.lat = coords.lat;
         parsed.long = coords.long;
+        parsed.locationVerified = true;
         coordsFoundFromMap = true;
       }
     }
