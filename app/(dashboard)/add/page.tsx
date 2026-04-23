@@ -291,7 +291,7 @@ export default function AddListingPage() {
       
       // If there are matches, but EVERY single match is preceded by a false-positive indicator, then it's a false positive.
       if (kwMatches.length > 0) {
-        const falsePositiveRegex = /(?:facing|near|view of|overlooking|proximity to|close to|minutes away from|minutes to)[^.?!]{0,40}$/i;
+        const falsePositiveRegex = /(?:facing|near|view of|overlooking|proximity to|close to|minutes away from|minutes to|drive to|adjacent to)[^.?!]{0,40}$/i;
         return kwMatches.every(m => {
           const pretext = rawLower.substring(Math.max(0, m.index! - 40), m.index!);
           return falsePositiveRegex.test(pretext);
