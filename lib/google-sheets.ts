@@ -718,7 +718,8 @@ function parseGSheetRow(row: string[]): GSheetFullRow {
     supabaseAmenities: row[GSHEET_COLUMNS.BM_AMENITIES] || "",
     supabaseCorner: row[GSHEET_COLUMNS.BN_CORNER] || "",
     supabaseCompound: row[GSHEET_COLUMNS.BO_COMPOUND] || "",
-    mapVerified: row[73] || "",
+    mapVerified: row[73] || "", // BV
+    bwCol: row[74] || "",       // BW
   };
 }
 
@@ -1589,11 +1590,8 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   const series = (sheetTabName === "Sheet2") ? "B" : "G";
   const geoId = overrideGeoId || await generateNextGeoId(series);
 
-  // Build full row (A to BZ = 78 columns)
-  // A-R = display columns (18)
-  // S-Y = empty (7)
-  // Z-BZ = Supabase sync columns (53)
-  const rowData: string[] = new Array(78).fill("");
+  // Build full row (A to BW = 75 columns)
+  const rowData: string[] = new Array(75).fill("");
 
   // A-P: Display columns
   rowData[GSHEET_COLUMNS.A_BLASTED_FORMAT] = data.blastedFormat;
