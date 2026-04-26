@@ -195,6 +195,8 @@ export default function CompareSheetsPage() {
             <ul className="list-disc list-inside space-y-1">
               <li>Row #</li>
               <li>GEO ID (G1 & G2)</li>
+              <li>Col K (G1 & G2)</li>
+              <li>Col N (G1 & G2)</li>
               <li>Col A (Gsheet1 & Gsheet2)</li>
               <li>Notes (Status of difference)</li>
             </ul>

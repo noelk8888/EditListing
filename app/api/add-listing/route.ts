@@ -221,6 +221,7 @@ export async function POST(request: Request) {
       listingOwnership: listing_ownership || "",
       colQ: col_q || "",
       colR: col_r || "",
+      bwCol: bw_col || "",
     };
 
     // syncData uses geo_id as placeholder — addNewGSheetRow will use the actual geoId for AA/AC

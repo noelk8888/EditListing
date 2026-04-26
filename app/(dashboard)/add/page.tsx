@@ -105,6 +105,7 @@ export default function AddListingPage() {
   const [monthlyDues, setMonthlyDues] = useState("");
   const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
   const [socmedLink, setSocmedLink] = useState("");
+  const [clientVersion, setClientVersion] = useState("");
 
   useEffect(() => {
     fetchSpearheadedByNames().then(setDynamicOptions);
@@ -468,6 +469,7 @@ export default function AddListingPage() {
       setSalePricePerSqm(prev => data.salePricePerSqm || prev);
       setLeasePricePerSqm(prev => data.leasePricePerSqm || prev);
       setSocmedLink(prev => data.fbLink || data.socmedLink || prev);
+      setClientVersion(prev => data.client_version || prev);
 
       // Preserve Location Verified status and coordinates if already verified
       if (!locationVerified) {
@@ -625,6 +627,7 @@ export default function AddListingPage() {
     setCompound("");
     setMonthlyDues("");
     setComments("");
+    setClientVersion("");
     setTelegramGroups([]);
     setTargetTab(permissions.sheet2 ? "Sheet2" : "Sheet1");
   };
@@ -1524,6 +1527,7 @@ export default function AddListingPage() {
           monthly_dues: monthlyDues,
           comments: comments,
           fb_link: socmedLink,
+          bw_col: clientVersion,
 
           photo_link: photosLink,
           send_telegram: telegramPostEnabled,
@@ -1707,6 +1711,7 @@ export default function AddListingPage() {
           comments: comments,
           photo_link: photosLink,
           fb_link: socmedLink,
+          bw_col: clientVersion,
           geo_id: (geoIdConfirmed && newGeoId) ? newGeoId : undefined,
           // batch: always pass source sheet + row so GEO ID is written back to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
@@ -2960,7 +2965,18 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
+                  {(permissions.sheet2 || userRole === "SUPERADMIN") && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Client Version</Label>
+                      <Input 
+                        value={clientVersion} 
+                        onChange={(e) => setClientVersion(e.target.value)} 
+                        className="h-8 text-sm border-blue-200 focus:border-blue-400 bg-blue-50/30" 
+                        placeholder="Client info..."
+                      />
+                    </div>
+                  )}
+                  <div className={`${(permissions.sheet2 || userRole === "SUPERADMIN") ? "col-span-1" : "col-span-2"} flex items-center gap-2`}>
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">
                       {photosLink ? "Photos (extracted)" : "Photos Link"}
                     </Label>
@@ -3280,7 +3296,18 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="col-span-2 flex items-center gap-2">
+                  {(permissions.sheet2 || userRole === "SUPERADMIN") && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Client Version</Label>
+                      <Input 
+                        value={clientVersion} 
+                        onChange={(e) => setClientVersion(e.target.value)} 
+                        className="h-8 text-sm border-blue-200 focus:border-blue-400 bg-blue-50/30" 
+                        placeholder="Client info..."
+                      />
+                    </div>
+                  )}
+                  <div className={`${(permissions.sheet2 || userRole === "SUPERADMIN") ? "col-span-1" : "col-span-2"} flex items-center gap-2`}>
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">
                       {photosLink ? "Photos (extracted)" : "Photos Link"}
                     </Label>

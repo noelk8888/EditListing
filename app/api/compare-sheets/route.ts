@@ -103,6 +103,11 @@ export async function POST(req: Request) {
         const geo1 = (r1[28] || "").toString();
         const geo2 = (r2[28] || "").toString();
         
+        const colK1 = (r1[10] || "").toString();
+        const colK2 = (r2[10] || "").toString();
+        const colN1 = (r1[13] || "").toString();
+        const colN2 = (r2[13] || "").toString();
+        
         const slug1 = extractPhotoSlug(txt1);
         const slug2 = extractPhotoSlug(txt2);
         
@@ -130,6 +135,10 @@ export async function POST(req: Request) {
                 (i + 2).toString(),
                 geo1,
                 geo2,
+                colK1,
+                colK2,
+                colN1,
+                colN2,
                 txt1,
                 txt2,
                 "FOR MANUAL CHECKING (Photo Match, Text Diff)"
@@ -142,6 +151,10 @@ export async function POST(req: Request) {
             (i + 2).toString(),
             geo1,
             geo2,
+            colK1,
+            colK2,
+            colN1,
+            colN2,
             txt1,
             txt2,
             matchRatio >= 0.8 ? "FOR MANUAL CHECKING (Fuzzy Match 80%+)" : "DIFFERENT CONTENT"
@@ -167,7 +180,14 @@ export async function POST(req: Request) {
         }
     });
 
-    const header = ["Row #", "GEO ID (G1)", "GEO ID (G2)", "Col A (Gsheet1)", "Col A (Gsheet2)", "Notes"];
+    const header = [
+        "Row #", 
+        "GEO ID (G1)", "GEO ID (G2)", 
+        "Col K (G1)", "Col K (G2)", 
+        "Col N (G1)", "Col N (G2)", 
+        "Col A (Gsheet1)", "Col A (Gsheet2)", 
+        "Notes"
+    ];
     await sheets.spreadsheets.values.update({
         spreadsheetId: id2,
         range: `${tabName}!A1`,

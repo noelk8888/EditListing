@@ -351,11 +351,9 @@ export async function POST(request: Request) {
         "compound": compound || null,
         "COMMENTS": comments || null,
         "MONTHLY DUES": monthly_dues || null,
-        "MAP VERIFIED": locationChanged 
-            ? null 
-            : (location_verified 
-                ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
-                : (bv_col || null)),
+        "MAP VERIFIED": location_verified 
+            ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
+            : (locationChanged ? null : (bv_col || null)),
       });
 
 
@@ -418,6 +416,7 @@ export async function POST(request: Request) {
         listingOwnership: listing_ownership || "",
         colQ: col_q || "",
         colR: col_r || "",
+        bwCol: bw_col || "",
       };
 
       // Build lat/long combined for BE column
@@ -475,11 +474,9 @@ export async function POST(request: Request) {
         bsPost: bs_post || "",
         btPost: bt_post || "",
         buPost: bu_post || "",
-        bvCol: locationChanged 
-          ? "" 
-          : (location_verified 
-              ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
-              : (locationChanged ? "" : (bv_col || ""))),
+        bvCol: location_verified 
+          ? `Location Verified by ${userGroup} on ${formatDisplayDate(getPHLDate())}` 
+          : (locationChanged ? "" : (bv_col || "")),
         bwCol: bw_col || "",
         bxCol: bx_col || "",
         byCol: by_col || "",

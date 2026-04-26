@@ -56,6 +56,7 @@ export interface SupabaseListing {
   sponsor_start: string | null;
   sponsor_end: string | null;
   map_verified: string | null;
+  client_version: string | null;
   row_index?: number | null;
 }
 

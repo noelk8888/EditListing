@@ -36,6 +36,7 @@ export interface Listing {
   ownerBroker: string;
   howManyAway: string;
   listingOwnership: string;
+  client?: string;
   createdAt?: string;
   updatedAt?: string;
 }
