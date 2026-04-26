@@ -3843,18 +3843,29 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="col-span-2 flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground w-16 shrink-0">
-                    {photosLink ? "Photos (extracted)" : "Photos Link"}
-                  </Label>
-                  <Input
-                    type="url"
-                    placeholder="https://photos.app.goo.gl/..."
-                    value={photosLink}
-                    onChange={(e) => handleInputChange(setPhotosLink, true)(e.target.value)}
-                    className="h-8 text-sm"
-                  />
-                </div>
+                  {(permissions.sheet2 || userRole === "SUPERADMIN") && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Client Version</Label>
+                      <Input 
+                        value={clientVersion} 
+                        onChange={(e) => setClientVersion(e.target.value)} 
+                        className="h-8 text-sm border-blue-200 focus:border-blue-400 bg-blue-50/30" 
+                        placeholder="Client info..."
+                      />
+                    </div>
+                  )}
+                  <div className={`${(permissions.sheet2 || userRole === "SUPERADMIN") ? "col-span-1" : "col-span-2"} flex items-center gap-2`}>
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">
+                      {photosLink ? "Photos (extracted)" : "Photos Link"}
+                    </Label>
+                    <Input
+                      type="url"
+                      placeholder="https://photos.app.goo.gl/..."
+                      value={photosLink}
+                      onChange={(e) => handleInputChange(setPhotosLink, true)(e.target.value)}
+                      className="h-8 text-sm"
+                    />
+                  </div>
 
               </div>
 
