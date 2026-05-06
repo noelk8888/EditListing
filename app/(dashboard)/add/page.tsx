@@ -495,7 +495,20 @@ export default function AddListingPage() {
 
       // Text-based fallback: auto-tick COMMERCIAL if listing text clearly indicates it
       // (covers cases where AI misses "Commercial Vacant Lot", "Commercial Space", etc.)
-      if (/\bcommercial\s+(vacant\s+)?lot\b|\bcommercial\s+space\b|\bcommercial\s+building\b|\bcommercial\s+unit\b|\bcommercial\s+property\b|\bcommercial\s+condo\b|\bzoning\s*:\s*commercial\b|\br2\s+zoning\b/i.test(textToExtract)) {
+      // IMPORTANT: Exclude proximity-based mentions like "Backing a commercial lot"
+      const commercialPattern = /\bcommercial\s+(vacant\s+)?lot\b|\bcommercial\s+space\b|\bcommercial\s+building\b|\bcommercial\s+unit\b|\bcommercial\s+property\b|\bcommercial\s+condo\b|\bzoning\s*:\s*commercial\b|\br2\s+zoning\b/i;
+      const proximityPattern = /\b(?:backing|beside|near|adjacent\s+to|facing|overlooking|view\s+of|close\s+to|next\s+to|across|behind|in\s+front\s+of)\b.*$/i;
+      const hasRealCommercialMatch = textToExtract.split('\n').some(line => {
+        if (!commercialPattern.test(line)) return false;
+        // If the line also contains a proximity word BEFORE the commercial keyword, skip it
+        const match = line.match(commercialPattern);
+        if (match && match.index !== undefined) {
+          const beforeMatch = line.substring(0, match.index);
+          if (proximityPattern.test(beforeMatch)) return false;
+        }
+        return true;
+      });
+      if (hasRealCommercialMatch) {
         setCommercial(true);
       }
 
@@ -2239,9 +2252,22 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 onClick={() => {
                   let finalRawText = rawText;
                   if (statusReplacement) {
-                    const regex = /^.*?\bFOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\b.*$/im;
+                    const todayFormatted = new Intl.DateTimeFormat('en-US', {
+                      timeZone: 'Asia/Manila',
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
+                    }).format(new Date()).toUpperCase();
+                    
+                    // Match FOR SALE, FOR LEASE, etc. OR any existing status like ON HOLD, AVAILABLE wrapped in asterisks on the first line
+                    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|UNDECISIVE SELLER)\b.*$/im;
+                    
                     if (regex.test(finalRawText)) {
-                      finalRawText = finalRawText.replace(regex, `*${statusReplacement}*`);
+                      finalRawText = finalRawText.replace(regex, `*${statusReplacement} - ${todayFormatted}*`);
+                      setRawText(finalRawText);
+                    } else {
+                      // If it doesn't match the regex but we have a status, prepend it to the text
+                      finalRawText = `*${statusReplacement} - ${todayFormatted}*\n${finalRawText}`;
                       setRawText(finalRawText);
                     }
                   }

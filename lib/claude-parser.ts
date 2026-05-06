@@ -14,6 +14,7 @@ IMPORTANT RULES:
 4. For prices, extract the numeric value (remove P, PHP, commas)
 5. Calculate price per sqm if you have both price and lot area
 6. Determine property categories (can be multiple): RESIDENTIAL, COMMERCIAL, INDUSTRIAL, AGRICULTURAL
+6a. CRITICAL: Do NOT classify a property based on proximity references. Phrases like "backing a commercial lot", "beside a commercial building", "near an industrial zone", "facing a commercial area", "adjacent to agricultural land" describe NEARBY features, NOT the property itself. Only classify based on the property's own characteristics (e.g., "Commercial Vacant Lot", "Industrial Warehouse", "Residential House and Lot").
 7. Determine property type: TOWNHOUSE, WAREHOUSE, VACANT LOT, HOUSE AND LOT, CONDO, OFFICE/COMMERCIAL, BUILDING, CLUB SHARE/BUSINESS
 8. Status should be: AVAILABLE, SOLD, LEASED OUT, OFF THE MARKET, ON HOLD, UNDER NEGO, or UNDECISIVE SELLER (default to AVAILABLE if not specified).
 19. CRITICAL indicators:
