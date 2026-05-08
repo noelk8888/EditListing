@@ -2255,7 +2255,6 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     const todayFormatted = new Intl.DateTimeFormat('en-US', {
                       timeZone: 'Asia/Manila',
                       month: 'long',
-                      day: 'numeric',
                       year: 'numeric'
                     }).format(new Date()).toUpperCase();
                     
