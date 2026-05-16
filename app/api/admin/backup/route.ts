@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createSpreadsheetBackup } from "@/lib/google-sheets";
+import { createSpreadsheetBackup, getSheets } from "@/lib/google-sheets";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
@@ -33,7 +33,33 @@ export async function GET(req: Request) {
     }
 
     const config = data?.value || { destination_url: "", last_backup_at: null };
-    return NextResponse.json(config);
+
+    // Fetch live row count from the source sheet (COPY_SPREADSHEET_ID)
+    let rowCount: number | null = null;
+    try {
+      const sourceId = process.env.COPY_SPREADSHEET_ID;
+      if (sourceId) {
+        const sheets = getSheets();
+        const sourceMeta = await sheets.spreadsheets.get({ spreadsheetId: sourceId });
+        const allSheets = sourceMeta.data.sheets || [];
+        let maxRows = 0;
+        for (const s of allSheets) {
+          const title = s.properties?.title;
+          if (!title) continue;
+          try {
+            const probe = await sheets.spreadsheets.values.get({
+              spreadsheetId: sourceId,
+              range: `${title}!A:A`,
+            });
+            const count = (probe.data.values || []).length;
+            if (count > maxRows) maxRows = count;
+          } catch { /* skip */ }
+        }
+        rowCount = maxRows > 1 ? maxRows - 1 : maxRows; // exclude header row
+      }
+    } catch { /* non-fatal */ }
+
+    return NextResponse.json({ ...config, rowCount });
   } catch (err: any) {
     console.error("Backup Settings API Error:", err);
     return NextResponse.json({ error: "Failed to fetch backup settings" }, { status: 500 });

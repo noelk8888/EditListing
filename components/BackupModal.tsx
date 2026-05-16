@@ -28,6 +28,7 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
   const [isUrlLocked, setIsUrlLocked] = useState(true);
   const [backupDuration, setBackupDuration] = useState<string | null>(null);
   const [backupDate, setBackupDate] = useState<Date | null>(null);
+  const [rowCount, setRowCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -36,6 +37,9 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
         .then((data) => {
           if (data && data.destination_url) {
             setDestinationUrl(data.destination_url);
+          }
+          if (data && data.rowCount != null) {
+            setRowCount(data.rowCount);
           }
         })
         .catch(console.error);
@@ -100,6 +104,7 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
     setError(null);
     setBackupDuration(null);
     setBackupDate(null);
+    setRowCount(null);
     onClose();
   };
 
@@ -183,6 +188,11 @@ export function BackupModal({ isOpen, onClose, onBackupSuccess }: BackupModalPro
                   </>
                 )}
               </Button>
+              {loading && rowCount != null && (
+                <p className="text-sm text-center text-muted-foreground animate-pulse">
+                  {rowCount.toLocaleString()} rows are being backed up
+                </p>
+              )}
             </div>
           )}
 
