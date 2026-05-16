@@ -2375,16 +2375,48 @@ async function performSyncBackup(
 
   console.log(`🚀 [BACKUP-${label}] Starting sync from ${sourceId} to Tab: "${tabName}" in Target (${targetId})...`);
 
-  // 1. READ ALL DATA FROM SOURCE (Sheet1)
+  // 1. RESOLVE SOURCE TAB — dynamically find the tab with the most data rows.
+  //    This handles both the LUXE DBASE master (primary tab varies) and
+  //    LUXE COPY (primary data tab is gid=1361278820 / not named "Sheet1").
+  //    Using row-count detection keeps this generic for any source file.
+  let sourceTabName = "Sheet1"; // safe fallback
+  try {
+    const sourceMeta = await sheets.spreadsheets.get({ spreadsheetId: sourceId });
+    const sourceSheets = sourceMeta.data.sheets || [];
+
+    let maxRows = 0;
+    for (const s of sourceSheets) {
+      const title = s.properties?.title;
+      if (!title) continue;
+      try {
+        const probe = await sheets.spreadsheets.values.get({
+          spreadsheetId: sourceId,
+          range: `${title}!A:A`,
+        });
+        const rowCount = (probe.data.values || []).length;
+        console.log(`  📄 [BACKUP-${label}] Tab "${title}": ${rowCount} rows`);
+        if (rowCount > maxRows) {
+          maxRows = rowCount;
+          sourceTabName = title;
+        }
+      } catch { /* skip tabs we can't read */ }
+    }
+    console.log(`📋 [BACKUP-${label}] Selected source tab "${sourceTabName}" (${maxRows} rows)`);
+  } catch (metaErr) {
+    console.warn(`⚠️ [BACKUP-${label}] Could not resolve source tab, falling back to "Sheet1":`, metaErr);
+  }
+
+  // 2. READ ALL DATA FROM SOURCE (resolved tab)
   const sourceResponse = await sheets.spreadsheets.values.get({
     spreadsheetId: sourceId,
-    range: "Sheet1!A:BW",
+    range: `${sourceTabName}!A:BW`,
   });
 
   const rows = sourceResponse.data.values;
   if (!rows || rows.length === 0) {
-    throw new Error(`${label} source sheet is empty - nothing to backup.`);
+    throw new Error(`${label} source sheet ("${sourceTabName}") is empty - nothing to backup.`);
   }
+  console.log(`📊 [BACKUP-${label}] Read ${rows.length} rows from source tab "${sourceTabName}"`);
 
   // 2. PRE-CLEAN: Delete old tabs BEFORE creating the new one to avoid hitting the
   //    10,000,000-cell workbook limit. We run with (maxTabs - 1) so there is always
