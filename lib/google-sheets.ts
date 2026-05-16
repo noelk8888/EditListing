@@ -2440,7 +2440,29 @@ async function performSyncBackup(
   console.log(`🆕 [BACKUP-${label}] Created new tab: "${tabName}"`);
   const newSheetId = addSheetResponse.data.replies?.[0]?.addSheet?.properties?.sheetId;
 
-  // 4. WRITE TO SPECIFIC TAB
+  // 4. EXPAND NEW TAB to fit all rows (new tabs default to 1000 rows —
+  //    values.update silently truncates if the sheet is too small).
+  //    We add a 500-row buffer so the tab has headroom for near-future growth.
+  const requiredRows = rows.length + 500;
+  const DEFAULT_SHEET_ROWS = 1000;
+  if (newSheetId != null && requiredRows > DEFAULT_SHEET_ROWS) {
+    const extraRows = requiredRows - DEFAULT_SHEET_ROWS;
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: targetId,
+      requestBody: {
+        requests: [{
+          appendDimension: {
+            sheetId: newSheetId,
+            dimension: "ROWS",
+            length: extraRows,
+          }
+        }]
+      }
+    });
+    console.log(`📐 [BACKUP-${label}] Expanded tab to ${requiredRows} rows (+${extraRows} added)`);
+  }
+
+  // 5. WRITE TO SPECIFIC TAB
   await sheets.spreadsheets.values.update({
     spreadsheetId: targetId,
     range: `${tabName}!A1`,
@@ -2449,6 +2471,7 @@ async function performSyncBackup(
       values: rows,
     },
   });
+
 
   // 5. COPY ROW FORMATTING
   if (newSheetId != null) {
