@@ -2507,6 +2507,115 @@ async function performSyncBackup(
 }
 
 /**
+ * Overwrite the primary data tab in LUXE COPY with the latest master data.
+ * The data tab is identified by gid=1361278820. This keeps LUXE COPY always
+ * in sync with LUXE DBASE after every backup run.
+ */
+async function syncLuxeCopyDataTab(
+  sheets: any,
+  masterRows: any[][],
+  copySpreadsheetId: string
+): Promise<void> {
+  const LUXE_COPY_DATA_GID = 1361278820;
+  const label = "LUXE-COPY-SYNC";
+
+  // 1. Find the tab name by gid
+  let tabName: string | null = null;
+  let sheetId: number | null = null;
+  try {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: copySpreadsheetId });
+    const found = (meta.data.sheets || []).find(
+      (s: any) => s.properties?.sheetId === LUXE_COPY_DATA_GID
+    );
+    if (found) {
+      tabName = found.properties.title;
+      sheetId = found.properties.sheetId;
+    } else {
+      // Fallback: pick the tab with the most rows
+      let maxRows = 0;
+      for (const s of meta.data.sheets || []) {
+        const title = s.properties?.title;
+        if (!title) continue;
+        try {
+          const probe = await sheets.spreadsheets.values.get({
+            spreadsheetId: copySpreadsheetId,
+            range: `${title}!A:A`,
+          });
+          const count = (probe.data.values || []).length;
+          if (count > maxRows) {
+            maxRows = count;
+            tabName = title;
+            sheetId = s.properties?.sheetId ?? null;
+          }
+        } catch { /* skip */ }
+      }
+      console.warn(`⚠️ [${label}] gid ${LUXE_COPY_DATA_GID} not found, using "${tabName}" (${maxRows} rows)`);
+    }
+  } catch (err) {
+    console.error(`❌ [${label}] Could not resolve data tab:`, err);
+    return;
+  }
+
+  if (!tabName) {
+    console.error(`❌ [${label}] No data tab found in LUXE COPY — skipping sync`);
+    return;
+  }
+
+  console.log(`🔄 [${label}] Syncing ${masterRows.length} rows → "${tabName}" in LUXE COPY...`);
+
+  // 2. Expand tab rows if needed (new data may have more rows than allocated)
+  if (sheetId != null) {
+    try {
+      const currentMeta = await sheets.spreadsheets.get({ spreadsheetId: copySpreadsheetId });
+      const tabMeta = (currentMeta.data.sheets || []).find(
+        (s: any) => s.properties?.sheetId === sheetId
+      );
+      const currentRowCount = tabMeta?.properties?.gridProperties?.rowCount ?? 1000;
+      if (masterRows.length > currentRowCount) {
+        const extraRows = masterRows.length - currentRowCount;
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: copySpreadsheetId,
+          requestBody: {
+            requests: [{ appendDimension: { sheetId, dimension: "ROWS", length: extraRows } }]
+          }
+        });
+        console.log(`📐 [${label}] Expanded "${tabName}" by +${extraRows} rows`);
+      }
+    } catch (expandErr) {
+      console.warn(`⚠️ [${label}] Row expansion skipped:`, expandErr);
+    }
+  }
+
+  // 3. Overwrite all data starting at A1
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: copySpreadsheetId,
+    range: `${tabName}!A1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: masterRows },
+  });
+
+  // 4. Apply row formatting
+  if (sheetId != null) {
+    const formatRequests: object[] = [];
+    for (let i = 1; i < masterRows.length; i++) {
+      const status = masterRows[i][14] || ""; // Col O
+      formatRequests.push(getRowFormattingRequest(sheetId, i + 1, status));
+    }
+    if (formatRequests.length > 0) {
+      const BATCH_SIZE = 5000;
+      for (let i = 0; i < formatRequests.length; i += BATCH_SIZE) {
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: copySpreadsheetId,
+          requestBody: { requests: formatRequests.slice(i, i + BATCH_SIZE) }
+        });
+      }
+    }
+  }
+
+  console.log(`✅ [${label}] LUXE COPY data tab synced with ${masterRows.length} rows.`);
+}
+
+/**
  * Perform parallel backups for the Master Listing and LUXE Copy spreadsheets.
  */
 export async function createSpreadsheetBackup(customCopyTargetId?: string): Promise<{ id: string; name: string; url: string }> {
@@ -2525,17 +2634,57 @@ export async function createSpreadsheetBackup(customCopyTargetId?: string): Prom
   //    as the single source of truth for both backup destinations.
   const copyTargetId = customCopyTargetId || process.env.COPY_BACKUP_TARGET_ID;
 
+  // 3. LUXE COPY live data tab — synced with master on every backup
+  const copySpreadsheetId = process.env.COPY_SPREADSHEET_ID;
+
   if (!masterId || !targetId) {
     throw new Error("Master backup IDs not configured");
   }
 
   console.log("👯 [PARALLEL-BACKUP] Triggering dual syncs from LUXE DBASE master...");
 
+  // First read master rows once — shared by all three operations
+  const masterAuth = getAuth();
+  const masterSheets = google.sheets({ version: "v4", auth: masterAuth });
+
+  // Resolve the source tab (most rows wins)
+  let masterTabName = "Sheet1";
+  try {
+    const sourceMeta = await masterSheets.spreadsheets.get({ spreadsheetId: masterId });
+    let maxRows = 0;
+    for (const s of sourceMeta.data.sheets || []) {
+      const title = s.properties?.title;
+      if (!title) continue;
+      try {
+        const probe = await masterSheets.spreadsheets.values.get({
+          spreadsheetId: masterId,
+          range: `${title}!A:A`,
+        });
+        const count = (probe.data.values || []).length;
+        if (count > maxRows) { maxRows = count; masterTabName = title; }
+      } catch { /* skip */ }
+    }
+    console.log(`📋 [PARALLEL-BACKUP] Master source tab: "${masterTabName}" (${maxRows} rows)`);
+  } catch { /* keep Sheet1 */ }
+
+  const masterResponse = await masterSheets.spreadsheets.values.get({
+    spreadsheetId: masterId,
+    range: `${masterTabName}!A:BW`,
+  });
+  const masterRows = masterResponse.data.values;
+  if (!masterRows || masterRows.length === 0) {
+    throw new Error("LUXE DBASE master source is empty — nothing to backup.");
+  }
+  console.log(`📊 [PARALLEL-BACKUP] Read ${masterRows.length} rows from LUXE DBASE`);
+
   const results = await Promise.all([
     performSyncBackup(sheets, drive, masterId, targetId, "LUXE Master Backup", maxTabs),
     copyTargetId
       ? performSyncBackup(sheets, drive, masterId, copyTargetId, "LUXE Secondary Backup", maxTabs)
-      : Promise.resolve(null)
+      : Promise.resolve(null),
+    copySpreadsheetId
+      ? syncLuxeCopyDataTab(sheets, masterRows, copySpreadsheetId)
+      : Promise.resolve(),
   ]);
 
   const masterResult = results[0];
@@ -2555,9 +2704,10 @@ export async function createSpreadsheetBackup(customCopyTargetId?: string): Prom
   return {
     id: copyResult ? copyResult.id : masterResult.id,
     name: `Backup Created Successfully - ${dateTimeDisplay}`,
-    url: copyResult 
+    url: copyResult
       ? `https://docs.google.com/spreadsheets/d/${copyResult.id}/edit`
       : `https://docs.google.com/spreadsheets/d/${masterResult.id}/edit`,
   };
 }
+
 
