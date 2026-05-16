@@ -2419,9 +2419,14 @@ async function performSyncBackup(
   console.log(`📊 [BACKUP-${label}] Read ${rows.length} rows from source tab "${sourceTabName}"`);
 
   // 2. PRE-CLEAN: Delete old tabs BEFORE creating the new one to avoid hitting the
-  //    10,000,000-cell workbook limit. We run with (maxTabs - 1) so there is always
-  //    room for the new tab we are about to add.
-  await manageBackupTabs(sheets, targetId, maxTabs - 1);
+  //    10,000,000-cell workbook limit. Compute safe tab count dynamically so that
+  //    (safeMaxTabs × rows × cols) stays well under the 10M cell ceiling.
+  const COLS = 75; // A:BW
+  const MAX_SAFE_CELLS = 9_000_000; // 10% buffer under Google's 10M hard limit
+  const cellsPerTab = rows.length * COLS;
+  const safeMaxTabs = Math.max(1, Math.min(maxTabs, Math.floor(MAX_SAFE_CELLS / cellsPerTab)));
+  console.log(`🔢 [BACKUP-${label}] Safe max tabs: ${safeMaxTabs} (${rows.length} rows × ${COLS} cols = ${cellsPerTab.toLocaleString()} cells/tab)`);
+  await manageBackupTabs(sheets, targetId, safeMaxTabs - 1);
 
   // 3. CREATE NEW TAB AT THE LEFTMOST POSITION
   const addSheetResponse = await sheets.spreadsheets.batchUpdate({
@@ -2440,13 +2445,12 @@ async function performSyncBackup(
   console.log(`🆕 [BACKUP-${label}] Created new tab: "${tabName}"`);
   const newSheetId = addSheetResponse.data.replies?.[0]?.addSheet?.properties?.sheetId;
 
-  // 4. EXPAND NEW TAB to fit all rows (new tabs default to 1000 rows —
+  // 4. EXPAND NEW TAB to fit all rows exactly (new tabs default to 1,000 rows —
   //    values.update silently truncates if the sheet is too small).
-  //    We add a 500-row buffer so the tab has headroom for near-future growth.
-  const requiredRows = rows.length + 500;
+  //    No extra buffer — we keep cell count tight to avoid the 10M workbook limit.
   const DEFAULT_SHEET_ROWS = 1000;
-  if (newSheetId != null && requiredRows > DEFAULT_SHEET_ROWS) {
-    const extraRows = requiredRows - DEFAULT_SHEET_ROWS;
+  if (newSheetId != null && rows.length > DEFAULT_SHEET_ROWS) {
+    const extraRows = rows.length - DEFAULT_SHEET_ROWS;
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId: targetId,
       requestBody: {
@@ -2459,7 +2463,7 @@ async function performSyncBackup(
         }]
       }
     });
-    console.log(`📐 [BACKUP-${label}] Expanded tab to ${requiredRows} rows (+${extraRows} added)`);
+    console.log(`📐 [BACKUP-${label}] Expanded tab to ${rows.length} rows (+${extraRows} added)`);
   }
 
   // 5. WRITE TO SPECIFIC TAB
@@ -2510,7 +2514,7 @@ export async function createSpreadsheetBackup(customCopyTargetId?: string): Prom
   const sheets = google.sheets({ version: "v4", auth });
   const drive = google.drive({ version: "v3", auth });
 
-  const maxTabs = 12; // Capped at 12 — each tab holds ~67 cols × 2500+ rows ≈ 167k cells; keeps total well under the 10M cell workbook limit
+  const maxTabs = 12; // Upper bound — actual safe tab count is computed dynamically per backup run based on row count
 
   // 1. MASTER LISTING BACKUP (primary target)
   const masterId = process.env.SPREADSHEET_ID;
