@@ -2512,25 +2512,25 @@ export async function createSpreadsheetBackup(customCopyTargetId?: string): Prom
 
   const maxTabs = 12; // Capped at 12 — each tab holds ~67 cols × 2500+ rows ≈ 167k cells; keeps total well under the 10M cell workbook limit
 
-  // 1. MASTER LISTING BACKUP
+  // 1. MASTER LISTING BACKUP (primary target)
   const masterId = process.env.SPREADSHEET_ID;
   const targetId = process.env.BACKUP_TARGET_SHEET_ID;
-  
-  // 2. LUXE COPY BACKUP
-  const copyId = process.env.COPY_SPREADSHEET_ID;
-  // Use custom URL if provided, else fallback to env
+
+  // 2. SECONDARY BACKUP TARGET — also reads from LUXE DBASE (not LUXE COPY)
+  //    LUXE COPY can fall behind LUXE DBASE, so we always use the master
+  //    as the single source of truth for both backup destinations.
   const copyTargetId = customCopyTargetId || process.env.COPY_BACKUP_TARGET_ID;
 
   if (!masterId || !targetId) {
     throw new Error("Master backup IDs not configured");
   }
 
-  console.log("👯 [PARALLEL-BACKUP] Triggering dual syncs...");
+  console.log("👯 [PARALLEL-BACKUP] Triggering dual syncs from LUXE DBASE master...");
 
   const results = await Promise.all([
     performSyncBackup(sheets, drive, masterId, targetId, "LUXE Master Backup", maxTabs),
-    copyId && copyTargetId 
-      ? performSyncBackup(sheets, drive, copyId, copyTargetId, "LUXE Copy Backup", maxTabs)
+    copyTargetId
+      ? performSyncBackup(sheets, drive, masterId, copyTargetId, "LUXE Secondary Backup", maxTabs)
       : Promise.resolve(null)
   ]);
 

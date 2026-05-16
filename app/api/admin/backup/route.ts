@@ -34,10 +34,10 @@ export async function GET(req: Request) {
 
     const config = data?.value || { destination_url: "", last_backup_at: null };
 
-    // Fetch live row count from the source sheet (COPY_SPREADSHEET_ID)
+    // Fetch live row count from LUXE DBASE (the master source of truth)
     let rowCount: number | null = null;
     try {
-      const sourceId = process.env.COPY_SPREADSHEET_ID;
+      const sourceId = process.env.SPREADSHEET_ID;
       if (sourceId) {
         const sheets = getSheets();
         const sourceMeta = await sheets.spreadsheets.get({ spreadsheetId: sourceId });
