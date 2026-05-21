@@ -10,6 +10,7 @@ import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send, Copy, Scal
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 import { BackupModal } from "@/components/BackupModal";
+import { DuplicatesModal } from "@/components/DuplicatesModal";
 
 interface NavProps {
   user?: {
@@ -34,6 +35,7 @@ export function Nav({ user, permissions }: NavProps) {
   const isSuperAdmin = role === "SUPERADMIN";
   const canBackup = isAdmin || role === "EDITOR";
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isDuplicatesOpen, setIsDuplicatesOpen] = useState(false);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
 
   useEffect(() => {
@@ -115,6 +117,17 @@ export function Nav({ user, permissions }: NavProps) {
                 );
               })}
 
+              {/* Check Duplicates Button */}
+              {canBackup && (
+                <button
+                  onClick={() => setIsDuplicatesOpen(true)}
+                  className="flex items-center gap-2 transition-colors text-sm text-foreground/60 font-medium hover:text-foreground/80"
+                >
+                  <Copy className="h-4 w-4" />
+                  Check Duplicates
+                </button>
+              )}
+
               {/* Backup Modal Trigger */}
               {canBackup && (
                 <button
@@ -170,6 +183,7 @@ export function Nav({ user, permissions }: NavProps) {
         </div>
 
         <BackupModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} onBackupSuccess={(at) => setLastBackupAt(at)} />
+        <DuplicatesModal isOpen={isDuplicatesOpen} onClose={() => setIsDuplicatesOpen(false)} />
       </header>
 
       {/* SUPERADMIN-only sticky footer */}
