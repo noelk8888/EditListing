@@ -349,13 +349,13 @@ export default function DuplicateReviewPage() {
         {/* ── After marking: done state ── */}
         {groupPhase === "done" && (
           <div className="flex flex-col items-center gap-6 py-8">
-            <div className="p-6 rounded-xl bg-green-50 border border-green-200 dark:bg-green-950/20 dark:border-green-800 flex items-start gap-4 max-w-xl w-full">
-              <CheckCircle2 className="h-6 w-6 text-green-600 mt-0.5 shrink-0" />
+            <div className="p-6 rounded-xl bg-black border border-black flex items-start gap-4 max-w-xl w-full">
+              <CheckCircle2 className="h-6 w-6 text-white mt-0.5 shrink-0" />
               <div className="space-y-1">
-                <p className="font-bold text-green-900 dark:text-green-300 text-lg">
+                <p className="font-bold text-white text-lg">
                   {duplicateListings.length} duplicate{duplicateListings.length !== 1 ? "s" : ""} marked in LUXE DBASE
                 </p>
-                <p className="text-sm text-green-800 dark:text-green-400">
+                <p className="text-sm text-gray-300">
                   Row{duplicateListings.length !== 1 ? "s" : ""}{" "}
                   {duplicateListings.map((l) => l.rowNumber).join(", ")} →
                   Black background · Bold white text · First line updated
