@@ -48,10 +48,9 @@ export function getRowFormattingRequest(sheetId: number, rowNumber: number, stat
     isBold = true;
   }
 
-  // Format fields payload depending on if we are clearing or setting background
-  const fields = backgroundColor !== null 
-    ? "userEnteredFormat.textFormat,userEnteredFormat.backgroundColor" 
-    : "userEnteredFormat.textFormat,userEnteredFormat.backgroundColor";
+  // Include textFormatRuns in fields so any character-level color overrides are cleared,
+  // allowing the cell-level foregroundColor (white for SOLD etc.) to take effect on Col A.
+  const fields = "userEnteredFormat.textFormat,userEnteredFormat.backgroundColor,textFormatRuns";
 
   return {
     repeatCell: {

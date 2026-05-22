@@ -109,6 +109,12 @@ export default function AddListingPage() {
 
   useEffect(() => {
     fetchSpearheadedByNames().then(setDynamicOptions);
+    // Pre-fill from DuplicatesModal "Open Original in Add Listing"
+    const prefill = localStorage.getItem("luxe_prefill_text");
+    if (prefill) {
+      setRawText(prefill);
+      localStorage.removeItem("luxe_prefill_text");
+    }
   }, []);
 
   const allOwnershipOptions = Array.from(new Set([...LISTING_OWNERSHIP_OPTIONS, ...dynamicOptions]));

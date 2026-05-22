@@ -109,6 +109,13 @@ export async function POST(req: Request) {
     const outputRows: string[][] = [];
     let maxMatches = 0;
 
+    // Structured groups for the review UI
+    interface DupGroupResult {
+      matchType: string;
+      listings: { rowNumber: number; geoId: string; colA: string }[];
+    }
+    const groups: DupGroupResult[] = [];
+
     const processMatches = (matches: number[][], type: string) => {
       for (const rowNums of matches) {
         maxMatches = Math.max(maxMatches, rowNums.length);
@@ -116,16 +123,25 @@ export async function POST(req: Request) {
           .map((n) => rowsMap.get(n)?.colAC)
           .filter(Boolean)
           .join(", ");
-        
-        // Collect Col A text for each row in the group
+
         const rowTexts = rowNums.map((n) => rowsMap.get(n)?.colA || "");
-        
+
         outputRows.push([
-          rowNums.join(", "),  // Col A: Row Numbers
-          type,                // Col B: Match Type
-          geoIds,              // Col C: GEO IDs
-          ...rowTexts          // Col D, E, F...: Listing Texts
+          rowNums.join(", "),
+          type,
+          geoIds,
+          ...rowTexts
         ]);
+
+        // Structured group for UI
+        groups.push({
+          matchType: type,
+          listings: rowNums.map((n) => ({
+            rowNumber: n,
+            geoId: rowsMap.get(n)?.colAC || "",
+            colA: rowsMap.get(n)?.colA || "",
+          })),
+        });
       }
     };
 
@@ -139,12 +155,23 @@ export async function POST(req: Request) {
     }
 
     // ── Step 5: Create a new output tab ───────────────────────────────────
-    const tabName = `Duplicates - ${new Date().toLocaleDateString("en-PH", {
+    const baseTabName = `Duplicates - ${new Date().toLocaleDateString("en-PH", {
       month: "short",
       day: "numeric",
       year: "numeric",
       timeZone: "Asia/Manila",
     })}`;
+
+    // Check existing sheet names to avoid collision
+    const metaRes = await sheets.spreadsheets.get({ spreadsheetId });
+    const existingTitles = new Set(
+      (metaRes.data.sheets || []).map((s: any) => s.properties?.title || "")
+    );
+    let tabName = baseTabName;
+    let counter = 2;
+    while (existingTitles.has(tabName)) {
+      tabName = `${baseTabName} (${counter++})`;
+    }
 
     // Create the tab
     await sheets.spreadsheets.batchUpdate({
@@ -209,6 +236,8 @@ export async function POST(req: Request) {
       outputUrl,
       photoMatchCount: photoMatches.length,
       fuzzyMatchCount: fuzzyMatches.length,
+      spreadsheetId,
+      groups,
     });
   } catch (err: any) {
     console.error("Duplicate check error:", err);
