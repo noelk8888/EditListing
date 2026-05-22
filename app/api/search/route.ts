@@ -428,6 +428,7 @@ export async function POST(request: Request) {
         .from(TABLE_NAME)
         .select(SELECT_COLUMNS)
         .ilike('"PHOTO"', `%${searchTerm}%`)
+        .not('"MAIN"', 'ilike', '*DUPLICATE Row%') // exclude marked duplicates
         .order('SOURCE_TAB', { ascending: true })
         .limit(5);
 
@@ -496,6 +497,7 @@ export async function POST(request: Request) {
             .from(TABLE_NAME)
             .select(SELECT_COLUMNS)
             .ilike('"MAIN"', `%${line2}%`)
+            .not('"MAIN"', 'ilike', '*DUPLICATE Row%') // exclude marked duplicates
             .order('SOURCE_TAB', { ascending: true })
             .limit(20);
 
@@ -553,6 +555,7 @@ export async function POST(request: Request) {
             .from(TABLE_NAME)
             .select(SELECT_COLUMNS)
             .ilike('"MAIN"', `%${line3}%`)
+            .not('"MAIN"', 'ilike', '*DUPLICATE Row%') // exclude marked duplicates
             .order('SOURCE_TAB', { ascending: true })
             .limit(20);
 
@@ -607,6 +610,11 @@ export async function POST(request: Request) {
       try {
         const gsheetRow = await findRowByColAText(previewText);
         if (gsheetRow) {
+          // Skip if this GSheet row has been marked as a duplicate
+          const mainText = gsheetRow.main || gsheetRow.blastedFormat || "";
+          if (mainText.trimStart().startsWith("*DUPLICATE Row")) {
+            console.log("GSheet COL A match is a marked duplicate — skipping");
+          } else {
           let geoId = gsheetRow.geoId;
           // COL AA empty → GEO ID empty: auto-assign the next available GEO ID immediately
           if (!geoId) {
@@ -628,6 +636,7 @@ export async function POST(request: Request) {
           }
 
           return NextResponse.json({ result, matchedBy: "gsheetColA", sourceTab });
+          } // end duplicate guard
         }
         console.log("No match in GSheet COL A");
       } catch (gsheetErr) {

@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getSheets } from "@/lib/google-sheets";
+import { createClient } from "@supabase/supabase-js";
 
 // Col AA = index 26 (0-based). Col Q = index 16 (last column to format).
 const COL_AA = "AA";
 const FORMAT_END_COL = 17; // exclusive — covers A(0) through Q(16)
+
+// Supabase admin client for flagging duplicate listings
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 export async function POST(req: Request) {
   try {
@@ -24,12 +31,14 @@ export async function POST(req: Request) {
     const sheet1Id = sheet1?.properties?.sheetId;
 
     for (const rowNum of duplicateRowNumbers) {
-      // 1. Read current Col A text
+      // 1. Read Col A (listing text) AND Col AC (GEO ID) in one call
       const readRes = await sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `Sheet1!A${rowNum}`,
+        range: `Sheet1!A${rowNum}:AC${rowNum}`,
       });
-      const currentColA = (readRes.data.values?.[0]?.[0] || "").toString();
+      const row = readRes.data.values?.[0] || [];
+      const currentColA = (row[0] || "").toString();
+      const duplicateGeoId = (row[28] || "").toString().trim(); // Col AC = index 28
 
       // 2. Replace the first line with the duplicate tag
       const lines = currentColA.split("\n");
@@ -78,6 +87,19 @@ export async function POST(req: Request) {
             ],
           },
         });
+      }
+
+      // 5. Flag as duplicate in Supabase so it's excluded from search & count
+      if (duplicateGeoId) {
+        const { error: supaErr } = await supabaseAdmin
+          .from("listings")
+          .update({ summary: updatedText })
+          .eq("id", duplicateGeoId);
+
+        if (supaErr) {
+          console.warn(`Supabase update failed for ${duplicateGeoId}:`, supaErr.message);
+          // Non-fatal — GSheet is already updated
+        }
       }
     }
 
