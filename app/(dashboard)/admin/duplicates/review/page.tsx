@@ -241,7 +241,7 @@ export default function DuplicateReviewPage() {
               <span className={cn(
                 "ml-2 inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold",
                 currentGroup.matchType === "Photo Match"
-                  ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
+                  ? "bg-blue-100 text-black dark:bg-blue-200 dark:text-black"
                   : "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300"
               )}>
                 {currentGroup.matchType}
