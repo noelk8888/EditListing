@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   CheckCircle2,
   ChevronRight,
+  ChevronLeft,
   SkipForward,
   Pencil,
   ExternalLink,
@@ -60,6 +61,11 @@ export default function DuplicateReviewPage() {
   const [allDone, setAllDone] = useState(false);
   const [isMarking, setIsMarking] = useState(false);
 
+  // History and tracking states
+  const [groupActions, setGroupActions] = useState<Record<number, "marked" | "skipped">>({});
+  const [selectedRowsHistory, setSelectedRowsHistory] = useState<Record<number, number>>({});
+  const [editedTextHistory, setEditedTextHistory] = useState<Record<number, string>>({});
+
   // Load data from localStorage
   useEffect(() => {
     const raw = localStorage.getItem("luxe_dup_review_data");
@@ -97,10 +103,23 @@ export default function DuplicateReviewPage() {
     setSelectedOriginalRow(listing.rowNumber);
     setEditedText(listing.colA);
     setShowEdit(false);
+    setSelectedRowsHistory((prev) => ({ ...prev, [currentIndex]: listing.rowNumber }));
+    setEditedTextHistory((prev) => ({ ...prev, [currentIndex]: listing.colA }));
   };
 
   const handleSkip = () => {
-    setSkippedCount((c) => c + 1);
+    setGroupActions((prev) => {
+      const updated = { ...prev };
+      if (updated[currentIndex] === "marked") {
+        setMarkedCount((c) => Math.max(0, c - 1));
+      }
+      if (updated[currentIndex] !== "skipped") {
+        setSkippedCount((c) => c + 1);
+      }
+      updated[currentIndex] = "skipped";
+      return updated;
+    });
+
     if (isLastGroup) {
       setAllDone(true);
     } else {
@@ -129,7 +148,18 @@ export default function DuplicateReviewPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Mark failed");
 
-      setMarkedCount((c) => c + 1);
+      setGroupActions((prev) => {
+        const updated = { ...prev };
+        if (updated[currentIndex] === "skipped") {
+          setSkippedCount((c) => Math.max(0, c - 1));
+        }
+        if (updated[currentIndex] !== "marked") {
+          setMarkedCount((c) => c + 1);
+        }
+        updated[currentIndex] = "marked";
+        return updated;
+      });
+
       setGroupPhase("done");
       toast({
         title: "Duplicates Marked",
@@ -140,6 +170,30 @@ export default function DuplicateReviewPage() {
       setGroupPhase("selecting");
     } finally {
       setIsMarking(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (currentIndex > 0) {
+      const prevIndex = currentIndex - 1;
+      setCurrentIndex(prevIndex);
+      setError(null);
+      setGroupPhase("selecting");
+
+      const prevSelectedRow = selectedRowsHistory[prevIndex] || null;
+      setSelectedOriginalRow(prevSelectedRow);
+
+      const savedEditedText = editedTextHistory[prevIndex];
+      if (savedEditedText !== undefined) {
+        setEditedText(savedEditedText);
+      } else if (reviewData && prevSelectedRow) {
+        const prevGroup = reviewData.groups[prevIndex];
+        const listing = prevGroup.listings.find((l) => l.rowNumber === prevSelectedRow);
+        setEditedText(listing ? listing.colA : "");
+      } else {
+        setEditedText("");
+      }
+      setShowEdit(false);
     }
   };
 
@@ -255,6 +309,17 @@ export default function DuplicateReviewPage() {
                 style={{ width: `${((currentIndex) / totalGroups) * 100}%` }}
               />
             </div>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-muted-foreground hover:text-foreground"
+              onClick={handleBack}
+              disabled={currentIndex === 0 || isMarking}
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back
+            </Button>
 
             <Button
               variant="ghost"
@@ -405,7 +470,10 @@ export default function DuplicateReviewPage() {
             {showEdit && (
               <Textarea
                 value={editedText}
-                onChange={(e) => setEditedText(e.target.value)}
+                onChange={(e) => {
+                  setEditedText(e.target.value);
+                  setEditedTextHistory((prev) => ({ ...prev, [currentIndex]: e.target.value }));
+                }}
                 className="font-mono text-xs min-h-[180px]"
                 placeholder="Edit the original listing text here…"
               />
