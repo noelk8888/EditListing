@@ -137,6 +137,8 @@ export default function AddListingPage() {
   const [editBuilding, setEditBuilding] = useState("");
   const [editType, setEditType] = useState("");
   const [editStatus, setEditStatus] = useState("");
+  const [editGeoId, setEditGeoId] = useState("");
+  const [editTargetTab, setEditTargetTab] = useState<"Sheet1" | "Sheet2">("Sheet1");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1074,6 +1076,7 @@ export default function AddListingPage() {
       setEditSummary(searchResult.summary || "");
       setOriginalEditSummary(searchResult.summary || ""); // snapshot for toggle-off revert
       setUseExistingMain(false);
+      setEditGeoId(searchResult.id || "");
       setEditArea(searchResult.area || "");
       setEditBarangay(searchResult.barangay || "");
       setEditCity(searchResult.city || "");
@@ -1193,8 +1196,9 @@ export default function AddListingPage() {
       setComments(searchResult.comments || "");
       setSocmedLink(searchResult.fb_link || "");
       setLocationVerified(!!searchResult.map_verified);
+      setEditTargetTab((sourceTab || "Sheet1") as "Sheet1" | "Sheet2");
     }
-  }, [searchResult]);
+  }, [searchResult, sourceTab]);
 
   // Fetch 2nd backup row and detect conflict whenever a listing is loaded (SUPERADMIN only)
   useEffect(() => {
@@ -1503,6 +1507,7 @@ export default function AddListingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: searchResult.id,
+          newGeoId: editGeoId,
           region: editRegion,
           province: editProvince,
           city: editCity,
@@ -1554,7 +1559,7 @@ export default function AddListingPage() {
           telegram_groups: telegramGroups,
           write_to_backup: backupStatus === "match" || (backupStatus === "conflict" && conflictResolved),
           // Primary target tab (Sheet1 or Sheet2)
-          targetTab: (batchActive && batchForceSheet1) ? "Sheet1" : (overrideTargetTab || sourceTab || "Sheet1"),
+          targetTab: (batchActive && batchForceSheet1) ? "Sheet1" : (overrideTargetTab || editTargetTab),
           // batch writeback: write existing GEO ID to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
@@ -1584,7 +1589,10 @@ export default function AddListingPage() {
         }
         setBatchIndex(prev => prev + 1);
       } else {
-        alert(`✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`);
+        const successMsg = editGeoId && editGeoId !== searchResult.id
+          ? `✅ Listing updated successfully. GEO ID changed from ${searchResult.id} to ${editGeoId}.`
+          : `✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`;
+        alert(successMsg);
         router.push("/");
       }
     } catch (err) {
@@ -2629,7 +2637,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                         <div className="block mb-1 text-sm font-bold text-muted-foreground uppercase">Existing Listing ID:</div>
                         <div className="flex items-center gap-2">
                           <span>
-                             <span className="uppercase">{searchResult.id}</span>
+                             <span className="uppercase">{userRole === "SUPERADMIN" ? editGeoId : searchResult.id}</span>
                              {searchResult.row_index ? ` (${sourceTab || 'Sheet1'} - Row ${searchResult.row_index})` : ''}
                            </span>
                           {(batchActive || batchMode) && batchRows[batchIndex] && searchResult.row_index ? (
@@ -3031,7 +3039,32 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     {/* Row 1: GEO ID | TYPE | MAP LINK */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
-                      <span className="text-sm font-semibold font-mono">{searchResult.id}</span>
+                      {userRole === "SUPERADMIN" ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editGeoId}
+                            onChange={(e) => setEditGeoId(e.target.value.toUpperCase())}
+                            className="h-8 w-28 text-sm font-mono font-bold border-red-200 focus:border-red-400 bg-red-50/20"
+                            placeholder="G00000"
+                          />
+                          {editGeoId !== searchResult.id && (
+                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded border border-blue-200 bg-blue-50/30 animate-in fade-in slide-in-from-left-1 duration-200">
+                              <span className="text-[10px] font-semibold text-blue-700 uppercase shrink-0">Target:</span>
+                              <Select value={editTargetTab} onValueChange={(v) => setEditTargetTab(v as "Sheet1" | "Sheet2")}>
+                                <SelectTrigger className="h-7 w-24 text-xs font-semibold bg-white border-blue-200">
+                                  <SelectValue placeholder="Select Sheet" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Sheet1">Sheet1</SelectItem>
+                                  <SelectItem value="Sheet2">Sheet2</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-sm font-semibold font-mono">{searchResult.id}</span>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -3637,9 +3670,9 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 <div>
                   <CardTitle className="flex items-center gap-3 text-lg">
                     Review Extracted Data
-                    {(searchResult?.id || newGeoId) && (
+                    {(searchResult ? (userRole === "SUPERADMIN" ? editGeoId : searchResult.id) : newGeoId) && (
                       <span className="px-2 py-0.5 bg-primary text-primary-foreground text-xs font-bold rounded font-mono">
-                        {searchResult?.id || newGeoId}
+                        {searchResult ? (userRole === "SUPERADMIN" ? editGeoId : searchResult.id) : newGeoId}
                       </span>
                     )}
                   </CardTitle>
@@ -3907,7 +3940,9 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   {/* Row 1: GEO ID | TYPE | MAP LINK */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">GEO ID</Label>
-                    <span className="text-sm font-semibold font-mono">{searchResult?.id || newGeoId || "—"}</span>
+                    <span className="text-sm font-semibold font-mono">
+                      {searchResult ? (userRole === "SUPERADMIN" ? editGeoId : searchResult.id) : (newGeoId || "—")}
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">

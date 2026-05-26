@@ -74,6 +74,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const {
       id,
+      newGeoId,
       region,
       province,
       city,
@@ -223,16 +224,28 @@ export async function POST(request: Request) {
     let targetTab = incomingTargetTab || batch_source_tab_name || "Sheet1";
     let finalId = id;
 
-    // Force G-series and A-series to always use Sheet1 as targetTab to prevent accidental Sheet2 writes
-    if (finalId.startsWith("G") || finalId.startsWith("A")) {
-      targetTab = "Sheet1";
-    }
-
     const sourceTab = current?.["SOURCE_TAB"] || await findGeoIdSourceTab(id).catch(() => "Sheet1");
 
     // Handle B -> G transformation for promotion
     if (sourceTab === "Sheet2" && targetTab === "Sheet1" && id.startsWith("B")) {
       finalId = id.replace(/^B/, "G");
+    }
+
+    // Superadmin custom GEO ID override
+    const isSuperAdmin = session?.user?.role === "SUPERADMIN";
+    if (newGeoId && newGeoId !== id) {
+      if (!isSuperAdmin) {
+        return NextResponse.json({ error: "Only Superadmins can change the GEO ID" }, { status: 403 });
+      }
+      if (!/^[A-Z]\d{4,6}$/i.test(newGeoId)) {
+        return NextResponse.json({ error: "Invalid GEO ID format. Must start with a letter and have 4-6 digits" }, { status: 400 });
+      }
+      finalId = newGeoId.toUpperCase();
+    }
+
+    // Force G-series and A-series to always use Sheet1 as targetTab to prevent accidental Sheet2 writes
+    if (finalId.startsWith("G") || finalId.startsWith("A")) {
+      targetTab = "Sheet1";
     }
 
     // Build BLASTED FORMAT (A) - Clean content without IDs
@@ -486,23 +499,21 @@ export async function POST(request: Request) {
       const spreadsheetId = process.env.SPREADSHEET_ID!;
       // (targetTab and sourceTab already calculated above)
 
-      let finalId = id;
-
       if (targetTab !== sourceTab) {
-        let isIdChanged = false;
+        let isIdChanged = id !== finalId;
 
-        // If promoting from Sheet2 to Sheet1, handle B -> G transformation
-        if (sourceTab === "Sheet2" && targetTab === "Sheet1") {
-          if (id.startsWith("B")) {
-            // finalId was already calculated above during content cleaning
-            isIdChanged = true;
-            console.log(`🏷️ Transforming ID for promotion: ${id} -> ${finalId}`);
-            
-            // Update syncData with new GEO ID and clean MAIN text
-            syncData.geoId = finalId;
-            syncData.main = mainWithId;
-            syncData.blastedFormat = blastedFormat;
-          }
+        // If promoting from Sheet2 to Sheet1, handle B -> G transformation (if not already custom overridden)
+        if (sourceTab === "Sheet2" && targetTab === "Sheet1" && id.startsWith("B") && finalId === id) {
+          finalId = id.replace(/^B/, "G");
+          isIdChanged = true;
+          console.log(`🏷️ Transforming ID for promotion: ${id} -> ${finalId}`);
+        }
+
+        if (isIdChanged) {
+          // Update syncData with new GEO ID and clean MAIN text
+          syncData.geoId = finalId;
+          syncData.main = mainWithId;
+          syncData.blastedFormat = blastedFormat;
         }
 
         console.log(`🚀 Promoting/Moving listing ${id} from ${sourceTab} to ${targetTab}${isIdChanged ? ` with new ID ${finalId}` : ""}...`);
@@ -548,15 +559,51 @@ export async function POST(request: Request) {
         }
 
       } else {
-        // Run syncColumns FIRST so GEO ID lands in COL AC before displayColumns searches for it
-        await updateSyncColumns(finalId, syncData, summary || "", noteConfig, undefined, targetTab);
-        console.log("✅ GSheet columns A + Z-BO updated successfully");
+        const isIdChanged = finalId !== id;
+        if (isIdChanged) {
+          console.log(`🔄 Updating GSheet in place for ID change: ${id} -> ${finalId}`);
+          
+          // 1. Run syncColumns FIRST using the OLD id to locate the row, but passing the new ID in syncData
+          await updateSyncColumns(id, syncData, summary || "", noteConfig, undefined, targetTab);
+          console.log("✅ GSheet columns A + Z-BO updated with new GEO ID successfully");
 
-        const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, targetTab);
-        if (gsheetUpdated) {
-          console.log("✅ GSheet columns B-P updated successfully");
+          // 2. Run displayColumns using the NEW finalId (since column AC was updated to new ID)
+          const gsheetUpdated = await updateDisplayColumns(finalId, displayData, summary || "", noteConfig, undefined, targetTab);
+          if (gsheetUpdated) {
+            console.log("✅ GSheet columns B-P updated successfully");
+          } else {
+            console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
+          }
+
+          // 3. Update Supabase record change
+          console.log(`🔄 Updating Supabase for ID change (same tab): ${id} -> ${finalId}`);
+          
+          // Delete old record
+          await supabase.from(TABLE_NAME).delete().eq('"GEO ID"', id);
+          
+          // Insert new record (bypass trigger)
+          const newSupabaseRecord = {
+             "GEO ID": finalId,
+             ...cleanSupabaseFields
+          };
+
+          const { error: insertErr } = await supabase.from(TABLE_NAME).insert(newSupabaseRecord);
+          if (insertErr) {
+            console.error("❌ Failed to insert new Supabase record after ID change:", insertErr);
+          } else {
+            console.log(`✅ Supabase record ${finalId} inserted securely.`);
+          }
         } else {
-          console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
+          // Standard same-tab update (no ID change)
+          await updateSyncColumns(finalId, syncData, summary || "", noteConfig, undefined, targetTab);
+          console.log("✅ GSheet columns A + Z-BO updated successfully");
+
+          const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, targetTab);
+          if (gsheetUpdated) {
+            console.log("✅ GSheet columns B-P updated successfully");
+          } else {
+            console.warn("⚠️ GSheet columns B-P update skipped - listing not found in GSheet");
+          }
         }
       }
 
