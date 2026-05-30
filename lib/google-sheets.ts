@@ -496,8 +496,12 @@ export async function findRowAndTabByGeoId(geoId: string): Promise<{ rowNumber: 
   // 1. Get spreadsheet metadata once
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const allTabs = (meta.data.sheets || [])
-    .map((s: any) => s.properties?.title as string)
-    .filter((title: string) => !!title);
+    .filter((s: any) => {
+      const title = s.properties?.title;
+      const colCount = s.properties?.gridProperties?.columnCount || 0;
+      return !!title && colCount >= 29 && !title.startsWith("Duplicates -");
+    })
+    .map((s: any) => s.properties?.title as string);
 
   // 2. Search all tabs but prioritize non-Sheet1 tabs (like Sheet2)
   const sortedTabs = [...allTabs.filter(t => t !== SHEET_NAME), SHEET_NAME];
@@ -748,6 +752,38 @@ export async function getRowByGeoId(geoId: string): Promise<GSheetFullRow | null
   const parsed = parseGSheetRow(row);
   parsed.rowNumber = result.rowNumber;
   return parsed;
+}
+
+/**
+ * Read full row data by Row Number and Tab Name
+ */
+export async function getRowByRowNumber(
+  rowNumber: number,
+  tabName: string = SHEET_NAME
+): Promise<GSheetFullRow | null> {
+  const sheets = getSheets();
+  const spreadsheetId = process.env.SPREADSHEET_ID;
+
+  if (!spreadsheetId) {
+    throw new Error("SPREADSHEET_ID not configured");
+  }
+
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${tabName}!A${rowNumber}:BO${rowNumber}`,
+    });
+
+    const row = response.data.values?.[0] || [];
+    if (row.length === 0) return null;
+
+    const parsed = parseGSheetRow(row);
+    parsed.rowNumber = rowNumber;
+    return parsed;
+  } catch (err) {
+    console.error(`Error fetching row ${rowNumber} from tab ${tabName}:`, err);
+    return null;
+  }
 }
 
 /**

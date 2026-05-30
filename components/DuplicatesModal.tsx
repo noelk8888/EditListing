@@ -78,7 +78,7 @@ export function DuplicatesModal({ isOpen, onClose }: DuplicatesModalProps) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl font-bold">
             <Copy className="h-5 w-5 text-purple-600" />
-            Check for Duplicates
+            Duplicate App
           </DialogTitle>
           <DialogDescription>
             Scans <strong>LUXE DBASE Sheet1</strong> using photo link and fuzzy

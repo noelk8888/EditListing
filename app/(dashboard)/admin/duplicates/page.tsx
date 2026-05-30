@@ -71,7 +71,7 @@ export default function DuplicatesPage() {
   return (
     <div className="container max-w-4xl py-10 space-y-8">
       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Duplicate Checking</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Duplicate Gsheet</h1>
         <p className="text-muted-foreground">
           Scan Sheet1 for duplicate properties using photo links and fuzzy text matching.
         </p>

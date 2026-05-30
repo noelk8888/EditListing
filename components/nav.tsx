@@ -70,14 +70,22 @@ export function Nav({ user, permissions }: NavProps) {
   const links = [
     { href: "/add", label: "Add Listing", icon: Plus },
     ...(isAdmin
-      ? [{ href: "/admin/users", label: "Users", icon: Users }]
+      ? [
+          { href: "/admin/users", label: "Users", icon: Users },
+          { href: "/admin/duplicates/declare", label: "Duplicate Tagging", icon: Copy }
+        ]
       : []),
   ];
 
   const superAdminFooterLinks = [
     { href: "/admin/permissions", label: "Permissions", icon: ShieldCheck },
     { href: "/admin/groups", label: "Telegram Hub", icon: Send },
-    { href: "/admin/duplicates", label: "Duplicate Checking", icon: Copy },
+    { href: "/admin/duplicates", label: "Duplicate Gsheet", icon: Copy },
+    {
+      label: "Duplicate App",
+      icon: Copy,
+      onClick: () => setIsDuplicatesOpen(true),
+    },
     { href: "/admin/compare-sheets", label: "Compare Sheets", icon: Scale },
     { href: "/admin/cross-check", label: "Cross Check", icon: SearchCheck },
     { href: "/admin/format-rows", label: "Format Rows", icon: Copy },
@@ -116,18 +124,6 @@ export function Nav({ user, permissions }: NavProps) {
                   </Link>
                 );
               })}
-
-              {/* Check Duplicates — SUPERADMIN only */}
-              {isSuperAdmin && (
-                <button
-                  id="nav-check-duplicates"
-                  onClick={() => setIsDuplicatesOpen(true)}
-                  className="flex items-center gap-2 transition-colors text-sm text-foreground/60 font-medium hover:text-purple-600"
-                >
-                  <Copy className="h-4 w-4" />
-                  Check Duplicates
-                </button>
-              )}
 
               {/* Backup Modal Trigger */}
               {canBackup && (
@@ -193,10 +189,22 @@ export function Nav({ user, permissions }: NavProps) {
           <div className="container flex h-11 items-center justify-center gap-6 overflow-x-auto whitespace-nowrap px-4 hide-scrollbar">
             {superAdminFooterLinks.map((link) => {
               const Icon = link.icon;
+              if (link.onClick) {
+                return (
+                  <button
+                    key={link.label}
+                    onClick={link.onClick}
+                    className="flex items-center gap-2 text-sm font-medium transition-colors text-foreground/60 hover:text-foreground/80"
+                  >
+                    <Icon className="h-4 w-4" />
+                    {link.label}
+                  </button>
+                );
+              }
               return (
                 <Link
                   key={link.href}
-                  href={link.href}
+                  href={link.href!}
                   className={cn(
                     "flex items-center gap-2 text-sm font-medium transition-colors hover:text-foreground/80",
                     pathname === link.href || pathname.startsWith(link.href + "/")

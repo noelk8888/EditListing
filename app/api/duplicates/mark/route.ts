@@ -14,17 +14,19 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { spreadsheetId, originalRowNumber, originalGeoId, duplicateRowNumbers } =
+    const { spreadsheetId, originalRowNumber, originalGeoId, duplicateRowNumbers, duplicateTexts } =
       await req.json();
 
-    if (!spreadsheetId || !originalRowNumber || !originalGeoId || !duplicateRowNumbers?.length) {
+    const activeSpreadsheetId = spreadsheetId || process.env.SPREADSHEET_ID;
+
+    if (!activeSpreadsheetId || !originalRowNumber || !originalGeoId || !duplicateRowNumbers?.length) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const sheets = getSheets();
 
     // Get Sheet1's sheetId for formatting requests
-    const meta = await sheets.spreadsheets.get({ spreadsheetId });
+    const meta = await sheets.spreadsheets.get({ spreadsheetId: activeSpreadsheetId });
     const sheet1 = meta.data.sheets?.find(
       (s: any) => s.properties?.title === "Sheet1"
     );
@@ -33,21 +35,36 @@ export async function POST(req: Request) {
     for (const rowNum of duplicateRowNumbers) {
       // 1. Read Col A (listing text) AND Col AC (GEO ID) in one call
       const readRes = await sheets.spreadsheets.values.get({
-        spreadsheetId,
+        spreadsheetId: activeSpreadsheetId,
         range: `Sheet1!A${rowNum}:AC${rowNum}`,
       });
       const row = readRes.data.values?.[0] || [];
       const currentColA = (row[0] || "").toString();
       const duplicateGeoId = (row[28] || "").toString().trim(); // Col AC = index 28
 
-      // 2. Replace the first line with the duplicate tag
-      const lines = currentColA.split("\n");
-      lines[0] = `*DUPLICATE Row ${originalRowNumber} - ${originalGeoId}*`;
-      const updatedText = lines.join("\n");
+      // 2. Format description with duplicate tag: check for client-provided custom text or format dynamically
+      let updatedText = "";
+      if (duplicateTexts && duplicateTexts[rowNum]) {
+        updatedText = duplicateTexts[rowNum];
+      } else {
+        const lines = currentColA.split("\n");
+        const firstLine = lines[0]?.trim();
+        const duplicateTag = `*DUPLICATE Row ${originalRowNumber} - ${originalGeoId}*`;
+        
+        // Clean existing duplicate tags to prevent duplicates of tags (case-insensitive check)
+        const cleanLines = lines.filter((line: string) => !line.toUpperCase().includes("*DUPLICATE ROW"));
+        
+        if (firstLine.toUpperCase() === duplicateGeoId.toUpperCase()) {
+          cleanLines.splice(1, 0, duplicateTag);
+        } else {
+          cleanLines.unshift(duplicateTag);
+        }
+        updatedText = cleanLines.join("\n");
+      }
 
       // 3. Write updated text to Col A and Col AA
       await sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId,
+        spreadsheetId: activeSpreadsheetId,
         requestBody: {
           valueInputOption: "RAW",
           data: [
@@ -60,7 +77,7 @@ export async function POST(req: Request) {
       // 4. Format Col A:Q — black background, bold white text
       if (sheet1Id !== undefined) {
         await sheets.spreadsheets.batchUpdate({
-          spreadsheetId,
+          spreadsheetId: activeSpreadsheetId,
           requestBody: {
             requests: [
               {
@@ -92,9 +109,12 @@ export async function POST(req: Request) {
       // 5. Flag as duplicate in Supabase so it's excluded from search & count
       if (duplicateGeoId) {
         const { error: supaErr } = await supabaseAdmin
-          .from("listings")
-          .update({ summary: updatedText })
-          .eq("id", duplicateGeoId);
+          .from("KIU Properties")
+          .update({ 
+            "MAIN": updatedText,
+            "DATE UPDATED": new Date().toISOString()
+          })
+          .eq("GEO ID", duplicateGeoId);
 
         if (supaErr) {
           console.warn(`Supabase update failed for ${duplicateGeoId}:`, supaErr.message);

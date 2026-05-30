@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getRowByGeoId, findRowByColAText, generateNextGeoId, findGeoIdSourceTab, GSheetFullRow } from "@/lib/google-sheets";
+import { getRowByGeoId, getRowByRowNumber, findRowByColAText, generateNextGeoId, findGeoIdSourceTab, GSheetFullRow } from "@/lib/google-sheets";
 import { auth } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/permissions";
 
@@ -331,6 +331,41 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
   }
 }
 
+// Apply GSheet data from a specific row (e.g. for rowNumber queries) to ensure the specific row's
+// unique GSheet values (like Col A blasted format description, prices, area, etc.) take precedence
+// over the Supabase record which is shared by duplicate GEO IDs.
+function applySpecificGSheetFallback(
+  result: ReturnType<typeof supabaseToResult>,
+  gsheetRow: GSheetFullRow
+): ReturnType<typeof supabaseToResult> {
+  const toNum = (v: string) => parseFloat(v.replace(/,/g, "")) || null;
+
+  // Use the GSheet row's A (blastedFormat) with GEO ID prepended if available, fallback to main (Col AA)
+  const gsheetSummary = gsheetRow.blastedFormat 
+    ? `${gsheetRow.geoId || result.id}\n${gsheetRow.blastedFormat}` 
+    : (gsheetRow.main || result.summary);
+
+  return {
+    ...result,
+    summary: gsheetSummary,
+    photo_link: gsheetRow.supabasePhoto || result.photo_link,
+    city: gsheetRow.city || gsheetRow.supabaseCity || result.city,
+    barangay: gsheetRow.area || gsheetRow.supabaseBarangay || result.barangay,
+    lot_area: gsheetRow.lotArea ? toNum(gsheetRow.lotArea) : (gsheetRow.supabaseLotArea ? toNum(gsheetRow.supabaseLotArea) : result.lot_area),
+    floor_area: gsheetRow.floorArea ? toNum(gsheetRow.floorArea) : (gsheetRow.supabaseFloorArea ? toNum(gsheetRow.supabaseFloorArea) : result.floor_area),
+    price: gsheetRow.price ? toNum(gsheetRow.price) : (gsheetRow.supabaseSalePrice ? toNum(gsheetRow.supabaseSalePrice) : result.price),
+    status: gsheetRow.available || gsheetRow.supabaseStatus || result.status,
+    date_received: normalizeGSheetDate(gsheetRow.dateReceived) || result.date_received,
+    date_updated: normalizeGSheetDate(gsheetRow.dateResorted || gsheetRow.supabaseDateUpdated) || result.date_updated,
+    direct_or_broker: gsheetRow.directCobroker || gsheetRow.supabaseDirectBroker || result.direct_or_broker,
+    owner_broker: gsheetRow.ownerBroker || gsheetRow.supabaseName || result.owner_broker,
+    how_many_away: gsheetRow.away || gsheetRow.supabaseAway || result.how_many_away,
+    listing_ownership: gsheetRow.listingOwnership || gsheetRow.supabaseListingOwnership || result.listing_ownership,
+    with_income: gsheetRow.withIncome || gsheetRow.supabaseWithIncome || result.with_income,
+    row_index: gsheetRow.rowNumber ?? null,
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const session = await auth();
@@ -340,15 +375,72 @@ export async function POST(request: Request) {
     const isSuperAdmin = permissions?.sheet2 === true;
     const canPromote = permissions?.promote_to_sheet1 === true;
 
-    const { photoLink, listingId, previewText } = await request.json();
+    const { photoLink, listingId, previewText, rowNumber } = await request.json();
 
     console.log("=== SUPABASE SEARCH ===");
     console.log("Photo link:", photoLink);
     console.log("Listing ID:", listingId);
+    console.log("Row number:", rowNumber);
     console.log("Preview text:", previewText?.substring(0, 80));
 
-    if (!photoLink && !listingId && !previewText) {
+    if (!photoLink && !listingId && !previewText && !rowNumber) {
       return NextResponse.json({ error: "No search criteria provided" }, { status: 400 });
+    }
+
+    // --- Strategy 0: Search by GSheet Row Number ---
+    if (rowNumber !== undefined && rowNumber !== null) {
+      console.log("Searching by GSheet Row Number:", rowNumber);
+      const parsedRowNumber = parseInt(rowNumber, 10);
+      if (!isNaN(parsedRowNumber)) {
+        let tabName = "Sheet1";
+        let gsheetRow = await getRowByRowNumber(parsedRowNumber, "Sheet1");
+        
+        // If not found or empty on Sheet1, try Sheet2
+        if (!gsheetRow || (!gsheetRow.geoId && !gsheetRow.main && !gsheetRow.blastedFormat)) {
+          gsheetRow = await getRowByRowNumber(parsedRowNumber, "Sheet2");
+          if (gsheetRow) {
+            tabName = "Sheet2";
+          }
+        }
+
+        if (gsheetRow) {
+          console.log(`Found row ${parsedRowNumber} in GSheet tab ${tabName}`);
+          
+          let geoId = gsheetRow.geoId;
+          let result;
+          
+          if (geoId) {
+            console.log(`Row has GEO ID ${geoId}, fetching from Supabase...`);
+            const { data, error } = await supabase
+              .from(TABLE_NAME)
+              .select(SELECT_COLUMNS)
+              .ilike('"GEO ID"', geoId)
+              .limit(1);
+
+            if (!error && data && data.length > 0) {
+              console.log(`Found Supabase data for GEO ID ${geoId}`);
+              const baseResult = supabaseToResult(data[0] as SupabaseResult);
+              result = applySpecificGSheetFallback(baseResult, gsheetRow);
+            } else {
+              console.log(`No Supabase record for GEO ID ${geoId}, returning GSheet values`);
+              result = gsheetRowToResult(geoId, gsheetRow);
+            }
+          } else {
+            geoId = `ROW-${parsedRowNumber}`;
+            console.log(`Row has no GEO ID, using placeholder ${geoId}`);
+            result = gsheetRowToResult(geoId, gsheetRow);
+          }
+
+          result.row_index = parsedRowNumber;
+
+          if (tabName === "Sheet2" && !isSuperAdmin) {
+             if (!canPromote) return NextResponse.json({ result: null });
+             return NextResponse.json({ result, matchedBy: "rowNumber", sourceTab: "Sheet2" });
+          }
+
+          return NextResponse.json({ result, matchedBy: "rowNumber", sourceTab: tabName });
+        }
+      }
     }
 
     // --- Strategy 1: Search by Listing ID (GEO ID) ---
