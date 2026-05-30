@@ -81,21 +81,55 @@ export async function POST(req: Request) {
 
     // ── Step 3: Phase 2 — Fuzzy Text Matching (unmatched rows only) ────────
     const unmatched = rows.filter((r) => !matchedRowNumbers.has(r.rowNumber) && r.colA.length > 20);
+
+    // 1. Precompute lowercased text and significant lines
+    const prepared = unmatched.map((r) => ({
+      rowNumber: r.rowNumber,
+      colA_lower: r.colA.toLowerCase(),
+      sigLines: extractSignificantLines(r.colA),
+    }));
+
+    // 2. Build inverted index mapping: significant_line -> Array of index in prepared
+    const sigLineMap = new Map<string, number[]>();
+    for (let idx = 0; idx < prepared.length; idx++) {
+      const row = prepared[idx];
+      for (const line of row.sigLines) {
+        if (!sigLineMap.has(line)) {
+          sigLineMap.set(line, []);
+        }
+        sigLineMap.get(line)!.push(idx);
+      }
+    }
+
     const fuzzyMatches: number[][] = [];
     const fuzzyMatchedRows = new Set<number>();
 
-    for (let i = 0; i < unmatched.length; i++) {
-      if (fuzzyMatchedRows.has(unmatched[i].rowNumber)) continue;
-      const sigLines = extractSignificantLines(unmatched[i].colA);
-      if (sigLines.length < 3) continue;
+    // 3. Perform matching using the inverted index
+    for (let i = 0; i < prepared.length; i++) {
+      const rowI = prepared[i];
+      if (fuzzyMatchedRows.has(rowI.rowNumber)) continue;
+      if (rowI.sigLines.length < 3) continue;
 
-      const group = [unmatched[i].rowNumber];
-      for (let j = i + 1; j < unmatched.length; j++) {
-        if (fuzzyMatchedRows.has(unmatched[j].rowNumber)) continue;
-        const colAj = unmatched[j].colA.toLowerCase();
-        const matchCount = sigLines.filter((line) => colAj.includes(line)).length;
-        if (matchCount / sigLines.length >= 0.8) {
-          group.push(unmatched[j].rowNumber);
+      // Find candidates: rows containing at least one of rowI's significant lines
+      const candidates = new Set<number>();
+      for (const line of rowI.sigLines) {
+        const indices = sigLineMap.get(line) || [];
+        for (const idx of indices) {
+          if (idx > i) { // only compare with subsequent rows
+            candidates.add(idx);
+          }
+        }
+      }
+
+      const group = [rowI.rowNumber];
+      for (const idx of Array.from(candidates)) {
+        const rowJ = prepared[idx];
+        if (fuzzyMatchedRows.has(rowJ.rowNumber)) continue;
+
+        const colAj = rowJ.colA_lower;
+        const matchCount = rowI.sigLines.filter((line) => colAj.includes(line)).length;
+        if (matchCount / rowI.sigLines.length >= 0.8) {
+          group.push(rowJ.rowNumber);
         }
       }
 

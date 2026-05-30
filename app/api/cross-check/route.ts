@@ -93,6 +93,27 @@ export async function POST(req: Request) {
       }
     });
 
+    // Precompute target lowercased text and significant lines
+    const preparedTarget = targetRows.map(r => ({
+      rowNumber: r.rowNumber,
+      colA_lower: r.colA.toLowerCase(),
+      colAC: r.colAC,
+      sigLines: extractSignificantLines(r.colA),
+      originalRow: r
+    }));
+
+    // Build inverted index mapping: significant_line -> Array of index in preparedTarget
+    const targetSigLineMap = new Map<string, number[]>();
+    for (let idx = 0; idx < preparedTarget.length; idx++) {
+      const row = preparedTarget[idx];
+      for (const line of row.sigLines) {
+        if (!targetSigLineMap.has(line)) {
+          targetSigLineMap.set(line, []);
+        }
+        targetSigLineMap.get(line)!.push(idx);
+      }
+    }
+
     // Match Source against Target
     for (const sRow of sourceRows) {
       let matchedInTarget = false;
@@ -116,11 +137,24 @@ export async function POST(req: Request) {
       if (!matchedInTarget && sRow.colA.length > 20) {
         const sSigLines = extractSignificantLines(sRow.colA);
         if (sSigLines.length >= 3) {
-          const matchedTRows = targetRows.filter(tRow => {
-            const tText = tRow.colA.toLowerCase();
+          // Find candidates in target using inverted index
+          const candidates = new Set<number>();
+          for (const line of sSigLines) {
+            const indices = targetSigLineMap.get(line) || [];
+            for (const idx of indices) {
+              candidates.add(idx);
+            }
+          }
+
+          const matchedTRows: SheetRow[] = [];
+          for (const idx of Array.from(candidates)) {
+            const tRow = preparedTarget[idx];
+            const tText = tRow.colA_lower;
             const matchCount = sSigLines.filter(line => tText.includes(line)).length;
-            return (matchCount / sSigLines.length >= 0.8);
-          });
+            if (matchCount / sSigLines.length >= 0.8) {
+              matchedTRows.push(tRow.originalRow);
+            }
+          }
 
           if (matchedTRows.length > 0) {
             matches.push({
