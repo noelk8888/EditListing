@@ -238,25 +238,63 @@ export async function POST(req: Request) {
     const newSheetId = newSheet?.properties?.sheetId;
 
     if (newSheetId !== undefined) {
+      const formatRequests: any[] = [
+        {
+          repeatCell: {
+            range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1 },
+            cell: { userEnteredFormat: { textFormat: { bold: true } } },
+            fields: "userEnteredFormat.textFormat.bold",
+          },
+        },
+        // Freeze header row
+        {
+          updateSheetProperties: {
+            properties: { sheetId: newSheetId, gridProperties: { frozenRowCount: 1 } },
+            fields: "gridProperties.frozenRowCount",
+          },
+        },
+      ];
+
+      // Scan all cells in outputRows to format duplicate listings as white bold text on a black background
+      outputRows.forEach((row, rowIndex) => {
+        const sheetRowIndex = rowIndex + 1; // row 1 (index 0) is the header row
+        row.forEach((cellVal, colIndex) => {
+          if (
+            cellVal &&
+            typeof cellVal === "string" &&
+            cellVal.trim().toUpperCase().startsWith("*DUPLICATE")
+          ) {
+            formatRequests.push({
+              repeatCell: {
+                range: {
+                  sheetId: newSheetId,
+                  startRowIndex: sheetRowIndex,
+                  endRowIndex: sheetRowIndex + 1,
+                  startColumnIndex: colIndex,
+                  endColumnIndex: colIndex + 1,
+                },
+                cell: {
+                  userEnteredFormat: {
+                    backgroundColor: { red: 0, green: 0, blue: 0 },
+                    textFormat: {
+                      foregroundColor: { red: 1, green: 1, blue: 1 },
+                      bold: true,
+                      fontFamily: "Calibri",
+                      fontSize: 11,
+                    },
+                  },
+                },
+                fields: "userEnteredFormat(backgroundColor,textFormat)",
+              },
+            });
+          }
+        });
+      });
+
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
-          requests: [
-            {
-              repeatCell: {
-                range: { sheetId: newSheetId, startRowIndex: 0, endRowIndex: 1 },
-                cell: { userEnteredFormat: { textFormat: { bold: true } } },
-                fields: "userEnteredFormat.textFormat.bold",
-              },
-            },
-            // Freeze header row
-            {
-              updateSheetProperties: {
-                properties: { sheetId: newSheetId, gridProperties: { frozenRowCount: 1 } },
-                fields: "gridProperties.frozenRowCount",
-              },
-            },
-          ],
+          requests: formatRequests,
         },
       });
     }
