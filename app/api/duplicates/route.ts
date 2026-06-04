@@ -262,7 +262,7 @@ export async function POST(req: Request) {
           if (
             cellVal &&
             typeof cellVal === "string" &&
-            cellVal.trim().toUpperCase().startsWith("*DUPLICATE")
+            cellVal.toUpperCase().includes("*DUPLICATE")
           ) {
             formatRequests.push({
               repeatCell: {

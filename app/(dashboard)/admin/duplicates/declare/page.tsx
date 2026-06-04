@@ -50,6 +50,8 @@ export default function DeclareDuplicatePage() {
 
   const [listingA, setListingA] = useState<ListingDetail | null>(null);
   const [listingB, setListingB] = useState<ListingDetail | null>(null);
+  const [descA, setDescA] = useState("");
+  const [descB, setDescB] = useState("");
 
   const [selectedOriginal, setSelectedOriginal] = useState<"A" | "B" | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -65,8 +67,8 @@ export default function DeclareDuplicatePage() {
 
     const isRowNumber = /^\d+$/.test(cleanInput);
     const bodyPayload = isRowNumber
-      ? { rowNumber: parseInt(cleanInput, 10) }
-      : { listingId: cleanInput.toUpperCase() };
+      ? { rowNumber: parseInt(cleanInput, 10), isDuplicateTagging: true }
+      : { listingId: cleanInput.toUpperCase(), isDuplicateTagging: true };
 
     const res = await fetch("/api/search", {
       method: "POST",
@@ -110,6 +112,8 @@ export default function DeclareDuplicatePage() {
     setError(null);
     setListingA(null);
     setListingB(null);
+    setDescA("");
+    setDescB("");
     setSelectedOriginal(null);
     setSaveSuccess(false);
 
@@ -121,6 +125,8 @@ export default function DeclareDuplicatePage() {
 
       setListingA(resA);
       setListingB(resB);
+      setDescA(resA.summary || "");
+      setDescB(resB.summary || "");
 
       toast({
         title: "Listings Loaded",
@@ -148,6 +154,10 @@ export default function DeclareDuplicatePage() {
     setListingA(listingB);
     setListingB(tempListing);
 
+    const tempDesc = descA;
+    setDescA(descB);
+    setDescB(tempDesc);
+
     if (selectedOriginal === "A") setSelectedOriginal("B");
     else if (selectedOriginal === "B") setSelectedOriginal("A");
   };
@@ -157,22 +167,24 @@ export default function DeclareDuplicatePage() {
     setGeoIdB("");
     setListingA(null);
     setListingB(null);
+    setDescA("");
+    setDescB("");
     setSelectedOriginal(null);
     setError(null);
     setSaveSuccess(false);
   };
 
-  const getUpdatedDuplicateDescription = (duplicate: ListingDetail, original: ListingDetail) => {
-    if (!duplicate.summary || !original.row_index) return "";
+  const getUpdatedDuplicateDescription = (duplicateDesc: string, duplicateId: string, originalRowIndex: number, originalId: string) => {
+    if (!duplicateDesc) return "";
     
-    const lines = duplicate.summary.split("\n");
+    const lines = duplicateDesc.split("\n");
     const firstLine = lines[0]?.trim();
-    const duplicateTag = `*DUPLICATE Row ${original.row_index} - ${original.id}*`;
+    const duplicateTag = `*DUPLICATE Row ${originalRowIndex} - ${originalId}*`;
     
     // Clean existing duplicate tags first (case-insensitive check)
-    let cleanLines = lines.filter(line => !line.toUpperCase().includes("*DUPLICATE ROW"));
+    const cleanLines = lines.filter(line => !line.toUpperCase().includes("*DUPLICATE ROW"));
 
-    if (firstLine.toUpperCase() === duplicate.id.toUpperCase()) {
+    if (firstLine.toUpperCase() === duplicateId.toUpperCase()) {
       cleanLines.splice(1, 0, duplicateTag);
     } else {
       cleanLines.unshift(duplicateTag);
@@ -184,8 +196,9 @@ export default function DeclareDuplicatePage() {
     setSelectedOriginal(selection);
     const original = selection === "A" ? listingA : listingB;
     const duplicate = selection === "A" ? listingB : listingA;
-    if (duplicate && original) {
-      const initialText = getUpdatedDuplicateDescription(duplicate, original);
+    const duplicateDesc = selection === "A" ? descB : descA;
+    if (duplicate && original && original.row_index) {
+      const initialText = getUpdatedDuplicateDescription(duplicateDesc, duplicate.id, original.row_index, original.id);
       setEditedDuplicateText(initialText);
     }
   };
@@ -223,6 +236,7 @@ export default function DeclareDuplicatePage() {
         body: JSON.stringify({
           originalRowNumber: original.row_index,
           originalGeoId: original.id,
+          originalText: selectedOriginal === "A" ? descA : descB,
           duplicateRowNumbers: [duplicate.row_index],
           duplicateTexts: {
             [duplicate.row_index]: editedDuplicateText
@@ -446,9 +460,19 @@ export default function DeclareDuplicatePage() {
 
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground block font-semibold">Description Text:</span>
-                    <div className="rounded border bg-muted/40 p-3 max-h-[300px] overflow-y-auto font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                      {listingA.summary || "No description text available."}
-                    </div>
+                    <Textarea
+                      value={descA}
+                      onChange={(e) => {
+                        const newVal = e.target.value;
+                        setDescA(newVal);
+                        if (selectedOriginal === "B" && listingA && listingB && listingB.row_index) {
+                          const initialText = getUpdatedDuplicateDescription(newVal, listingA.id, listingB.row_index, listingB.id);
+                          setEditedDuplicateText(initialText);
+                        }
+                      }}
+                      className="font-mono text-xs min-h-[250px] bg-background border-purple-500/20 focus-visible:ring-purple-600"
+                      placeholder="Edit description text here..."
+                    />
                   </div>
                 </div>
 
@@ -546,9 +570,19 @@ export default function DeclareDuplicatePage() {
 
                   <div className="space-y-1">
                     <span className="text-xs text-muted-foreground block font-semibold">Description Text:</span>
-                    <div className="rounded border bg-muted/40 p-3 max-h-[300px] overflow-y-auto font-mono text-xs leading-relaxed whitespace-pre-wrap">
-                      {listingB.summary || "No description text available."}
-                    </div>
+                    <Textarea
+                      value={descB}
+                      onChange={(e) => {
+                        const newVal = e.target.value;
+                        setDescB(newVal);
+                        if (selectedOriginal === "A" && listingA && listingB && listingA.row_index) {
+                          const initialText = getUpdatedDuplicateDescription(newVal, listingB.id, listingA.row_index, listingA.id);
+                          setEditedDuplicateText(initialText);
+                        }
+                      }}
+                      className="font-mono text-xs min-h-[250px] bg-background border-purple-500/20 focus-visible:ring-purple-600"
+                      placeholder="Edit description text here..."
+                    />
                   </div>
                 </div>
 
@@ -668,8 +702,14 @@ export default function DeclareDuplicatePage() {
                 className="flex-1 h-11"
                 onClick={() => {
                   // Keep the original GEO ID but clear the duplicate input to compare against a new duplicate
+                  if (selectedOriginal === "B") {
+                    setGeoIdA(geoIdB);
+                    setListingA(listingB);
+                    setDescA(descB);
+                  }
                   setGeoIdB("");
                   setListingB(null);
+                  setDescB("");
                   setSelectedOriginal(null);
                   setSaveSuccess(false);
                 }}

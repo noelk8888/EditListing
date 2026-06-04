@@ -14,7 +14,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: Request) {
   try {
-    const { spreadsheetId, originalRowNumber, originalGeoId, duplicateRowNumbers, duplicateTexts } =
+    const { spreadsheetId, originalRowNumber, originalGeoId, originalText, duplicateRowNumbers, duplicateTexts } =
       await req.json();
 
     const activeSpreadsheetId = spreadsheetId || process.env.SPREADSHEET_ID;
@@ -63,14 +63,23 @@ export async function POST(req: Request) {
       }
 
       // 3. Write updated text to Col A and Col AA
+      const updateData = [
+        { range: `Sheet1!A${rowNum}`, values: [[updatedText]] },
+        { range: `Sheet1!${COL_AA}${rowNum}`, values: [[updatedText]] },
+      ];
+
+      if (originalText !== undefined) {
+        updateData.push(
+          { range: `Sheet1!A${originalRowNumber}`, values: [[originalText]] },
+          { range: `Sheet1!${COL_AA}${originalRowNumber}`, values: [[originalGeoId]] }
+        );
+      }
+
       await sheets.spreadsheets.values.batchUpdate({
         spreadsheetId: activeSpreadsheetId,
         requestBody: {
           valueInputOption: "RAW",
-          data: [
-            { range: `Sheet1!A${rowNum}`, values: [[updatedText]] },
-            { range: `Sheet1!${COL_AA}${rowNum}`, values: [[updatedText]] },
-          ],
+          data: updateData,
         },
       });
 
@@ -119,6 +128,22 @@ export async function POST(req: Request) {
         if (supaErr) {
           console.warn(`Supabase update failed for ${duplicateGeoId}:`, supaErr.message);
           // Non-fatal — GSheet is already updated
+        }
+      }
+
+      // 6. Update original in Supabase
+      if (originalGeoId && originalText !== undefined) {
+        const { error: supaErr } = await supabaseAdmin
+          .from("KIU Properties")
+          .update({ 
+            "MAIN": originalText,
+            "AWAY": originalGeoId,
+            "DATE UPDATED": new Date().toISOString()
+          })
+          .eq("GEO ID", originalGeoId);
+
+        if (supaErr) {
+          console.warn(`Supabase update failed for original ${originalGeoId}:`, supaErr.message);
         }
       }
     }

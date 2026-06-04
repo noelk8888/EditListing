@@ -127,7 +127,7 @@ function normalizeGSheetDate(dateStr: string | null | undefined): string | null 
   return s;
 }
 
-function supabaseToResult(row: SupabaseResult) {
+function supabaseToResult(row: SupabaseResult, isDuplicateTagging?: boolean) {
   // Extract Sale/Lease from MAIN text (look for *FOR SALE*, *FOR LEASE*, etc.)
   const mainText = row["MAIN"] || "";
   let saleOrLease: string | null = null;
@@ -139,10 +139,20 @@ function supabaseToResult(row: SupabaseResult) {
     saleOrLease = "Sale";
   }
 
+  let summary = row["MAIN"] || null;
+  if (isDuplicateTagging && summary) {
+    const lines = summary.split("\n");
+    const firstLine = lines[0]?.trim();
+    const geoId = row["GEO ID"] || "";
+    if (firstLine.toUpperCase() === geoId.toUpperCase()) {
+      summary = lines.slice(1).join("\n");
+    }
+  }
+
   return {
     id: row["GEO ID"] || "N/A",
     photo_link: row["PHOTO"] || null,
-    summary: row["MAIN"] || null,
+    summary: summary,
     region: row["REGION"] || null,
     province: row["PROVINCE"] || null,
     city: row["CITY"] || null,
@@ -199,9 +209,11 @@ function supabaseToResult(row: SupabaseResult) {
  * Build a search result from GSheet row data only (when Supabase has no record).
  * Uses COL AA (main) first; if blank falls back to COL A (blastedFormat) with GEO ID prepended.
  */
-function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow): ReturnType<typeof supabaseToResult> {
+function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow, isDuplicateTagging?: boolean): ReturnType<typeof supabaseToResult> {
   // Content: COL AA first, fallback to COL A with GEO ID prepended
-  const content = gsheetRow.main || (gsheetRow.blastedFormat ? `${geoId}\n${gsheetRow.blastedFormat}` : "");
+  const content = isDuplicateTagging
+    ? (gsheetRow.blastedFormat || gsheetRow.main || "")
+    : (gsheetRow.main || (gsheetRow.blastedFormat ? `${geoId}\n${gsheetRow.blastedFormat}` : ""));
 
   // Extract Sale/Lease from content
   let saleOrLease: string | null = null;
@@ -264,7 +276,7 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow): ReturnType<
 }
 
 // Apply GSheet fallback for fields that are empty in Supabase
-async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>): Promise<ReturnType<typeof supabaseToResult>> {
+async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>, isDuplicateTagging?: boolean): Promise<ReturnType<typeof supabaseToResult>> {
   if (!result.id || result.id === "N/A") {
     return result;
   }
@@ -293,8 +305,9 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
     };
 
     // Summary: Supabase MAIN ↔ GSheet COL AA (main), fallback to COL A (blastedFormat) with GEO ID prepended
-    const gsheetSummary = gsheetRow.main ||
-      (gsheetRow.blastedFormat ? `${result.id}\n${gsheetRow.blastedFormat}` : "");
+    const gsheetSummary = isDuplicateTagging
+      ? (gsheetRow.blastedFormat || gsheetRow.main || "")
+      : (gsheetRow.main || (gsheetRow.blastedFormat ? `${result.id}\n${gsheetRow.blastedFormat}` : ""));
 
     // Apply fallback for linked columns
     return {
@@ -336,14 +349,17 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>):
 // over the Supabase record which is shared by duplicate GEO IDs.
 function applySpecificGSheetFallback(
   result: ReturnType<typeof supabaseToResult>,
-  gsheetRow: GSheetFullRow
+  gsheetRow: GSheetFullRow,
+  isDuplicateTagging?: boolean
 ): ReturnType<typeof supabaseToResult> {
   const toNum = (v: string) => parseFloat(v.replace(/,/g, "")) || null;
 
   // Use the GSheet row's A (blastedFormat) with GEO ID prepended if available, fallback to main (Col AA)
-  const gsheetSummary = gsheetRow.blastedFormat 
-    ? `${gsheetRow.geoId || result.id}\n${gsheetRow.blastedFormat}` 
-    : (gsheetRow.main || result.summary);
+  const gsheetSummary = isDuplicateTagging
+    ? (gsheetRow.blastedFormat || gsheetRow.main || result.summary)
+    : (gsheetRow.blastedFormat 
+        ? `${gsheetRow.geoId || result.id}\n${gsheetRow.blastedFormat}` 
+        : (gsheetRow.main || result.summary));
 
   return {
     ...result,
@@ -375,13 +391,14 @@ export async function POST(request: Request) {
     const isSuperAdmin = permissions?.sheet2 === true;
     const canPromote = permissions?.promote_to_sheet1 === true;
 
-    const { photoLink, listingId, previewText, rowNumber } = await request.json();
+    const { photoLink, listingId, previewText, rowNumber, isDuplicateTagging } = await request.json();
 
     console.log("=== SUPABASE SEARCH ===");
     console.log("Photo link:", photoLink);
     console.log("Listing ID:", listingId);
     console.log("Row number:", rowNumber);
     console.log("Preview text:", previewText?.substring(0, 80));
+    console.log("Is duplicate tagging app:", isDuplicateTagging);
 
     if (!photoLink && !listingId && !previewText && !rowNumber) {
       return NextResponse.json({ error: "No search criteria provided" }, { status: 400 });
@@ -419,16 +436,16 @@ export async function POST(request: Request) {
 
             if (!error && data && data.length > 0) {
               console.log(`Found Supabase data for GEO ID ${geoId}`);
-              const baseResult = supabaseToResult(data[0] as SupabaseResult);
-              result = applySpecificGSheetFallback(baseResult, gsheetRow);
+              const baseResult = supabaseToResult(data[0] as SupabaseResult, isDuplicateTagging);
+              result = applySpecificGSheetFallback(baseResult, gsheetRow, isDuplicateTagging);
             } else {
               console.log(`No Supabase record for GEO ID ${geoId}, returning GSheet values`);
-              result = gsheetRowToResult(geoId, gsheetRow);
+              result = gsheetRowToResult(geoId, gsheetRow, isDuplicateTagging);
             }
           } else {
             geoId = `ROW-${parsedRowNumber}`;
             console.log(`Row has no GEO ID, using placeholder ${geoId}`);
-            result = gsheetRowToResult(geoId, gsheetRow);
+            result = gsheetRowToResult(geoId, gsheetRow, isDuplicateTagging);
           }
 
           result.row_index = parsedRowNumber;
@@ -467,9 +484,9 @@ export async function POST(request: Request) {
         console.log("NAME (owner):", data[0]["NAME"]);
         console.log("AWAY:", data[0]["AWAY"]);
         console.log("LISTING OWNERSHIP:", data[0]["LISTING OWNERSHIP"]);
-        const baseResult = supabaseToResult(data[0] as SupabaseResult);
+        const baseResult = supabaseToResult(data[0] as SupabaseResult, isDuplicateTagging);
         const [result, sourceTabFromGSheet] = await Promise.all([
-          applyGSheetFallback(baseResult),
+          applyGSheetFallback(baseResult, isDuplicateTagging),
           findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
         ]);
         
@@ -492,7 +509,7 @@ export async function POST(request: Request) {
         const gsheetRow = await getRowByGeoId(listingId);
         if (gsheetRow) {
           console.log("Found in GSheet by GEO ID:", listingId);
-          const result = gsheetRowToResult(listingId, gsheetRow);
+          const result = gsheetRowToResult(listingId, gsheetRow, isDuplicateTagging);
           const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
           
           if (sourceTab === "Sheet2" && !isSuperAdmin) {
@@ -533,9 +550,9 @@ export async function POST(request: Request) {
         let restrictedMatch = null;
 
         for (const row of data) {
-          const baseResult = supabaseToResult(row as SupabaseResult);
+          const baseResult = supabaseToResult(row as SupabaseResult, isDuplicateTagging);
           const [result, sourceTabFromGSheet] = await Promise.all([
-            applyGSheetFallback(baseResult),
+            applyGSheetFallback(baseResult, isDuplicateTagging),
             findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
           ]);
           const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
@@ -610,9 +627,9 @@ export async function POST(request: Request) {
               // Require at least 80% of lines to match
               if (matchRatio >= 0.8) {
                 console.log("Candidate match with Strategy A:", row["GEO ID"]);
-                const baseResult = supabaseToResult(row as SupabaseResult);
+                const baseResult = supabaseToResult(row as SupabaseResult, isDuplicateTagging);
                 const [result, sourceTabFromGSheet] = await Promise.all([
-                  applyGSheetFallback(baseResult),
+                  applyGSheetFallback(baseResult, isDuplicateTagging),
                   findGeoIdSourceTab(baseResult.id).catch(() => "Sheet1"),
                 ]);
                 const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
@@ -668,9 +685,9 @@ export async function POST(request: Request) {
               // Require at least 80% of lines to match
               if (matchRatio >= 0.8) {
                 console.log("Candidate match with Strategy B:", row["GEO ID"]);
-                const baseResult2 = supabaseToResult(row as SupabaseResult);
+                const baseResult2 = supabaseToResult(row as SupabaseResult, isDuplicateTagging);
                 const [result, sourceTabFromGSheet] = await Promise.all([
-                  applyGSheetFallback(baseResult2),
+                  applyGSheetFallback(baseResult2, isDuplicateTagging),
                   findGeoIdSourceTab(baseResult2.id).catch(() => "Sheet1"),
                 ]);
                 const sourceTab = (row as any)["SOURCE_TAB"] || sourceTabFromGSheet;
@@ -719,7 +736,7 @@ export async function POST(request: Request) {
             }
           }
           console.log("Found in GSheet COL A, GEO ID:", geoId);
-          const result = gsheetRowToResult(geoId, gsheetRow);
+          const result = gsheetRowToResult(geoId, gsheetRow, isDuplicateTagging);
           const sourceTab = await findGeoIdSourceTab(result.id).catch(() => "Sheet1");
           
           if (sourceTab === "Sheet2" && !isSuperAdmin) {
