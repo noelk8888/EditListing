@@ -84,10 +84,11 @@ function toPhilippinesDate(isoString: string | null): string | null {
 }
 
 // Normalize a raw GSheet date string to YYYY-MM-DD for date inputs.
-// Handles: "6-Mar-2025" (D-Mon-YYYY), "3/7/2025" (M/D/YYYY), "2025-03-07", ISO timestamps, serial numbers.
+// Handles: "6-Mar-2025", "3/7/2025", "2025-03-07", "January 10, 2026", "Jun 05, 2026 | LIS", ISO timestamps, serial numbers.
 function normalizeGSheetDate(dateStr: string | null | undefined): string | null {
   if (!dateStr) return null;
-  const s = dateStr.trim();
+  // Strip annotations like " | LIS" or " | PRICE"
+  const s = dateStr.split('|')[0].trim();
   if (!s) return null;
 
   // Already YYYY-MM-DD
@@ -96,15 +97,26 @@ function normalizeGSheetDate(dateStr: string | null | undefined): string | null 
   // ISO timestamp
   if (s.includes('T')) return s.split('T')[0];
 
-  // D-Mon-YYYY or DD-Mon-YYYY (e.g. "6-Mar-2025", "07-Mar-2025") — GSheet formatted date
   const monthMap: Record<string, string> = {
-    Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
-    Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12',
+    jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+    jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12',
+    january: '01', february: '02', march: '03', april: '04', june: '06',
+    july: '07', august: '08', september: '09', october: '10', november: '11', december: '12'
   };
-  const dmonMatch = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+
+  // D-Mon-YYYY or DD-Mon-YYYY (e.g. "6-Mar-2025", "07-Mar-2025")
+  const dmonMatch = s.match(/^(\d{1,2})-([A-Za-z]{3,})-(\d{4})$/);
   if (dmonMatch) {
     const [, day, mon, year] = dmonMatch;
-    const month = monthMap[mon.charAt(0).toUpperCase() + mon.slice(1).toLowerCase()];
+    const month = monthMap[mon.toLowerCase()];
+    if (month) return `${year}-${month}-${day.padStart(2, '0')}`;
+  }
+
+  // Spelled out: "January 10, 2026" or "Jun 05, 2026"
+  const spelledMatch = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+  if (spelledMatch) {
+    const [, mon, day, year] = spelledMatch;
+    const month = monthMap[mon.toLowerCase()];
     if (month) return `${year}-${month}-${day.padStart(2, '0')}`;
   }
 

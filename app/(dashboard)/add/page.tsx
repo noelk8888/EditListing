@@ -187,6 +187,13 @@ export default function AddListingPage() {
   const [pendingExtractUpdate, setPendingExtractUpdate] = useState(false);
   const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
 
+  // === ROW# MODE STATE ===
+  const [useRowNumberMode, setUseRowNumberMode] = useState(false);
+  const [rowNumberInput, setRowNumberInput] = useState("");
+  const [rowNumberLoading, setRowNumberLoading] = useState(false);
+  const [rowNumberFetched, setRowNumberFetched] = useState(false);
+  const rowNumberDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // === BACKUP SYNC STATE ===
   const [backupStatus, setBackupStatus] = useState<"idle" | "loading" | "not-found" | "match" | "conflict">("idle");
   const [backupData, setBackupData] = useState<{
@@ -227,21 +234,35 @@ export default function AddListingPage() {
   const [userRole, setUserRole] = useState<string>("");
   const showTelegramProHub = !!(permissions.sheet2 || permissions.telegram_pro_hub);
 
-  // Normalize MM/DD/YYYY or "Month DD, YYYY" → YYYY-MM-DD for date inputs
   const normalizeGSheetDate = (d: string) => {
     if (!d) return "";
-    const slash = d.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const cleanStr = d.split("|")[0].trim();
+    if (!cleanStr) return "";
+
+    const slash = cleanStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (slash) return `${slash[3]}-${slash[1].padStart(2, '0')}-${slash[2].padStart(2, '0')}`;
+    
     const MONTH_MAP: Record<string, string> = {
-      january: "01", february: "02", march: "03", april: "04", may: "05", june: "06",
+      jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
+      jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12",
+      january: "01", february: "02", march: "03", april: "04", june: "06",
       july: "07", august: "08", september: "09", october: "10", november: "11", december: "12"
     };
-    const spelled = d.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+    
+    const spelled = cleanStr.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
     if (spelled) {
       const mo = MONTH_MAP[spelled[1].toLowerCase()];
       if (mo) return `${spelled[3]}-${mo}-${spelled[2].padStart(2, '0')}`;
     }
-    return d; // already YYYY-MM-DD or unknown format
+
+    const dmonMatch = cleanStr.match(/^(\d{1,2})-([A-Za-z]{3,})-(\d{4})$/);
+    if (dmonMatch) {
+      const mo = MONTH_MAP[dmonMatch[2].toLowerCase()];
+      if (mo) return `${dmonMatch[3]}-${mo}-${dmonMatch[1].padStart(2, '0')}`;
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleanStr)) return cleanStr;
+    return cleanStr;
   };
 
   useEffect(() => {
@@ -666,6 +687,9 @@ export default function AddListingPage() {
     if (targetStep === "paste") {
       clearEditFields();
       setUseExistingMain(false);
+      setUseRowNumberMode(false);
+      setRowNumberInput("");
+      setRowNumberFetched(false);
     }
     setStep(targetStep);
     setError(null);
@@ -1260,7 +1284,7 @@ export default function AddListingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchPerformed, searchResult]);
 
-  const canProceedFromPaste = rawText.trim().length > 0;
+  const canProceedFromPaste = useRowNumberMode ? rowNumberFetched : rawText.trim().length > 0;
 
   // Helper: compare if a value is significantly different from Supabase (used in UI highlighting)
   const isDifferent = (current: any, original: any) => {
@@ -2196,7 +2220,100 @@ export default function AddListingPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1">
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Update Status (optional)</p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Update Status (optional)</p>
+                
+                {/* Row# Mode: radio + input inline on the right side */}
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="radio"
+                      name="pasteMode"
+                      checked={useRowNumberMode}
+                      onChange={() => {
+                        setUseRowNumberMode(true);
+                        setRowNumberInput("");
+                        setRowNumberFetched(false);
+                        setSearchResult(null);
+                        setForceNewListingMode(false);
+                        clearEditFields();
+                      }}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm font-medium">Row #</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="radio"
+                      name="pasteMode"
+                      checked={!useRowNumberMode}
+                      onChange={() => {
+                        setUseRowNumberMode(false);
+                        setRowNumberInput("");
+                        setRowNumberFetched(false);
+                        setSearchResult(null);
+                        clearEditFields();
+                      }}
+                      className="accent-primary"
+                    />
+                    <span className="text-sm font-medium">Paste</span>
+                  </label>
+                  {useRowNumberMode && (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="2"
+                        placeholder="Enter row #..."
+                        value={rowNumberInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setRowNumberInput(val);
+                          setRowNumberFetched(false);
+                          setSearchResult(null);
+                          clearEditFields();
+
+                          if (rowNumberDebounceRef.current) clearTimeout(rowNumberDebounceRef.current);
+                          if (!val.trim() || isNaN(parseInt(val))) return;
+
+                          rowNumberDebounceRef.current = setTimeout(async () => {
+                            setRowNumberLoading(true);
+                            try {
+                              const res = await fetch("/api/search", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ rowNumber: parseInt(val) }),
+                              });
+                              const data = await res.json();
+                              if (data.result) {
+                                setSearchResult(data.result);
+                                setMatchedBy(data.matchedBy || null);
+                                setSourceTab(data.sourceTab || null);
+                                setListingId(data.result.id || "");
+                                setSearchPerformed(true);
+                                setUseExistingMain(true); // Auto-select USE THIS LISTING
+                                // Advance directly to check step — skipping "Next: Check the Listing"
+                                setRawText(data.result.summary || "");
+                                setStep("check");
+                                setError(null);
+                                setRowNumberFetched(true);
+                              } else {
+                                toast({ title: "Row not found", description: `No listing found at row ${val}.`, variant: "destructive" });
+                              }
+                            } catch {
+                              toast({ title: "Fetch failed", description: "Could not load row data.", variant: "destructive" });
+                            } finally {
+                              setRowNumberLoading(false);
+                            }
+                          }, 700);
+                        }}
+                        className="border rounded-md px-3 py-1 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                      {rowNumberLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                      {rowNumberFetched && !rowNumberLoading && <Check className="h-4 w-4 text-green-500" />}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="flex flex-wrap gap-2">
                 {["SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
                   <Button
@@ -2213,9 +2330,12 @@ export default function AddListingPage() {
               </div>
             </div>
 
-            <div className="relative">
-              <Textarea
-                placeholder={`G01333
+            {!useRowNumberMode && (
+              <>
+                <hr className="border-border" />
+                <div className="relative">
+                  <Textarea
+                    placeholder={`G01333
 *FOR SALE*
 9 Greenview Compound, Brgy. Bagong Lipunan ng Crame, Quezon City
 Residential Vacant Lot
@@ -2227,22 +2347,25 @@ Price: Php72,160,000 (P160k/sqm) gross
 Direct to owner
 Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9
 Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.0472576`}
-                value={rawText}
-                onChange={(e) => setRawText(e.target.value)}
-                autoResize
-                className="resize-none font-mono text-sm placeholder:text-gray-300"
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2"
-                onClick={handlePaste}
-                type="button"
-              >
-                <ClipboardPaste className="h-4 w-4 mr-1" />
-                Paste
-              </Button>
-            </div>
+                    value={rawText}
+                    onChange={(e) => setRawText(e.target.value)}
+                    autoResize
+                    className="resize-none font-mono text-sm placeholder:text-gray-300"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2"
+                    onClick={handlePaste}
+                    type="button"
+                  >
+                    <ClipboardPaste className="h-4 w-4 mr-1" />
+                    Paste
+                  </Button>
+                </div>
+              </>
+            )}
+
 
             {error && (
               <div className="text-sm text-destructive bg-destructive/10 p-3 rounded-md">
@@ -3025,8 +3148,10 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       value={photosLink}
                       onChange={(e) => {
                         setPhotosLink(e.target.value);
-                        setSearchPerformed(false);
-                        setSearchResult(null);
+                        if (!useRowNumberMode) {
+                          setSearchPerformed(false);
+                          setSearchResult(null);
+                        }
                       }}
                       className="h-8 text-sm"
                     />
