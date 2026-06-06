@@ -1054,7 +1054,7 @@ export async function syncPairedColumns(
 /**
  * Update Supabase sync columns Z-BO for a listing by GEO ID
  */
-export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string, sheetTabName?: string): Promise<boolean> {
+export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string, sheetTabName?: string, exactRowNumber?: number): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
   const tabName = sheetTabName || SHEET_NAME;
@@ -1067,7 +1067,9 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
   let rowNumber: number | null = null;
   let spreadsheetMeta: any = null;
 
-  if (sheetTabName) {
+  if (exactRowNumber) {
+    rowNumber = exactRowNumber;
+  } else if (sheetTabName) {
     rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
   } else if (overrideSpreadsheetId) {
     rowNumber = await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId);
@@ -1233,7 +1235,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
 /**
  * Update display columns A-P for a listing by GEO ID
  */
-export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string, sheetTabName?: string): Promise<boolean> {
+export async function updateDisplayColumns(geoId: string, data: GSheetDisplayData, fallbackText?: string, noteConfig?: NoteConfig, overrideSpreadsheetId?: string, sheetTabName?: string, exactRowNumber?: number): Promise<boolean> {
   const sheets = getSheets();
   const spreadsheetId = overrideSpreadsheetId || process.env.SPREADSHEET_ID;
   const tabName = sheetTabName || SHEET_NAME;
@@ -1246,7 +1248,9 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
   let rowNumber: number | null = null;
   let spreadsheetMeta: any = null;
 
-  if (sheetTabName) {
+  if (exactRowNumber) {
+    rowNumber = exactRowNumber;
+  } else if (sheetTabName) {
     rowNumber = await findRowByGeoIdInSheet(geoId, spreadsheetId, sheetTabName);
   } else if (overrideSpreadsheetId) {
     rowNumber = await findRowByGeoIdInSheet(geoId, overrideSpreadsheetId);

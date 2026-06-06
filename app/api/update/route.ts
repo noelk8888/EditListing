@@ -140,6 +140,7 @@ export async function POST(request: Request) {
       bz_col,
       location_verified,
       targetTab: incomingTargetTab,
+      exactRowNumber,
     } = body;
 
     if (!id) {
@@ -531,7 +532,7 @@ export async function POST(request: Request) {
         }
         
         // 2. Delete from source sheet (old B-series or existing A/G)
-        const oldRow = await findRowByGeoIdInSheet(id, spreadsheetId, sourceTab);
+        const oldRow = exactRowNumber || await findRowByGeoIdInSheet(id, spreadsheetId, sourceTab);
         if (oldRow) {
           console.log(`🗑️ Deleting old record from ${sourceTab} row ${oldRow}...`);
           await deleteRowFromSheet(spreadsheetId, sourceTab, oldRow);
@@ -564,11 +565,11 @@ export async function POST(request: Request) {
           console.log(`🔄 Updating GSheet in place for ID change: ${id} -> ${finalId}`);
           
           // 1. Run syncColumns FIRST using the OLD id to locate the row, but passing the new ID in syncData
-          await updateSyncColumns(id, syncData, summary || "", noteConfig, undefined, targetTab);
+          await updateSyncColumns(id, syncData, summary || "", noteConfig, undefined, targetTab, exactRowNumber);
           console.log("✅ GSheet columns A + Z-BO updated with new GEO ID successfully");
 
           // 2. Run displayColumns using the NEW finalId (since column AC was updated to new ID)
-          const gsheetUpdated = await updateDisplayColumns(finalId, displayData, summary || "", noteConfig, undefined, targetTab);
+          const gsheetUpdated = await updateDisplayColumns(finalId, displayData, summary || "", noteConfig, undefined, targetTab, exactRowNumber);
           if (gsheetUpdated) {
             console.log("✅ GSheet columns B-P updated successfully");
           } else {
@@ -595,10 +596,10 @@ export async function POST(request: Request) {
           }
         } else {
           // Standard same-tab update (no ID change)
-          await updateSyncColumns(finalId, syncData, summary || "", noteConfig, undefined, targetTab);
+          await updateSyncColumns(finalId, syncData, summary || "", noteConfig, undefined, targetTab, exactRowNumber);
           console.log("✅ GSheet columns A + Z-BO updated successfully");
 
-          const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, targetTab);
+          const gsheetUpdated = await updateDisplayColumns(id, displayData, summary || "", noteConfig, undefined, targetTab, exactRowNumber);
           if (gsheetUpdated) {
             console.log("✅ GSheet columns B-P updated successfully");
           } else {

@@ -1099,7 +1099,9 @@ export default function AddListingPage() {
       // Populate editable listing fields
       setEditSummary(searchResult.summary || "");
       setOriginalEditSummary(searchResult.summary || ""); // snapshot for toggle-off revert
-      setUseExistingMain(false);
+      if (!useRowNumberMode) {
+        setUseExistingMain(false);
+      }
       setEditGeoId(searchResult.id || "");
       setEditArea(searchResult.area || "");
       setEditBarangay(searchResult.barangay || "");
@@ -1531,6 +1533,7 @@ export default function AddListingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: searchResult.id,
+          exactRowNumber: searchResult.row_index || null,
           newGeoId: editGeoId,
           region: editRegion,
           province: editProvince,
