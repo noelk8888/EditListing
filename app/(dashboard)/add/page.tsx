@@ -1374,6 +1374,39 @@ export default function AddListingPage() {
     }
   };
 
+  // Automatically rewrite editSummary when status changes in UPDATE EXISTING mode
+  const handleEditStatusChange = (newStatus: string) => {
+    handleInputChange(setEditStatus)(newStatus);
+    
+    // Skip if editSummary is empty
+    if (!editSummary) return;
+
+    let currentSummary = editSummary;
+    const todayFormatted = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila',
+      month: 'long',
+      year: 'numeric'
+    }).format(new Date()).toUpperCase();
+    
+    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|UNDECISIVE SELLER)\b.*$/im;
+    
+    if (regex.test(currentSummary)) {
+      currentSummary = currentSummary.replace(regex, `*${newStatus} - ${todayFormatted}*`);
+    } else {
+      // If no matching status line, inject it right after the GEO ID
+      const lines = currentSummary.split('\n');
+      if (lines.length > 0 && /^[A-Z]\d{5}$/.test(lines[0].trim())) {
+        lines.splice(1, 0, `*${newStatus} - ${todayFormatted}*`);
+        currentSummary = lines.join('\n');
+      } else {
+        currentSummary = `*${newStatus} - ${todayFormatted}*\n${currentSummary}`;
+      }
+    }
+    
+    handleInputChange(setEditSummary)(currentSummary);
+    setUseExistingMain(false); // Force UI out of readOnly mode so they can see/edit the change
+  };
+
   // Save empty string if only the auto-prefix was filled with no actual name
   const cleanOwnerBroker = (val: string): string => {
     const stripped = val.replace(/^(Owner|Cobroker|Broker) - /i, "").trim();
@@ -2980,7 +3013,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                           id={`status-${status}`}
                           name="status"
                           checked={editStatus === status}
-                          onChange={() => handleInputChange(setEditStatus)(status)}
+                          onChange={() => handleEditStatusChange(status)}
                           className="h-3 w-3 cursor-pointer"
                         />
                         <label htmlFor={`status-${status}`} className={`text-xs cursor-pointer whitespace-nowrap ${searchResult && normalizeStatus(status) === normalizeStatus(editStatus) && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
@@ -3382,7 +3415,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                           id={`new-status-${status}`}
                           name="new-status"
                           checked={editStatus === status}
-                          onChange={() => handleInputChange(setEditStatus)(status)}
+                          onChange={() => handleEditStatusChange(status)}
                           className="h-3 w-3 cursor-pointer"
                         />
                         <label htmlFor={`new-status-${status}`} className="text-xs cursor-pointer whitespace-nowrap">
