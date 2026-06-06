@@ -2307,11 +2307,13 @@ export default function AddListingPage() {
                           setRowNumberFetched(false);
                           setSearchResult(null);
                           clearEditFields();
+                        }}
+                        onKeyDown={async (e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const val = rowNumberInput;
+                            if (!val.trim() || isNaN(parseInt(val))) return;
 
-                          if (rowNumberDebounceRef.current) clearTimeout(rowNumberDebounceRef.current);
-                          if (!val.trim() || isNaN(parseInt(val))) return;
-
-                          rowNumberDebounceRef.current = setTimeout(async () => {
                             setRowNumberLoading(true);
                             try {
                               const res = await fetch("/api/search", {
@@ -2327,8 +2329,25 @@ export default function AddListingPage() {
                                 setListingId(data.result.id || "");
                                 setSearchPerformed(true);
                                 setUseExistingMain(true); // Auto-select USE THIS LISTING
-                                // Advance directly to check step — skipping "Next: Check the Listing"
-                                setRawText(data.result.summary || "");
+
+                                let finalRawText = data.result.summary || "";
+                                if (statusReplacement) {
+                                  const todayFormatted = new Intl.DateTimeFormat('en-US', {
+                                    timeZone: 'Asia/Manila',
+                                    month: 'long',
+                                    year: 'numeric'
+                                  }).format(new Date()).toUpperCase();
+                                  
+                                  const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|UNDECISIVE SELLER)\b.*$/im;
+                                  
+                                  if (regex.test(finalRawText)) {
+                                    finalRawText = finalRawText.replace(regex, `*${statusReplacement} - ${todayFormatted}*`);
+                                  } else {
+                                    finalRawText = `*${statusReplacement} - ${todayFormatted}*\n${finalRawText}`;
+                                  }
+                                }
+
+                                setRawText(finalRawText);
                                 setStep("check");
                                 setError(null);
                                 setRowNumberFetched(true);
@@ -2340,7 +2359,7 @@ export default function AddListingPage() {
                             } finally {
                               setRowNumberLoading(false);
                             }
-                          }, 700);
+                          }
                         }}
                         className="border rounded-md px-3 py-1 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-primary"
                       />
