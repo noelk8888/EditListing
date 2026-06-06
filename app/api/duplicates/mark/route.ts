@@ -69,9 +69,10 @@ export async function POST(req: Request) {
       ];
 
       if (originalText !== undefined) {
+        const mainWithId = `${originalGeoId}\n${originalText}`;
         updateData.push(
           { range: `Sheet1!A${originalRowNumber}`, values: [[originalText]] },
-          { range: `Sheet1!${COL_AA}${originalRowNumber}`, values: [[originalGeoId]] }
+          { range: `Sheet1!${COL_AA}${originalRowNumber}`, values: [[mainWithId]] }
         );
       }
 
@@ -133,11 +134,11 @@ export async function POST(req: Request) {
 
       // 6. Update original in Supabase
       if (originalGeoId && originalText !== undefined) {
+        const mainWithId = `${originalGeoId}\n${originalText}`;
         const { error: supaErr } = await supabaseAdmin
           .from("KIU Properties")
           .update({ 
-            "MAIN": originalText,
-            "AWAY": originalGeoId,
+            "MAIN": mainWithId,
             "DATE UPDATED": new Date().toISOString()
           })
           .eq("GEO ID", originalGeoId);
