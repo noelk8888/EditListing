@@ -96,47 +96,22 @@ export function Nav({ user, permissions }: NavProps) {
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {/* Row 1: Logo & Title on Left, Theme Toggle & User Info on Right */}
-        <div className="container flex h-14 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-3">
+        {/* Row 1: Logo & Title Centered & 50% Bigger */}
+        <div className="container flex py-5 items-center justify-center">
+          <Link href="/" className="flex items-center space-x-4">
             <div className="flex items-center justify-center overflow-hidden">
-              <img src="/luxe-branding.png" alt="Luxe Logo" className="h-10 w-10 object-contain" />
+              <img src="/luxe-branding.png" alt="Luxe Logo" className="h-16 w-16 object-contain" />
             </div>
-            <span className="font-bold text-lg tracking-tight">Luxe Realty and Development Corporation</span>
-            <span className="text-xs text-muted-foreground font-mono self-end mb-1">{APP_VERSION}</span>
+            <span className="font-extrabold text-2xl tracking-tight text-foreground">
+              Luxe Realty and Development Corporation
+            </span>
+            <span className="text-xs text-muted-foreground font-mono self-end mb-1.5">{APP_VERSION}</span>
           </Link>
-
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              title="Toggle dark mode"
-            >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            {user && (
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
-                  {badge && (
-                    <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${badge.className}`}>
-                      {badge.label}
-                    </span>
-                  )}
-                  <span className="text-sm text-muted-foreground">{user.email}</span>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => signOut({ callbackUrl: "/" })}>
-                  <LogOut className="h-4 w-4 mr-2" />
-                  Sign Out
-                </Button>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Row 2: Sub-navigation & Backup as Pills */}
-        <div className="border-t bg-muted/20 py-2">
-          <div className="container flex items-center">
+        {/* Row 2: Sub-navigation & Backup as Pills (Left) + Theme Toggle & User Info (Right) */}
+        <div className="border-t bg-muted/20 py-2.5">
+          <div className="container flex flex-wrap items-center justify-between gap-4">
             <nav className="flex flex-wrap items-center gap-2.5 text-sm font-medium">
               {links.map((link) => {
                 const Icon = link.icon;
@@ -182,6 +157,39 @@ export function Nav({ user, permissions }: NavProps) {
                 </button>
               )}
             </nav>
+
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                title="Toggle dark mode"
+                className="h-8 w-8 px-0 rounded-full"
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              </Button>
+              {user && (
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    {badge && (
+                      <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    )}
+                    <span className="text-sm text-muted-foreground">{user.email}</span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="h-8 text-xs px-3 rounded-full border border-border bg-background hover:bg-accent hover:text-foreground"
+                  >
+                    <LogOut className="h-3.5 w-3.5 mr-1.5" />
+                    Sign Out
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
