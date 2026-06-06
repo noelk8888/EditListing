@@ -2573,7 +2573,15 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
               <CardContent className="space-y-4">
                 {/* Preview of listing */}
                 <div className="space-y-2">
-                  <Label>Listing Preview of the NEW INPUT</Label>
+                  <div className="flex flex-col gap-1">
+                    <Label>Listing Preview of the NEW INPUT</Label>
+                    {searchPerformed && searchResult && (
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {searchResult.id} {sourceTab && searchResult.row_index ? `(${sourceTab} - Row ${searchResult.row_index})` : ""}
+                        {searchResult.source_column ? ` extracted from ${searchResult.source_column}` : ""}
+                      </p>
+                    )}
+                  </div>
                   {searchPerformed && !searching && !searchResult ? (
                     <Textarea 
                       value={rawText}

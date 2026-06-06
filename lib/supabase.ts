@@ -58,6 +58,7 @@ export interface SupabaseListing {
   map_verified: string | null;
   client_version: string | null;
   row_index?: number | null;
+  source_column?: string | null;
 }
 
 export async function searchListingByPhotoLink(photoLink: string): Promise<SupabaseListing | null> {

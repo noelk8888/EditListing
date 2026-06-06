@@ -214,6 +214,7 @@ function supabaseToResult(row: SupabaseResult, isDuplicateTagging?: boolean) {
     sponsor_end: row["SPONSOR END"] || null,
     map_verified: row["MAP VERIFIED"] || null,
     row_index: null as number | null,
+    source_column: "COL AA", // Supabase MAIN maps to COL AA
   };
 }
 
@@ -223,9 +224,26 @@ function supabaseToResult(row: SupabaseResult, isDuplicateTagging?: boolean) {
  */
 function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow, isDuplicateTagging?: boolean): ReturnType<typeof supabaseToResult> {
   // Content: COL AA first, fallback to COL A with GEO ID prepended
-  const content = isDuplicateTagging
-    ? (gsheetRow.blastedFormat || gsheetRow.main || "")
-    : (gsheetRow.main || (gsheetRow.blastedFormat ? `${geoId}\n${gsheetRow.blastedFormat}` : ""));
+  let sourceColumn = "Unknown";
+  let content = "";
+  
+  if (isDuplicateTagging) {
+    if (gsheetRow.blastedFormat) {
+      content = gsheetRow.blastedFormat;
+      sourceColumn = "COL A";
+    } else if (gsheetRow.main) {
+      content = gsheetRow.main;
+      sourceColumn = "COL AA";
+    }
+  } else {
+    if (gsheetRow.main) {
+      content = gsheetRow.main;
+      sourceColumn = "COL AA";
+    } else if (gsheetRow.blastedFormat) {
+      content = `${geoId}\n${gsheetRow.blastedFormat}`;
+      sourceColumn = "COL A";
+    }
+  }
 
   // Extract Sale/Lease from content
   let saleOrLease: string | null = null;
@@ -284,6 +302,7 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow, isDuplicateT
     sponsor_end: gsheetRow.supabaseSponsorEnd || null,
     map_verified: gsheetRow.mapVerified || null,
     row_index: gsheetRow.rowNumber ?? null,
+    source_column: sourceColumn,
   };
 }
 
