@@ -616,7 +616,6 @@ export default function AddListingPage() {
 
   // Clear all editable fields
   const clearEditFields = () => {
-    setStatusReplacement("");
     setNewGeoId("");
     setSuggestedGeoId("");
     setGeoIdConfirmed(false);
@@ -2323,13 +2322,7 @@ export default function AddListingPage() {
                               });
                               const data = await res.json();
                               if (data.result) {
-                                setSearchResult(data.result);
-                                setMatchedBy(data.matchedBy || null);
-                                setSourceTab(data.sourceTab || null);
-                                setListingId(data.result.id || "");
-                                setSearchPerformed(true);
-                                setUseExistingMain(true); // Auto-select USE THIS LISTING
-
+                                // Apply statusReplacement BEFORE setting searchResult!
                                 let finalRawText = data.result.summary || "";
                                 if (statusReplacement) {
                                   const todayFormatted = new Intl.DateTimeFormat('en-US', {
@@ -2343,11 +2336,29 @@ export default function AddListingPage() {
                                   if (regex.test(finalRawText)) {
                                     finalRawText = finalRawText.replace(regex, `*${statusReplacement} - ${todayFormatted}*`);
                                   } else {
-                                    finalRawText = `*${statusReplacement} - ${todayFormatted}*\n${finalRawText}`;
+                                    // if it's Row#, it should have a GEO ID on line 1 usually
+                                    const lines = finalRawText.split('\n');
+                                    if (lines.length > 0 && /^[A-Z]\d{5}$/.test(lines[0].trim())) {
+                                      lines.splice(1, 0, `*${statusReplacement} - ${todayFormatted}*`);
+                                      finalRawText = lines.join('\n');
+                                    } else {
+                                      finalRawText = `*${statusReplacement} - ${todayFormatted}*\n${finalRawText}`;
+                                    }
                                   }
+                                  
+                                  // OVERRIDE the result object before saving it to state!
+                                  data.result.summary = finalRawText;
+                                  data.result.status = statusReplacement;
                                 }
 
-                                setRawText(finalRawText);
+                                setSearchResult(data.result);
+                                setMatchedBy(data.matchedBy || null);
+                                setSourceTab(data.sourceTab || null);
+                                setListingId(data.result.id || "");
+                                setSearchPerformed(true);
+                                setUseExistingMain(true); // Auto-select USE THIS LISTING
+
+                                setRawText(data.result.summary);
                                 setStep("check");
                                 setError(null);
                                 setRowNumberFetched(true);
