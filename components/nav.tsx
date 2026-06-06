@@ -96,62 +96,17 @@ export function Nav({ user, permissions }: NavProps) {
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
-          <div className="mr-4 flex">
-            <Link href="/" className="mr-6 flex items-center space-x-3">
-              <div className="flex items-center justify-center overflow-hidden">
-                <img src="/luxe-branding.png" alt="Luxe Logo" className="h-10 w-10 object-contain" />
-              </div>
-              <span className="font-bold text-lg tracking-tight">Luxe Realty and Development Corporation</span>
-              <span className="text-xs text-muted-foreground font-mono self-end mb-1">{APP_VERSION}</span>
-            </Link>
-            <nav className="flex items-center space-x-6 text-sm font-medium">
-              {links.map((link) => {
-                const Icon = link.icon;
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={cn(
-                      "flex items-center gap-2 transition-colors hover:text-foreground/80",
-                      pathname === link.href || pathname.startsWith(link.href + "/")
-                        ? "text-foreground"
-                        : "text-foreground/60"
-                    )}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {link.label}
-                  </Link>
-                );
-              })}
+        {/* Row 1: Logo & Title on Left, Theme Toggle & User Info on Right */}
+        <div className="container flex h-14 items-center justify-between">
+          <Link href="/" className="flex items-center space-x-3">
+            <div className="flex items-center justify-center overflow-hidden">
+              <img src="/luxe-branding.png" alt="Luxe Logo" className="h-10 w-10 object-contain" />
+            </div>
+            <span className="font-bold text-lg tracking-tight">Luxe Realty and Development Corporation</span>
+            <span className="text-xs text-muted-foreground font-mono self-end mb-1">{APP_VERSION}</span>
+          </Link>
 
-              {/* Backup Modal Trigger */}
-              {canBackup && (
-                <button
-                  onClick={() => setIsBackupOpen(true)}
-                  className={cn(
-                    "flex items-center gap-2 transition-colors text-sm",
-                    isBackupUrgent() 
-                      ? "text-red-600 font-bold hover:text-red-700" 
-                      : "text-foreground/60 font-medium hover:text-foreground/80"
-                  )}
-                >
-                  <Database className="h-4 w-4" />
-                  {lastBackupAt ? (
-                    (() => {
-                      const dt = new Date(lastBackupAt);
-                      const mmm = dt.toLocaleString('en-US', { month: 'short' });
-                      const dd = dt.toLocaleString('en-US', { day: '2-digit' });
-                      const time = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
-                      return `Backup (last backup - ${mmm}-${dd}-${time})`;
-                    })()
-                  ) : "Backup"}
-                </button>
-              )}
-            </nav>
-          </div>
-
-          <div className="flex flex-1 items-center justify-end space-x-4">
+          <div className="flex items-center space-x-4">
             <Button
               variant="ghost"
               size="sm"
@@ -176,6 +131,57 @@ export function Nav({ user, permissions }: NavProps) {
                 </Button>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Row 2: Sub-navigation & Backup as Pills */}
+        <div className="border-t bg-muted/20 py-2">
+          <div className="container flex items-center">
+            <nav className="flex flex-wrap items-center gap-2.5 text-sm font-medium">
+              {links.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all shadow-sm",
+                      isActive
+                        ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-blue-500/20"
+                        : "bg-background text-muted-foreground border-muted-foreground/20 hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+
+              {/* Backup Modal Trigger */}
+              {canBackup && (
+                <button
+                  onClick={() => setIsBackupOpen(true)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all shadow-sm",
+                    isBackupUrgent()
+                      ? "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50"
+                      : "bg-background text-muted-foreground border-muted-foreground/20 hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Database className="h-3.5 w-3.5" />
+                  {lastBackupAt ? (
+                    (() => {
+                      const dt = new Date(lastBackupAt);
+                      const mmm = dt.toLocaleString('en-US', { month: 'short' });
+                      const dd = dt.toLocaleString('en-US', { day: '2-digit' });
+                      const time = dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }).toLowerCase();
+                      return `Backup (last backup - ${mmm}-${dd}-${time})`;
+                    })()
+                  ) : "Backup"}
+                </button>
+              )}
+            </nav>
           </div>
         </div>
 
