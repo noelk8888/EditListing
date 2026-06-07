@@ -27,21 +27,26 @@ async function formatSpreadsheet(spreadsheetId: string) {
     // 17 columns (A-Q), no minimum rows
     await ensureSheetDimensions(sheets, spreadsheetId, 17, undefined, tabName, meta);
 
-    // Fetch column O (Status)
-    const oResponse = await sheets.spreadsheets.values.get({
+    // Fetch column O (Status) and column AC (GEO ID)
+    const oResponse = await sheets.spreadsheets.values.batchGet({
       spreadsheetId,
-      range: `${tabName}!O1:O`,
+      ranges: [`${tabName}!O1:O`, `${tabName}!AC1:AC`],
     });
 
-    const values = oResponse.data.values || [];
+    const valueRanges = oResponse.data.valueRanges || [];
+    const statusValues = valueRanges[0]?.values || [];
+    const geoIdValues = valueRanges[1]?.values || [];
+
+    const maxLen = Math.max(statusValues.length, geoIdValues.length);
 
     // Skip row 1 (header)
-    for (let i = 1; i < values.length; i++) {
+    for (let i = 1; i < maxLen; i++) {
         const rowNumber = i + 1;
-        const status = (values[i][0] || "").trim();
+        const status = (statusValues[i]?.[0] || "").trim();
+        const geoId = (geoIdValues[i]?.[0] || "").trim();
         
         // Always generate a formatting request, even for "AVAILABLE" so we clear backgrounds
-        const formatRequest = getRowFormattingRequest(sheetId, rowNumber, status);
+        const formatRequest = getRowFormattingRequest(sheetId, rowNumber, status, geoId);
         requests.push(formatRequest);
     }
   }

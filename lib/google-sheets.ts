@@ -20,29 +20,35 @@ const formatPriceForSheet = (val: string): string => {
 
 console.log("🚀 GOOGLE-SHEETS.TS v4 (FOOLPROOF) LOADED");
 
-export function getRowFormattingRequest(sheetId: number, rowNumber: number, statusRaw: string) {
+export function getRowFormattingRequest(sheetId: number, rowNumber: number, statusRaw: string, geoId?: string) {
   const statusGroup = (statusRaw || "").trim().toUpperCase();
+  const cleanGeoId = (geoId || "").trim().toUpperCase();
   
   // Default: AVAILABLE or unknown (Transparent background, Black text, normal)
   let backgroundColor: any = null; // null clears the background
   let isBold = false;
   let textColor: any = { red: 0, green: 0, blue: 0 }; // black
 
-  if (statusGroup === "SOLD") {
+  // If it is a duplicate (GEO ID ends with -D), format as black background with bold white text
+  if (cleanGeoId.endsWith("-D")) {
+    backgroundColor = { red: 0, green: 0, blue: 0 }; // black
+    textColor = { red: 1, green: 1, blue: 1 }; // white
+    isBold = true;
+  } else if (statusGroup === "SOLD") {
     backgroundColor = { red: 153/255, green: 0, blue: 1/255 }; // #990001
     textColor = { red: 1, green: 1, blue: 1 }; // white
     isBold = true;
-  } else if (statusGroup === "LEASED OUT") {
+  } else if (statusGroup === "LEASED OUT" || statusGroup === "LEASED") {
     backgroundColor = { red: 217/255, green: 104/255, blue: 108/255 }; // #d9686c
     textColor = { red: 1, green: 1, blue: 1 }; // white
     isBold = true;
-  } else if (statusGroup === "OFF THE MARKET") {
+  } else if (statusGroup === "OFF THE MARKET" || statusGroup === "OFF MARKET" || statusGroup === "OFF-MARKET") {
     backgroundColor = { red: 255/255, green: 229/255, blue: 152/255 }; // #ffe598
   } else if (statusGroup === "ON HOLD") {
     backgroundColor = { red: 168/255, green: 203/255, blue: 175/255 }; // #a8cbaf
-  } else if (statusGroup === "UNDECISIVE SELLER") {
+  } else if (statusGroup === "UNDECISIVE SELLER" || statusGroup === "UNDECISIVE") {
     backgroundColor = { red: 141/255, green: 156/255, blue: 206/255 }; // #8d9cce
-  } else if (statusGroup === "UNDER NEGO") {
+  } else if (statusGroup === "UNDER NEGO" || statusGroup === "UNDER NEGOTIATION") {
     backgroundColor = { red: 115/255, green: 26/255, blue: 71/255 }; // #731a47
     textColor = { red: 1, green: 1, blue: 1 }; // white
     isBold = true;
@@ -1346,7 +1352,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
 
     if (sheetId != null) {
       const requests: object[] = [
-        getRowFormattingRequest(sheetId as number, rowNumber, data.available)
+        getRowFormattingRequest(sheetId as number, rowNumber, data.available, geoId)
       ];
 
       // Insert notes only on columns that actually changed
@@ -1532,7 +1538,7 @@ export async function updateDisplayColumnsInSheet(
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
-          requests: [getRowFormattingRequest(sheet.properties.sheetId as number, rowNumber, data.available)],
+          requests: [getRowFormattingRequest(sheet.properties.sheetId as number, rowNumber, data.available, newGeoId || geoId)],
         },
       });
     }
@@ -1794,7 +1800,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
                 fields: "userEnteredFormat.textFormat",
               },
             },
-            getRowFormattingRequest(sheetId as number, rowNumber, data.available)
+            getRowFormattingRequest(sheetId as number, rowNumber, data.available, geoId)
           ],
         },
       });
