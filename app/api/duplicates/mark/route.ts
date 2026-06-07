@@ -147,6 +147,18 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // 2b. Fetch existing AC (GEO ID) values from Sheet1 to build a list of existing GEO-IDs
+    const acRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: activeSpreadsheetId,
+      range: "Sheet1!AC2:AC",
+    });
+    const existingGeoIds = new Set<string>(
+      (acRes.data.values || [])
+        .map((row: any) => (row[0] || "").trim().toUpperCase())
+        .filter(Boolean)
+    );
+
+    const oldDuplicateGeoIdsToDelete: string[] = [];
     const updateData: any[] = [];
     const duplicateListingsToSync: any[] = [];
 
@@ -160,16 +172,25 @@ export async function POST(req: Request) {
       const duplicateGeoId = (duplicateRow.geoId || "").trim();
       const cleanDuplicateGeoId = duplicateGeoId.toUpperCase();
       
-      // Safety validation: duplicate row's GEO ID must match the original GEO ID (or already end with -D)
-      const expectedGeoIdPattern = new RegExp(`^${cleanOriginalGeoId}(?:-D)*$`, "i");
-      if (duplicateGeoId && !expectedGeoIdPattern.test(duplicateGeoId)) {
-        return NextResponse.json({
-          error: `Duplicate row GEO ID mismatch in row ${rowNum}. Expected ${cleanOriginalGeoId} (or suffixed with -D), found ${duplicateGeoId}`
-        }, { status: 400 });
+      // Calculate a unique duplicate GEO ID starting with original GEO ID + -D
+      let newDuplicateGeoId = cleanOriginalGeoId.endsWith("-D")
+        ? cleanOriginalGeoId
+        : `${cleanOriginalGeoId}-D`;
+
+      // If this calculated GEO ID is already in the sheet (or was already assigned to another duplicate in this loop),
+      // keep appending "-D" until it is unique.
+      while (existingGeoIds.has(newDuplicateGeoId.toUpperCase())) {
+        newDuplicateGeoId = `${newDuplicateGeoId}-D`;
       }
 
-      // Rename duplicate's GEO ID by appending '-D'
-      const newDuplicateGeoId = duplicateGeoId.endsWith("-D") ? duplicateGeoId : (duplicateGeoId ? `${duplicateGeoId}-D` : "");
+      // Add the assigned GEO ID to our set to prevent conflicts within the same request
+      existingGeoIds.add(newDuplicateGeoId.toUpperCase());
+
+      // If the duplicate row currently has a different GEO ID that is not our target duplicate ID,
+      // stage the old duplicate ID for deletion from Supabase to prevent orphaned records.
+      if (cleanDuplicateGeoId && cleanDuplicateGeoId !== newDuplicateGeoId.toUpperCase()) {
+        oldDuplicateGeoIdsToDelete.push(duplicateGeoId);
+      }
 
       // Format description with duplicate tag
       let updatedText = "";
@@ -258,7 +279,22 @@ export async function POST(req: Request) {
       });
     }
 
-    // 7. Update Supabase with duplicate records
+    // 7. Delete old duplicate GEO IDs from Supabase to prevent orphaned records
+    if (oldDuplicateGeoIdsToDelete.length > 0) {
+      console.log("Deleting old duplicate GEO-IDs from Supabase to prevent orphans:", oldDuplicateGeoIdsToDelete);
+      const { error: deleteErr } = await supabaseAdmin
+        .from("KIU Properties")
+        .delete()
+        .in('"GEO ID"', oldDuplicateGeoIdsToDelete);
+
+      if (deleteErr) {
+        console.warn("Failed to delete old duplicate GEO-IDs from Supabase:", deleteErr.message);
+      } else {
+        console.log(`Successfully deleted ${oldDuplicateGeoIdsToDelete.length} orphaned record(s) from Supabase.`);
+      }
+    }
+
+    // 8. Update Supabase with duplicate records
     for (const dupRow of duplicateListingsToSync) {
       if (dupRow.geoId) {
         const supaRecord = gsheetRowToSupabaseRecord(dupRow);
