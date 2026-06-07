@@ -441,7 +441,7 @@ export async function POST(request: Request) {
         fbLink: fb_link || "",
         main: mainWithId,
         photo: photo_link || "",
-        geoId: id,
+        geoId: finalId,
         mapLink: derivedMapLink || "",
         region: region || "",
         province: province || "",
