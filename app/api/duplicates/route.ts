@@ -88,6 +88,10 @@ export async function POST(req: Request) {
       // ── Step 2: Phase 1 — Photo Link Matching ─────────────────────────────
       const photoGroups = new Map<string, number[]>();
       for (const row of rows) {
+        // Exclude row if its GEO ID ends with "-D" (already identified as duplicate)
+        const geoId = row.colAC.trim().toUpperCase();
+        if (geoId.endsWith("-D")) continue;
+
         const slug = extractPhotoSlug(row.colAB);
         if (!slug) continue;
         if (!photoGroups.has(slug)) photoGroups.set(slug, []);
@@ -97,7 +101,11 @@ export async function POST(req: Request) {
       const matchedRowNumbers = new Set<number>(photoMatches.flat());
 
       // ── Step 3: Phase 2 — Fuzzy Text Matching (unmatched rows only) ────────
-      const unmatched = rows.filter((r) => !matchedRowNumbers.has(r.rowNumber) && r.colA.length > 20);
+      // Exclude row if its GEO ID ends with "-D"
+      const unmatched = rows.filter((r) => {
+        const geoId = r.colAC.trim().toUpperCase();
+        return !geoId.endsWith("-D") && !matchedRowNumbers.has(r.rowNumber) && r.colA.length > 20;
+      });
 
       // 1. Precompute lowercased text and significant lines
       const prepared = unmatched.map((r) => ({
