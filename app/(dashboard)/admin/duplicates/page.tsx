@@ -20,9 +20,11 @@ export default function DuplicatesPage() {
     photoMatchCount?: number;
     fuzzyMatchCount?: number;
     message?: string;
+    groups?: any[];
+    spreadsheetId?: string;
   } | null>(null);
 
-  const runCheck = async () => {
+  const runCheck = async (scanMode: "content" | "geoid") => {
     if (!sheetUrl) {
       toast({
         variant: "destructive",
@@ -39,7 +41,7 @@ export default function DuplicatesPage() {
       const response = await fetch("/api/duplicates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheetUrl }),
+        body: JSON.stringify({ sheetUrl, mode: scanMode }),
       });
 
       const data = await response.json();
@@ -49,7 +51,7 @@ export default function DuplicatesPage() {
       if (data.duplicateCount > 0) {
         toast({
           title: "Check Complete",
-          description: `Found ${data.duplicateCount} duplicate groups. New tab "${data.tabName}" created.`,
+          description: `Found ${data.duplicateCount} duplicate/collision groups. New tab "${data.tabName}" created.`,
         });
       } else {
         toast({
@@ -87,27 +89,33 @@ export default function DuplicatesPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="sheetUrl">Google Sheets URL</Label>
-            <div className="flex gap-2">
+            <div className="space-y-4">
               <Input
                 id="sheetUrl"
                 placeholder="https://docs.google.com/spreadsheets/d/..."
                 value={sheetUrl}
                 onChange={(e) => setSheetUrl(e.target.value)}
                 disabled={loading}
+                className="w-full"
               />
-              <Button onClick={runCheck} disabled={loading} className="shrink-0">
-                {loading ? (
-                  <>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => runCheck("content")} disabled={loading} className="flex-1 bg-purple-600 hover:bg-purple-700">
+                  {loading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Scanning...
-                  </>
-                ) : (
-                  <>
+                  ) : (
                     <Search className="mr-2 h-4 w-4" />
-                    Run Check
-                  </>
-                )}
-              </Button>
+                  )}
+                  Scan Content Duplicates
+                </Button>
+                <Button onClick={() => runCheck("geoid")} disabled={loading} variant="outline" className="flex-1 border-purple-500 text-purple-700 hover:bg-purple-50">
+                  {loading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  Scan GEO ID Collisions
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -119,22 +127,46 @@ export default function DuplicatesPage() {
                 ) : (
                   <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5" />
                 )}
-                <div className="space-y-1">
+                <div className="space-y-1 w-full">
                   <p className={`font-semibold ${result.duplicateCount > 0 ? "text-orange-900" : "text-green-900"}`}>
                     {result.duplicateCount > 0 
-                      ? `Found ${result.duplicateCount} duplicate groups!` 
+                      ? `Found ${result.duplicateCount} collision/duplicate groups!` 
                       : "No duplicates found!"}
                   </p>
                   {result.duplicateCount > 0 && (
                     <>
                       <div className="text-sm text-orange-800 space-y-1">
                         <p>Results have been written to a new tab: <strong>{result.tabName}</strong></p>
-                        <div className="flex gap-4 pt-1">
-                          <span>📸 Photo Matches: {result.photoMatchCount}</span>
-                          <span>📜 Fuzzy Matches: {result.fuzzyMatchCount}</span>
-                        </div>
+                        {result.photoMatchCount !== undefined && result.fuzzyMatchCount !== undefined && (
+                          <div className="flex gap-4 pt-1">
+                            {result.photoMatchCount > 0 && <span>📸 Photo Matches: {result.photoMatchCount}</span>}
+                            {result.fuzzyMatchCount > 0 && <span>📜 Fuzzy Matches: {result.fuzzyMatchCount}</span>}
+                          </div>
+                        )}
                       </div>
-                      <div className="pt-3">
+                      <div className="pt-3 flex gap-2">
+                        <Button 
+                          onClick={() => {
+                            localStorage.setItem(
+                              "luxe_dup_review_data",
+                              JSON.stringify({
+                                groups: result.groups,
+                                spreadsheetId: result.spreadsheetId,
+                                summary: {
+                                  photoMatchCount: result.photoMatchCount || 0,
+                                  fuzzyMatchCount: result.fuzzyMatchCount || 0,
+                                  tabName: result.tabName,
+                                  outputUrl: result.outputUrl,
+                                },
+                              })
+                            );
+                            window.open("/admin/duplicates/review", "_blank");
+                          }}
+                          className="bg-orange-600 hover:bg-orange-700 text-white font-bold"
+                          size="sm"
+                        >
+                          Launch Side-by-Side Review
+                        </Button>
                         <Button variant="outline" size="sm" asChild>
                           <a href={result.outputUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="mr-2 h-3 w-3" />

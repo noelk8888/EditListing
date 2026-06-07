@@ -36,7 +36,7 @@ interface SheetRow {
 
 export async function POST(req: Request) {
   try {
-    const { sheetUrl } = await req.json();
+    const { sheetUrl, mode = "content" } = await req.json();
     if (!sheetUrl) {
       return NextResponse.json({ error: "Missing sheetUrl" }, { status: 400 });
     }
@@ -68,74 +68,90 @@ export async function POST(req: Request) {
     // Map rowNumber → row for quick lookup
     const rowsMap = new Map<number, SheetRow>(rows.map((r) => [r.rowNumber, r]));
 
-    // ── Step 2: Phase 1 — Photo Link Matching ─────────────────────────────
-    const photoGroups = new Map<string, number[]>();
-    for (const row of rows) {
-      const slug = extractPhotoSlug(row.colAB);
-      if (!slug) continue;
-      if (!photoGroups.has(slug)) photoGroups.set(slug, []);
-      photoGroups.get(slug)!.push(row.rowNumber);
-    }
-    const photoMatches = Array.from(photoGroups.values()).filter((g) => g.length >= 2);
-    const matchedRowNumbers = new Set<number>(photoMatches.flat());
+    let photoMatches: number[][] = [];
+    let fuzzyMatches: number[][] = [];
+    let collisionMatches: number[][] = [];
 
-    // ── Step 3: Phase 2 — Fuzzy Text Matching (unmatched rows only) ────────
-    const unmatched = rows.filter((r) => !matchedRowNumbers.has(r.rowNumber) && r.colA.length > 20);
-
-    // 1. Precompute lowercased text and significant lines
-    const prepared = unmatched.map((r) => ({
-      rowNumber: r.rowNumber,
-      colA_lower: r.colA.toLowerCase(),
-      sigLines: extractSignificantLines(r.colA),
-    }));
-
-    // 2. Build inverted index mapping: significant_line -> Array of index in prepared
-    const sigLineMap = new Map<string, number[]>();
-    for (let idx = 0; idx < prepared.length; idx++) {
-      const row = prepared[idx];
-      for (const line of row.sigLines) {
-        if (!sigLineMap.has(line)) {
-          sigLineMap.set(line, []);
+    if (mode === "geoid") {
+      // Group by GEO ID to find collisions
+      const geoIdGroups = new Map<string, number[]>();
+      for (const row of rows) {
+        const geoId = row.colAC.trim().toUpperCase();
+        if (!geoId || geoId === "N/A" || geoId === "PENDING" || geoId.endsWith("-D")) continue;
+        if (!geoIdGroups.has(geoId)) {
+          geoIdGroups.set(geoId, []);
         }
-        sigLineMap.get(line)!.push(idx);
+        geoIdGroups.get(geoId)!.push(row.rowNumber);
       }
-    }
+      collisionMatches = Array.from(geoIdGroups.values()).filter((g) => g.length >= 2);
+    } else {
+      // ── Step 2: Phase 1 — Photo Link Matching ─────────────────────────────
+      const photoGroups = new Map<string, number[]>();
+      for (const row of rows) {
+        const slug = extractPhotoSlug(row.colAB);
+        if (!slug) continue;
+        if (!photoGroups.has(slug)) photoGroups.set(slug, []);
+        photoGroups.get(slug)!.push(row.rowNumber);
+      }
+      photoMatches = Array.from(photoGroups.values()).filter((g) => g.length >= 2);
+      const matchedRowNumbers = new Set<number>(photoMatches.flat());
 
-    const fuzzyMatches: number[][] = [];
-    const fuzzyMatchedRows = new Set<number>();
+      // ── Step 3: Phase 2 — Fuzzy Text Matching (unmatched rows only) ────────
+      const unmatched = rows.filter((r) => !matchedRowNumbers.has(r.rowNumber) && r.colA.length > 20);
 
-    // 3. Perform matching using the inverted index
-    for (let i = 0; i < prepared.length; i++) {
-      const rowI = prepared[i];
-      if (fuzzyMatchedRows.has(rowI.rowNumber)) continue;
-      if (rowI.sigLines.length < 3) continue;
+      // 1. Precompute lowercased text and significant lines
+      const prepared = unmatched.map((r) => ({
+        rowNumber: r.rowNumber,
+        colA_lower: r.colA.toLowerCase(),
+        sigLines: extractSignificantLines(r.colA),
+      }));
 
-      // Find candidates: rows containing at least one of rowI's significant lines
-      const candidates = new Set<number>();
-      for (const line of rowI.sigLines) {
-        const indices = sigLineMap.get(line) || [];
-        for (const idx of indices) {
-          if (idx > i) { // only compare with subsequent rows
-            candidates.add(idx);
+      // 2. Build inverted index mapping: significant_line -> Array of index in prepared
+      const sigLineMap = new Map<string, number[]>();
+      for (let idx = 0; idx < prepared.length; idx++) {
+        const row = prepared[idx];
+        for (const line of row.sigLines) {
+          if (!sigLineMap.has(line)) {
+            sigLineMap.set(line, []);
+          }
+          sigLineMap.get(line)!.push(idx);
+        }
+      }
+
+      const fuzzyMatchedRows = new Set<number>();
+      // 3. Perform matching using the inverted index
+      for (let i = 0; i < prepared.length; i++) {
+        const rowI = prepared[i];
+        if (fuzzyMatchedRows.has(rowI.rowNumber)) continue;
+        if (rowI.sigLines.length < 3) continue;
+
+        // Find candidates: rows containing at least one of rowI's significant lines
+        const candidates = new Set<number>();
+        for (const line of rowI.sigLines) {
+          const indices = sigLineMap.get(line) || [];
+          for (const idx of indices) {
+            if (idx > i) { // only compare with subsequent rows
+              candidates.add(idx);
+            }
           }
         }
-      }
 
-      const group = [rowI.rowNumber];
-      for (const idx of Array.from(candidates)) {
-        const rowJ = prepared[idx];
-        if (fuzzyMatchedRows.has(rowJ.rowNumber)) continue;
+        const group = [rowI.rowNumber];
+        for (const idx of Array.from(candidates)) {
+          const rowJ = prepared[idx];
+          if (fuzzyMatchedRows.has(rowJ.rowNumber)) continue;
 
-        const colAj = rowJ.colA_lower;
-        const matchCount = rowI.sigLines.filter((line) => colAj.includes(line)).length;
-        if (matchCount / rowI.sigLines.length >= 0.8) {
-          group.push(rowJ.rowNumber);
+          const colAj = rowJ.colA_lower;
+          const matchCount = rowI.sigLines.filter((line) => colAj.includes(line)).length;
+          if (matchCount / rowI.sigLines.length >= 0.8) {
+            group.push(rowJ.rowNumber);
+          }
         }
-      }
 
-      if (group.length >= 2) {
-        fuzzyMatches.push(group);
-        group.forEach((r) => fuzzyMatchedRows.add(r));
+        if (group.length >= 2) {
+          fuzzyMatches.push(group);
+          group.forEach((r) => fuzzyMatchedRows.add(r));
+        }
       }
     }
 
@@ -179,8 +195,12 @@ export async function POST(req: Request) {
       }
     };
 
-    processMatches(photoMatches, "Photo Match");
-    processMatches(fuzzyMatches, "Fuzzy Match");
+    if (mode === "geoid") {
+      processMatches(collisionMatches, "GEO ID Collision");
+    } else {
+      processMatches(photoMatches, "Photo Match");
+      processMatches(fuzzyMatches, "Fuzzy Match");
+    }
 
     const totalDuplicates = outputRows.length;
 
@@ -189,7 +209,8 @@ export async function POST(req: Request) {
     }
 
     // ── Step 5: Create a new output tab ───────────────────────────────────
-    const baseTabName = `Duplicates - ${new Date().toLocaleDateString("en-PH", {
+    const prefix = mode === "geoid" ? "GEO ID Collisions" : "Duplicates";
+    const baseTabName = `${prefix} - ${new Date().toLocaleDateString("en-PH", {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -306,8 +327,8 @@ export async function POST(req: Request) {
       duplicateCount: totalDuplicates,
       tabName,
       outputUrl,
-      photoMatchCount: photoMatches.length,
-      fuzzyMatchCount: fuzzyMatches.length,
+      photoMatchCount: mode === "geoid" ? 0 : photoMatches.length,
+      fuzzyMatchCount: mode === "geoid" ? 0 : fuzzyMatches.length,
       spreadsheetId,
       groups,
     });
