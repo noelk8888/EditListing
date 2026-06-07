@@ -18,6 +18,17 @@ const formatPriceForSheet = (val: string): string => {
   return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const cleanAwayValue = (val: any): string => {
+  if (val === null || val === undefined) return "";
+  const s = String(val).trim();
+  // If it matches a GEO ID pattern (letter + 4-6 digits, e.g. G00271 or G11271-D), block it
+  if (/^[A-Z]\d{4,6}(?:-D)*$/i.test(s)) {
+    console.warn(`[AWAY Guard] Blocked GEO ID "${s}" from being written to AWAY column.`);
+    return "";
+  }
+  return s;
+};
+
 console.log("🚀 GOOGLE-SHEETS.TS v4 (FOOLPROOF) LOADED");
 
 export function getRowFormattingRequest(sheetId: number, rowNumber: number, statusRaw: string, geoId?: string) {
@@ -1130,7 +1141,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
     data.withIncome,       // AX (24)
     data.directBroker,     // AY (25)
     data.name,             // AZ (26)
-    data.away,             // BA (27)
+    cleanAwayValue(data.away),             // BA (27)
     data.monthlyDues,                              // BB (28)
     data.bcDateUpdated ?? data.dateUpdated,        // BC (29) — annotated if bcDateUpdated set
     data.listingOwnership, // BD (30)
@@ -1189,7 +1200,7 @@ export async function updateSyncColumns(geoId: string, data: GSheetSyncData, fal
           },
           {
             range: `${tabName}!I${rowNumber}:P${rowNumber}`,
-            values: [[data.withIncome, data.directBroker, data.name, data.away, data.dateRecv, data.dateUpdated, data.status, data.listingOwnership]],
+            values: [[data.withIncome, data.directBroker, data.name, cleanAwayValue(data.away), data.dateRecv, data.dateUpdated, data.status, data.listingOwnership]],
           },
         ],
       },
@@ -1295,7 +1306,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
     data.withIncome,         // I
     data.directCobroker,     // J
     data.ownerBroker,        // K
-    data.away,               // L
+    cleanAwayValue(data.away),               // L
     data.dateReceived,       // M
     data.dateResorted,       // N
     data.available,          // O
@@ -1324,7 +1335,7 @@ export async function updateDisplayColumns(geoId: string, data: GSheetDisplayDat
           },
           {
             range: `${tabName}!AX${rowNumber}:BA${rowNumber}`,
-            values: [[data.withIncome, data.directCobroker, data.ownerBroker, data.away]],
+            values: [[data.withIncome, data.directCobroker, data.ownerBroker, cleanAwayValue(data.away)]],
           },
           // NOTE: BC (col 55) = DATE UPDATED (annotated) — NOT written here; only updateSyncColumns writes BC.
           //       Skipping BC prevents overwriting the annotated stamp (e.g. "2026-03-17 | COMMENTS").
@@ -1509,7 +1520,7 @@ export async function updateDisplayColumnsInSheet(
   rowData[GSHEET_COLUMNS.I_WITH_INCOME] = data.withIncome;
   rowData[GSHEET_COLUMNS.J_DIRECT_COBROKER] = data.directCobroker;
   rowData[GSHEET_COLUMNS.K_OWNER_BROKER] = data.ownerBroker;
-  rowData[GSHEET_COLUMNS.L_AWAY] = data.away;
+  rowData[GSHEET_COLUMNS.L_AWAY] = cleanAwayValue(data.away);
   rowData[GSHEET_COLUMNS.M_DATE_RECEIVED] = data.dateReceived;
   rowData[GSHEET_COLUMNS.N_DATE_RESORTED] = data.dateResorted;
   rowData[GSHEET_COLUMNS.O_AVAILABLE] = data.available;
@@ -1650,7 +1661,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
   rowData[GSHEET_COLUMNS.I_WITH_INCOME] = data.withIncome;
   rowData[GSHEET_COLUMNS.J_DIRECT_COBROKER] = data.directCobroker;
   rowData[GSHEET_COLUMNS.K_OWNER_BROKER] = data.ownerBroker;
-  rowData[GSHEET_COLUMNS.L_AWAY] = data.away;
+  rowData[GSHEET_COLUMNS.L_AWAY] = cleanAwayValue(data.away);
   rowData[GSHEET_COLUMNS.M_DATE_RECEIVED] = data.dateReceived;
   rowData[GSHEET_COLUMNS.N_DATE_RESORTED] = data.dateResorted;
   rowData[GSHEET_COLUMNS.O_AVAILABLE] = data.available;
@@ -1693,7 +1704,7 @@ export async function addNewGSheetRow(data: GSheetDisplayData, overrideGeoId?: s
     rowData[GSHEET_COLUMNS.AX_WITH_INCOME] = syncData.withIncome || "";
     rowData[GSHEET_COLUMNS.AY_DIRECT_BROKER] = syncData.directBroker || "";
     rowData[GSHEET_COLUMNS.AZ_NAME] = syncData.name || "";
-    rowData[GSHEET_COLUMNS.BA_AWAY] = syncData.away || "";
+    rowData[GSHEET_COLUMNS.BA_AWAY] = cleanAwayValue(syncData.away);
     rowData[GSHEET_COLUMNS.BB_MONTHLY_DUES] = syncData.monthlyDues || "";
     rowData[GSHEET_COLUMNS.BC_DATE_UPDATED] = syncData.dateUpdated || "";
     rowData[GSHEET_COLUMNS.BD_LISTING_OWNERSHIP] = syncData.listingOwnership || "";
@@ -1885,7 +1896,7 @@ export async function appendDisplayRowToSheet(
   rowData[GSHEET_COLUMNS.I_WITH_INCOME] = data.withIncome;
   rowData[GSHEET_COLUMNS.J_DIRECT_COBROKER] = data.directCobroker;
   rowData[GSHEET_COLUMNS.K_OWNER_BROKER] = data.ownerBroker;
-  rowData[GSHEET_COLUMNS.L_AWAY] = data.away;
+  rowData[GSHEET_COLUMNS.L_AWAY] = cleanAwayValue(data.away);
   rowData[GSHEET_COLUMNS.M_DATE_RECEIVED] = data.dateReceived;
   rowData[GSHEET_COLUMNS.N_DATE_RESORTED] = data.dateResorted;
   rowData[GSHEET_COLUMNS.O_AVAILABLE] = data.available;
@@ -1909,7 +1920,7 @@ export async function appendDisplayRowToSheet(
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId,
         requestBody: {
-          requests: [getRowFormattingRequest(sheetId as number, nextRow, data.available)],
+          requests: [getRowFormattingRequest(sheetId as number, nextRow, data.available, geoId)],
         },
       });
     }

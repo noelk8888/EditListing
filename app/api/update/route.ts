@@ -143,6 +143,16 @@ export async function POST(request: Request) {
       exactRowNumber,
     } = body;
 
+    const sanitizedAway = (() => {
+      if (!how_many_away) return "";
+      const s = String(how_many_away).trim();
+      if (/^[A-Z]\d{4,6}(?:-D)*$/i.test(s)) {
+        console.warn(`[API Update Guard] Blocked GEO ID "${s}" from being set as AWAY value.`);
+        return "";
+      }
+      return s;
+    })();
+
     if (!id) {
       return NextResponse.json({ error: "Listing ID is required" }, { status: 400 });
     }
@@ -284,7 +294,7 @@ export async function POST(request: Request) {
         "WITH INCOME": with_income || null,
         "DIRECT OR BROKER": direct_or_broker || null,
         "NAME": owner_broker || null,
-        "AWAY": how_many_away || null,
+        "AWAY": sanitizedAway || null,
         "LISTING OWNERSHIP": listing_ownership || null,
         "DATE RECV": date_received || null,
         "DATE UPDATED": date_updated || null,
@@ -350,7 +360,7 @@ export async function POST(request: Request) {
         "WITH INCOME": with_income || null,
         "DIRECT OR BROKER": direct_or_broker || null,
         "NAME": owner_broker || null,
-        "AWAY": how_many_away || null,
+        "AWAY": sanitizedAway || null,
         "LISTING OWNERSHIP": listing_ownership || null,
         "DATE RECV": date_received || null,
         "DATE UPDATED": date_updated || null,
@@ -425,7 +435,7 @@ export async function POST(request: Request) {
         withIncome: with_income || "",
         directCobroker: direct_or_broker || "",
         ownerBroker: owner_broker || "",
-        away: how_many_away || "",
+        away: sanitizedAway,
         dateReceived: formatDisplayDate(date_received || ""),
         dateResorted: formatDisplayDate(date_updated || ""),
         available: status || "",
@@ -467,7 +477,7 @@ export async function POST(request: Request) {
         withIncome: with_income || "",
         directBroker: direct_or_broker || "",
         name: owner_broker || "",
-        away: how_many_away || "",
+        away: sanitizedAway,
         monthlyDues: monthly_dues || "",
         dateRecv: formatDisplayDate(date_received || ""),
         dateUpdated: formatDisplayDate(date_updated || ""),

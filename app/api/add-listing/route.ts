@@ -98,6 +98,16 @@ export async function POST(request: Request) {
       bz_col,
     } = body;
 
+    const sanitizedAway = (() => {
+      if (!how_many_away) return "";
+      const s = String(how_many_away).trim();
+      if (/^[A-Z]\d{4,6}(?:-D)*$/i.test(s)) {
+        console.warn(`[API Add Guard] Blocked GEO ID "${s}" from being set as AWAY value.`);
+        return "";
+      }
+      return s;
+    })();
+
     console.log("=== ADDING NEW LISTING ===");
     console.log("send_telegram:", send_telegram);
     console.log("telegram_groups:", telegram_groups);
@@ -214,7 +224,7 @@ export async function POST(request: Request) {
       withIncome: with_income || "",
       directCobroker: direct_or_broker || "",
       ownerBroker: owner_broker || "",
-      away: how_many_away || "",
+      away: sanitizedAway,
       dateReceived: formatDisplayDate(date_received || getPHLDate()),
       dateResorted: formatDisplayDate(date_updated || getPHLDate()),
       available: status || "AVAILABLE",
@@ -253,7 +263,7 @@ export async function POST(request: Request) {
       withIncome: with_income || "",
       directBroker: direct_or_broker || "",
       name: owner_broker || "",
-      away: how_many_away || "",
+      away: sanitizedAway,
       monthlyDues: monthly_dues || "",
       dateRecv: formatDisplayDate(date_received || getPHLDate()),
       dateUpdated: formatDisplayDate(date_updated || getPHLDate()),
@@ -358,7 +368,7 @@ export async function POST(request: Request) {
       "WITH INCOME": with_income || null,
       "DIRECT OR BROKER": direct_or_broker || null,
       NAME: owner_broker || null,
-      AWAY: how_many_away || null,
+      AWAY: sanitizedAway || null,
       "LISTING OWNERSHIP": listing_ownership || null,
       "DATE RECV": date_received || new Date().toISOString(),
       "DATE UPDATED": date_updated || new Date().toISOString(),
