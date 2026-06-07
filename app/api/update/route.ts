@@ -238,10 +238,12 @@ export async function POST(request: Request) {
       if (!isSuperAdmin) {
         return NextResponse.json({ error: "Only Superadmins can change the GEO ID" }, { status: 403 });
       }
-      if (!/^[A-Z]\d{4,6}$/i.test(newGeoId)) {
-        return NextResponse.json({ error: "Invalid GEO ID format. Must start with a letter and have 4-6 digits" }, { status: 400 });
+      // Normalize en-dash/em-dash to standard hyphen
+      const cleanNewGeoId = newGeoId.replace(/[\u2013\u2014]/g, "-").trim();
+      if (!/^[A-Z]\d{4,6}(?:-D)*$/i.test(cleanNewGeoId)) {
+        return NextResponse.json({ error: "Invalid GEO ID format. Must start with a letter and have 4-6 digits (optional suffix -D for duplicates)" }, { status: 400 });
       }
-      finalId = newGeoId.toUpperCase();
+      finalId = cleanNewGeoId.toUpperCase();
     }
 
     // Force G-series and A-series to always use Sheet1 as targetTab to prevent accidental Sheet2 writes
