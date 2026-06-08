@@ -214,6 +214,36 @@ export default function AddListingPage() {
   const [telegramLine4, setTelegramLine4] = useState(""); // ownership
   const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL", "UPDATE LISTING", "TEST"]);
 
+  // === CUSTOM AUTO-CLOSE ALERT STATE ===
+  const [customAlert, setCustomAlert] = useState<{
+    message: string;
+    onClose?: () => void;
+  } | null>(null);
+
+  const showAlert = (message: string, onClose?: () => void) => {
+    setCustomAlert({ message, onClose });
+  };
+
+  // Auto-close custom alert after 3 seconds
+  useEffect(() => {
+    if (!customAlert) return;
+    const timer = setTimeout(() => {
+      const callback = customAlert.onClose;
+      setCustomAlert(null);
+      if (callback) callback();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [customAlert]);
+
+  const handleCustomAlertClose = () => {
+    if (customAlert) {
+      const callback = customAlert.onClose;
+      setCustomAlert(null);
+      if (callback) callback();
+    }
+  };
+
+
   // Sync DIRECT group with the Direct/CoBrok dropdown — this is the real connection
   useEffect(() => {
     if (directOrCobroker === "Direct to Owner") {
@@ -967,22 +997,24 @@ export default function AddListingPage() {
     }
 
     if (idx >= batchRows.length) {
-      alert(
-        `Batch complete! Skipped ${batchSkips.length + newSkips.length} empty rows.`
+      showAlert(
+        `Batch complete! Skipped ${batchSkips.length + newSkips.length} empty rows.`,
+        () => {
+          // Full reset — same as handleDone
+          setBatchActive(false);
+          setBatchRows([]);
+          setBatchIndex(0);
+          setBatchSkips([]);
+          setBatchSourceTabName(null);
+          setRawText("");
+          setStep("paste");
+          setError(null);
+          setSearchResult(null);
+          setSearchPerformed(false);
+          setListingId("");
+          setPhotosLink("");
+        }
       );
-      // Full reset — same as handleDone
-      setBatchActive(false);
-      setBatchRows([]);
-      setBatchIndex(0);
-      setBatchSkips([]);
-      setBatchSourceTabName(null);
-      setRawText("");
-      setStep("paste");
-      setError(null);
-      setSearchResult(null);
-      setSearchPerformed(false);
-      setListingId("");
-      setPhotosLink("");
       setPreviewLines("");
       setResidential(false);
       setCommercial(false);
@@ -1525,10 +1557,10 @@ export default function AddListingPage() {
         throw new Error("Failed to send Telegram message");
       }
 
-      alert("Message sent successfully!");
+      showAlert("Message sent successfully!");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send message");
-      alert(err instanceof Error ? err.message : "Failed to send message");
+      showAlert(err instanceof Error ? err.message : "Failed to send message");
     } finally {
       setIsSendingOnly(false);
       setShowTelegramModal(false);
@@ -1651,8 +1683,9 @@ export default function AddListingPage() {
         const successMsg = editGeoId && editGeoId !== searchResult.id
           ? `✅ Listing updated successfully. GEO ID changed from ${searchResult.id} to ${editGeoId}.`
           : `✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`;
-        alert(successMsg);
-        router.push("/");
+        showAlert(successMsg, () => {
+          router.push("/");
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update listing");
@@ -1689,8 +1722,9 @@ export default function AddListingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Delete failed");
       setShowDeleteConfirm(false);
-      alert(`🗑️ Listing ${searchResult.id} has been permanently deleted.`);
-      window.location.href = "/add";
+      showAlert(`🗑️ Listing ${searchResult.id} has been permanently deleted.`, () => {
+        window.location.href = "/add";
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
       setShowDeleteConfirm(false);
@@ -1860,8 +1894,9 @@ export default function AddListingPage() {
           : data.backupError
             ? `New listing created: ${data.geoId}\n\n⚠️ Backup GSheet failed: ${data.backupError}`
             : `New listing created: ${data.geoId}`;
-        alert(msg);
-        router.push("/");
+        showAlert(msg, () => {
+          router.push("/");
+        });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add listing");
@@ -4535,6 +4570,55 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
           </div>
         );
       })()}
+
+      {/* Custom Auto-closing Alert Dialog */}
+      {customAlert && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 text-white rounded-2xl p-6 w-full max-w-sm shadow-2xl space-y-5 animate-zoom-in relative overflow-hidden">
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes shrink-width {
+                from { width: 100%; }
+                to { width: 0%; }
+              }
+              @keyframes fade-in {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes zoom-in {
+                from { transform: scale(0.95); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
+              }
+              .animate-fade-in {
+                animation: fade-in 0.2s ease-out forwards;
+              }
+              .animate-zoom-in {
+                animation: zoom-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+              }
+              .animate-shrink-width {
+                animation: shrink-width 3s linear forwards;
+              }
+            `}} />
+            {/* Top accent line representing progress/timer */}
+            <div className="absolute top-0 left-0 h-1 bg-violet-400 animate-shrink-width" />
+            
+            <div className="text-center space-y-3">
+              <div className="flex justify-center text-violet-400">
+                <CheckCircle2 className="h-12 w-12 animate-bounce" />
+              </div>
+              <p className="text-base text-slate-100 font-medium leading-relaxed whitespace-pre-line">
+                {customAlert.message}
+              </p>
+            </div>
+            
+            <Button
+              onClick={handleCustomAlertClose}
+              className="bg-violet-400 hover:bg-violet-500 active:bg-violet-600 text-slate-950 font-semibold py-2 px-6 rounded-xl transition-colors w-full border-none"
+            >
+              OK
+            </Button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
