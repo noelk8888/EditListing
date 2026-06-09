@@ -122,6 +122,7 @@ export default function AddListingPage() {
 
   // Editable listing fields (from search result)
   const [editSummary, setEditSummary] = useState("");
+  const [lastExtractedText, setLastExtractedText] = useState("");
   const [originalEditSummary, setOriginalEditSummary] = useState(""); // snapshot of DB text for toggle-off revert
   const [useExistingMain, setUseExistingMain] = useState(false);
   const [editArea, setEditArea] = useState("");
@@ -465,7 +466,7 @@ export default function AddListingPage() {
   const handleExtractData = async () => {
     // When USE THIS LISTING is active, extract from the editable MAIN textarea (editSummary).
     // Otherwise extract from the newly pasted text (rawText).
-    const textToExtract = useExistingMain ? editSummary : rawText;
+    const textToExtract = (step === "review" || useExistingMain) ? editSummary : rawText;
     if (!textToExtract.trim()) {
       setError("Please enter a listing to parse");
       return;
@@ -495,7 +496,7 @@ export default function AddListingPage() {
         else if (!current) setter(""); // only blank if it was already blank
       };
 
-      if (!useExistingMain) setEditSummary(rawText);
+      if (!useExistingMain && step !== "review") setEditSummary(rawText);
       overrideIfFound(data.region, setEditRegion, editRegion);
       if (data.region?.trim().toUpperCase() === "NCR") setEditProvince("Metro Manila");
       else overrideIfFound(data.province, setEditProvince, editProvince);
@@ -601,6 +602,7 @@ export default function AddListingPage() {
       }
 
       setStep("review");
+      setLastExtractedText(textToExtract);
       
       // Ensure TODAY is active for Admins/Editors after extraction
       if (!permissions.sheet2 && (userRole === "ADMIN" || userRole === "EDITOR")) {
@@ -650,6 +652,7 @@ export default function AddListingPage() {
     setSuggestedGeoId("");
     setGeoIdConfirmed(false);
     setEditSummary("");
+    setLastExtractedText("");
     setEditArea("");
     setEditBarangay("");
     setEditCity("");
@@ -3143,16 +3146,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   {/* Row 2: LOT AREA, FLOOR AREA, PRICE */}
                   <div className="flex items-center gap-2">
                     <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editLotArea, searchResult.lot_area) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Lot Area</Label>
-                    <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(editLotArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editFloorArea, searchResult.floor_area) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Floor Area</Label>
-                    <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(editFloorArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
                   {permissions.view_pricing !== false && (
                     <div className="flex items-center gap-2">
                       <Label className={`text-xs w-16 shrink-0 ${searchResult && isDifferent(editPrice || editLeasePrice, saleOrLease === "Lease" ? searchResult.lease_price : searchResult.price) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Price</Label>
-                      <Input value={formatNumber(editPrice || editLeasePrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      <Input value={formatNumber(editPrice || editLeasePrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                     </div>
                   )}
 
@@ -3358,36 +3361,36 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     {/* Row 5: LOT AREA, EXTRACTED SALE PRICE, SALE/SQM */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
-                      <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      <Input value={formatNumber(editLotArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                     </div>
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
-                        <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(editPrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
-                        <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(salePricePerSqm)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
 
                     {/* Row 6: FLOOR AREA, EXTRACTED LEASE PRICE, LEASE/SQM */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
-                      <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      <Input value={formatNumber(editFloorArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                     </div>
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
-                        <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(editLeasePrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
-                        <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(leasePricePerSqm)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
 
@@ -3682,35 +3685,35 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     {/* Row 4: LOT AREA, SALE PRICE, SALE/SQM */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
-                      <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      <Input value={formatNumber(editLotArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                     </div>
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
-                        <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(editPrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
-                        <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(salePricePerSqm)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
                     {/* Row 5: FLOOR AREA, LEASE PRICE, LEASE/SQM */}
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
-                      <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                      <Input value={formatNumber(editFloorArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                     </div>
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
-                        <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(editLeasePrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
                     {permissions.view_pricing !== false && (
                       <div className="flex items-center gap-2">
                         <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
-                        <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                        <Input value={formatNumber(leasePricePerSqm)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                       </div>
                     )}
                     {/* Row 6: LAT, LONG, LAT/LONG */}
@@ -3927,6 +3930,26 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       TELEGRAM POST
                     </label>
                   )}
+                  {permissions.ai_extract !== false && editSummary.trim() !== lastExtractedText.trim() && (
+                    <Button
+                      onClick={handleExtractData}
+                      disabled={loading}
+                      variant="default"
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Extracting...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          Extract & Review
+                        </>
+                      )}
+                    </Button>
+                  )}
                   <Button
                     onClick={() => { searchResult ? handleUpdateExisting() : handleSaveNew(); }}
                     disabled={updating || adding}
@@ -4056,15 +4079,15 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 {/* Row 2: LOT AREA, FLOOR AREA, PRICE */}
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
-                  <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                  <Input value={formatNumber(editLotArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
-                  <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                  <Input value={formatNumber(editFloorArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Price</Label>
-                  <Input value={formatNumber(editPrice || editLeasePrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                  <Input value={formatNumber(editPrice || editLeasePrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                 </div>
 
                 {/* Row 3 */}
@@ -4236,29 +4259,29 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   {/* Row 4: LOT AREA, SALE PRICE, SALE/SQM */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Lot Area</Label>
-                    <Input value={formatNumber(editLotArea)} onChange={(e) => handleInputChange(setEditLotArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(editLotArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale Price</Label>
-                    <Input value={formatNumber(editPrice)} onChange={(e) => handleInputChange(setEditPrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(editPrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Sale/Sqm</Label>
-                    <Input value={formatNumber(salePricePerSqm)} onChange={(e) => handleInputChange(setSalePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(salePricePerSqm)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
 
                   {/* Row 5: FLOOR AREA, LEASE PRICE, LEASE/SQM */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Floor Area</Label>
-                    <Input value={formatNumber(editFloorArea)} onChange={(e) => handleInputChange(setEditFloorArea)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(editFloorArea)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease Price</Label>
-                    <Input value={formatNumber(editLeasePrice)} onChange={(e) => handleInputChange(setEditLeasePrice)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(editLeasePrice)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Lease/Sqm</Label>
-                    <Input value={formatNumber(leasePricePerSqm)} onChange={(e) => handleInputChange(setLeasePricePerSqm)(parseFormattedNumber(e.target.value))} className="h-8 text-sm" />
+                    <Input value={formatNumber(leasePricePerSqm)} disabled className="h-8 text-sm bg-muted/60 cursor-not-allowed select-none disabled:opacity-100 disabled:text-foreground" />
                   </div>
 
                   {/* Row 6: LAT, LONG, LAT LONG */}
@@ -4358,6 +4381,25 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   <Send className="h-3.5 w-3.5 text-blue-600" />
                   TELEGRAM POST
                 </label>
+              )}
+              {permissions.ai_extract !== false && editSummary.trim() !== lastExtractedText.trim() && (
+                <Button
+                  onClick={handleExtractData}
+                  disabled={loading}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Extracting...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Extract & Review
+                    </>
+                  )}
+                </Button>
               )}
               <Button
                 onClick={() => { searchResult ? handleUpdateExisting() : handleSaveNew(); }}
