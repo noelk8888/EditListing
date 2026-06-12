@@ -146,7 +146,9 @@ export default function TelegramGroupsPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Telegram Pro Hub for @LuxeRealtyListingUpdateBot</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Telegram Pro Hub for <span className="text-[#d16b1c]">@LuxeRealtyListingUpdateBot</span>
+          </h1>
           <p className="text-muted-foreground italic">Manage your 135+ notification channels and smart keywords</p>
         </div>
         <div className="flex items-center gap-2">

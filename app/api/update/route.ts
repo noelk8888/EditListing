@@ -682,7 +682,7 @@ export async function POST(request: Request) {
     if (send_telegram) {
       const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
 
-      await sendTelegramNotification(mainWithId, groups);
+      await sendTelegramNotification(mainWithId, groups, photo_link);
       if (telegram_post_message) {
         await sendTelegramNotification(telegram_post_message, groups);
       }

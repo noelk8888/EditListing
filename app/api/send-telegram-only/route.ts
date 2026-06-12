@@ -4,7 +4,7 @@ import { sendTelegramNotification } from "@/lib/telegram";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { message, groups, summary, geoId } = body;
+    const { message, groups, summary, geoId, photoLink } = body;
 
     if (!message && !summary) {
       return NextResponse.json({ error: "Message or summary is required" }, { status: 400 });
@@ -14,6 +14,7 @@ export async function POST(request: Request) {
     console.log("Message:", message);
     console.log("Groups:", groups);
     if (geoId) console.log("GeoId:", geoId);
+    if (photoLink) console.log("PhotoLink:", photoLink);
 
     // Send the Telegram notification
     const selectedGroups: string[] | undefined = Array.isArray(groups) ? groups : undefined;
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     // 1. Send the listing summary if provided
     if (summary && geoId) {
       const mainWithId = summary.startsWith(geoId) ? summary : `${geoId}\n${summary}`;
-      await sendTelegramNotification(mainWithId, selectedGroups);
+      await sendTelegramNotification(mainWithId, selectedGroups, photoLink);
     }
 
     // 2. Send the custom message if provided

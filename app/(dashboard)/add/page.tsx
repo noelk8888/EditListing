@@ -592,6 +592,7 @@ export default function AddListingPage() {
       setSalePricePerSqm(prev => data.salePricePerSqm || prev);
       setLeasePricePerSqm(prev => data.leasePricePerSqm || prev);
       setSocmedLink(prev => data.fbLink || data.socmedLink || prev);
+      overrideIfFound(data.photos, setPhotosLink, photosLink);
       setClientVersion(prev => data.client_version || prev);
 
       // Preserve Location Verified status and coordinates if already verified
@@ -1319,6 +1320,7 @@ export default function AddListingPage() {
       setComments(searchResult.comments || "");
       setSocmedLink(searchResult.fb_link || "");
       setLocationVerified(!!searchResult.map_verified);
+      setPhotosLink(searchResult.photo_link || "");
       setEditTargetTab((sourceTab || "Sheet1") as "Sheet1" | "Sheet2");
     }
   }, [searchResult, sourceTab]);
@@ -1563,7 +1565,7 @@ export default function AddListingPage() {
         return result === "Listing Ownership" ? "" : result;
       };
 
-      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 ${today}*` : `*${today}*`);
+      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 - ${today}*` : `*LISTING UPDATE - ${today}*`);
       setTelegramLine2(
         editStatus === "AVAILABLE" ? "UPDATED FORMAT" :
         editStatus === "SOLD" ? "SOLD" :
@@ -1616,6 +1618,7 @@ export default function AddListingPage() {
           groups: telegramGroups.length > 0 ? telegramGroups : undefined,
           summary: editSummary,
           geoId: searchResult?.id || newGeoId,
+          photoLink: photosLink || null,
         }),
       });
 
