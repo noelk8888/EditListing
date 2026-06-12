@@ -896,7 +896,16 @@ export async function findRowByColAText(
   // Build significant lines from preview text (same logic as Supabase text search)
   const lines = previewText.split('\n').filter(l => l.trim());
   const significantLines = lines
-    .filter(l => l.length > 10 && !/^\*?(FOR SALE|FOR RENT|FOR LEASE)\*?$/i.test(l.trim()))
+    .filter(l => {
+      const trimmed = l.trim();
+      return (
+        l.length > 10 &&
+        !/^\*?(FOR SALE|FOR RENT|FOR LEASE|SOLD|OFF THE MARKET|LEASED OUT|AVAILABLE)/i.test(trimmed) &&
+        !/^\*?DUPLICATE Row/i.test(trimmed) &&
+        !/^(photos|photo|photos\s+link|google\s+photos?)\s*:/i.test(trimmed) &&
+        !/^\(photos\s+to\s+follow\)$/i.test(trimmed)
+      );
+    })
     .map(l => l.trim().toLowerCase());
 
   if (significantLines.length < 3) {

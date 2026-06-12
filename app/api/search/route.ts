@@ -614,9 +614,18 @@ export async function POST(request: Request) {
     if (previewText) {
       const lines = previewText.split('\n').filter((line: string) => line.trim());
 
-      // Helper to check if line is significant
-      const isSignificant = (line: string) =>
-        line && line.length > 10 && !line.match(/^\*?(FOR SALE|FOR RENT|FOR LEASE)\*?$/i);
+      // Helper to check if line is significant (ignores status headers, duplicate markers, and photo lines)
+      const isSignificant = (line: string) => {
+        const trimmed = line.trim();
+        return (
+          line &&
+          line.length > 10 &&
+          !trimmed.match(/^\*?(FOR SALE|FOR RENT|FOR LEASE|SOLD|OFF THE MARKET|LEASED OUT|AVAILABLE)/i) &&
+          !trimmed.match(/^\*?DUPLICATE Row/i) &&
+          !trimmed.match(/^(photos|photo|photos\s+link|google\s+photos?)\s*:/i) &&
+          !trimmed.match(/^\(photos\s+to\s+follow\)$/i)
+        );
+      };
 
       // Get ALL significant lines for matching
       const significantLines = lines.filter(isSignificant).map((l: string) => l.trim());
