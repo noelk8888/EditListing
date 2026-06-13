@@ -1585,7 +1585,7 @@ export default function AddListingPage() {
         editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
         editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
-      setTelegramLine3Notes("");
+      setTelegramLine3Notes(comments || "");
       setTelegramLine3(ownerBroker);
       setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
@@ -1831,7 +1831,7 @@ export default function AddListingPage() {
         editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
         editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
-      setTelegramLine3Notes("");
+      setTelegramLine3Notes(comments || "");
       setTelegramLine3(ownerBroker);
       setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
