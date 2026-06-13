@@ -103,7 +103,7 @@ function getMajorGroup(groupName: string): number {
   if (gName === "UPDATE LISTING" || gName === "TEST") {
     return 1;
   }
-  if (gName === "DIRECT" || gName === "RESIDENTIAL" || gName === "COM 'L / IND'L") {
+  if (gName === "DIRECT" || gName === "RESIDENTIAL" || gName === "COM 'L / IND'L" || gName === "AGRICULTURAL") {
     return 2;
   }
   return 3;
