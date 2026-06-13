@@ -19,15 +19,16 @@ export async function POST(request: Request) {
     // Send the Telegram notification
     const selectedGroups: string[] | undefined = Array.isArray(groups) ? groups : undefined;
 
+    let sentMessageIds: Record<string, number> | undefined = undefined;
     // 1. Send the listing summary if provided
     if (summary && geoId) {
       const mainWithId = summary.startsWith(geoId) ? summary : `${geoId}\n${summary}`;
-      await sendTelegramNotification(mainWithId, selectedGroups, photoLink);
+      sentMessageIds = await sendTelegramNotification(mainWithId, selectedGroups, photoLink);
     }
 
     // 2. Send the custom message if provided
     if (message) {
-      await sendTelegramNotification(message, selectedGroups);
+      await sendTelegramNotification(message, selectedGroups, null, sentMessageIds);
     }
 
     return NextResponse.json({ success: true });

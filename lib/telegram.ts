@@ -93,12 +93,13 @@ async function getFirstGoogleDriveImageUrl(photoLink: string): Promise<string | 
 export async function sendTelegramNotification(
   message: string,
   groups?: string[],  // e.g. ["RESIDENTIAL", "COMMERCIAL"]
-  photoLink?: string | null
-): Promise<void> {
+  photoLink?: string | null,
+  replyToMessageIds?: Record<string, number> | null
+): Promise<Record<string, number>> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
     console.warn("⚠️ Telegram notification skipped: TELEGRAM_BOT_TOKEN is missing.");
-    return;
+    return {};
   }
 
   let chatIds: string[] = [];
@@ -136,7 +137,7 @@ export async function sendTelegramNotification(
 
   if (chatIds.length === 0) {
     console.warn("⚠️ Telegram notification skipped: No chat IDs resolved (check TELEGRAM_CHAT_ID and category groups).");
-    return;
+    return {};
   }
 
   console.log(`Sending Telegram notification to ${chatIds.length} chat(s):`, chatIds);
@@ -150,7 +151,10 @@ export async function sendTelegramNotification(
     resolvedPhotoUrl = await getFirstGoogleDriveImageUrl(photoLink);
   }
 
+  const sentMessageIds: Record<string, number> = {};
+
   for (const chatId of chatIds) {
+    let firstMessageId: number | undefined = undefined;
     // 1. Send the photo first if available
     if (resolvedPhotoUrl) {
       try {
@@ -165,6 +169,11 @@ export async function sendTelegramNotification(
           console.error(`Telegram sendPhoto error for chat ${chatId}:`, err);
         } else {
           console.log(`[Telegram Photo API] Successfully sent photo to chat ${chatId}`);
+          const data = await res.json();
+          const msgId = data.result?.message_id;
+          if (msgId) {
+            firstMessageId = msgId;
+          }
         }
       } catch (error) {
         console.error(`Telegram sendPhoto failed for chat ${chatId}:`, error);
@@ -173,24 +182,41 @@ export async function sendTelegramNotification(
 
     // 2. Send the text message second
     try {
+      const payload: any = {
+        chat_id: chatId,
+        text: truncated,
+        disable_web_page_preview: true,
+      };
+
+      if (replyToMessageIds && replyToMessageIds[chatId]) {
+        payload.reply_to_message_id = replyToMessageIds[chatId];
+      }
+
       const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text: truncated,
-          disable_web_page_preview: true,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const err = await res.text();
         console.error(`Telegram sendMessage error for chat ${chatId}:`, err);
       } else {
         console.log(`[Telegram Message API] Successfully sent text message to chat ${chatId}`);
+        const data = await res.json();
+        const msgId = data.result?.message_id;
+        if (!firstMessageId && msgId) {
+          firstMessageId = msgId;
+        }
       }
     } catch (error) {
       console.error(`Telegram sendMessage error for chat ${chatId}:`, error);
     }
+
+    if (firstMessageId) {
+      sentMessageIds[chatId] = firstMessageId;
+    }
   }
+
+  return sentMessageIds;
 }
 
