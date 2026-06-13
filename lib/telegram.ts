@@ -243,61 +243,96 @@ export async function sendTelegramNotification(
     const truncated = textToSend.length > 4000 ? textToSend.slice(0, 4000) + "\n...[truncated]" : textToSend;
 
     let firstMessageId: number | undefined = undefined;
-    // 1. Send the photo first if available
-    if (resolvedPhotoUrl) {
+    let photoSentCombined = false;
+
+    // 1. Check if we can combine photo and text as caption (only for TEXT 1 string messages)
+    const isText1 = typeof message === "string";
+    if (isText1 && resolvedPhotoUrl && truncated.length <= 1024) {
       try {
-        console.log(`[Telegram Photo API] Sending photo ${resolvedPhotoUrl} to chat ${chatId}`);
+        console.log(`[Telegram Photo Caption API] Sending combined photo and caption to chat ${chatId}`);
         const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_id: chatId, photo: resolvedPhotoUrl }),
+          body: JSON.stringify({
+            chat_id: chatId,
+            photo: resolvedPhotoUrl,
+            caption: truncated,
+          }),
         });
         if (!res.ok) {
           const err = await res.text();
-          console.error(`Telegram sendPhoto error for chat ${chatId}:`, err);
+          console.error(`Telegram sendPhoto with caption error for chat ${chatId}:`, err);
         } else {
-          console.log(`[Telegram Photo API] Successfully sent photo to chat ${chatId}`);
+          console.log(`[Telegram Photo Caption API] Successfully sent combined photo and caption to chat ${chatId}`);
           const data = await res.json();
           const msgId = data.result?.message_id;
           if (msgId) {
             firstMessageId = msgId;
+            photoSentCombined = true;
           }
         }
       } catch (error) {
-        console.error(`Telegram sendPhoto failed for chat ${chatId}:`, error);
+        console.error(`Telegram sendPhoto combined failed for chat ${chatId}:`, error);
       }
     }
 
-    // 2. Send the text message second
-    try {
-      const payload: any = {
-        chat_id: chatId,
-        text: truncated,
-        disable_web_page_preview: true,
-      };
-
-      if (replyToMessageIds && replyToMessageIds[chatId]) {
-        payload.reply_to_message_id = replyToMessageIds[chatId];
-      }
-
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.text();
-        console.error(`Telegram sendMessage error for chat ${chatId}:`, err);
-      } else {
-        console.log(`[Telegram Message API] Successfully sent text message to chat ${chatId}`);
-        const data = await res.json();
-        const msgId = data.result?.message_id;
-        if (!firstMessageId && msgId) {
-          firstMessageId = msgId;
+    // 2. If not combined, send photo first (no caption) and details message second (current setup)
+    if (!photoSentCombined) {
+      if (resolvedPhotoUrl) {
+        try {
+          console.log(`[Telegram Photo API] Sending photo ${resolvedPhotoUrl} to chat ${chatId}`);
+          const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, photo: resolvedPhotoUrl }),
+          });
+          if (!res.ok) {
+            const err = await res.text();
+            console.error(`Telegram sendPhoto error for chat ${chatId}:`, err);
+          } else {
+            console.log(`[Telegram Photo API] Successfully sent photo to chat ${chatId}`);
+            const data = await res.json();
+            const msgId = data.result?.message_id;
+            if (msgId) {
+              firstMessageId = msgId;
+            }
+          }
+        } catch (error) {
+          console.error(`Telegram sendPhoto failed for chat ${chatId}:`, error);
         }
       }
-    } catch (error) {
-      console.error(`Telegram sendMessage error for chat ${chatId}:`, error);
+
+      // Send the text message second
+      try {
+        const payload: any = {
+          chat_id: chatId,
+          text: truncated,
+          disable_web_page_preview: true,
+        };
+
+        if (replyToMessageIds && replyToMessageIds[chatId]) {
+          payload.reply_to_message_id = replyToMessageIds[chatId];
+        }
+
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          const err = await res.text();
+          console.error(`Telegram sendMessage error for chat ${chatId}:`, err);
+        } else {
+          console.log(`[Telegram Message API] Successfully sent text message to chat ${chatId}`);
+          const data = await res.json();
+          const msgId = data.result?.message_id;
+          if (!firstMessageId && msgId) {
+            firstMessageId = msgId;
+          }
+        }
+      } catch (error) {
+        console.error(`Telegram sendMessage error for chat ${chatId}:`, error);
+      }
     }
 
     if (firstMessageId) {
