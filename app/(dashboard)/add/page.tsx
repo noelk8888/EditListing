@@ -1612,14 +1612,15 @@ export default function AddListingPage() {
     setIsSendingOnly(true);
     setError(null);
     try {
-      const lines = [
+      const headerLines = [
         telegramLine1,
         telegramLine2,
-        telegramLine3Notes,
         telegramLine3,
         telegramLine4,
       ].filter(Boolean);
-      const msg = lines.join("\n");
+      const msg = telegramLine3Notes
+        ? `${headerLines.join("\n")}\n\n${telegramLine3Notes}`
+        : headerLines.join("\n");
       const response = await fetch("/api/send-telegram-only", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1648,14 +1649,15 @@ export default function AddListingPage() {
 
   const handleTelegramConfirm = () => {
     setShowTelegramModal(false);
-    const lines = [
+    const headerLines = [
       telegramLine1,
       telegramLine2, // status — skipped if empty
-      telegramLine3Notes, // notes — skipped if empty
       telegramLine3, // broker
       telegramLine4, // ownership
     ].filter(Boolean);
-    const msg = lines.join("\n");
+    const msg = telegramLine3Notes
+      ? `${headerLines.join("\n")}\n\n${telegramLine3Notes}`
+      : headerLines.join("\n");
     if (searchResult) {
       confirmUpdate(msg, pendingUpdateTab || undefined);
     } else {
@@ -4609,21 +4611,21 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </select>
                   </div>
                   <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Line 3 (Notes — optional)</Label>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 3 (Broker / Owner)</Label>
+                    <Input value={telegramLine3} onChange={e => setTelegramLine3(e.target.value)} className="text-sm" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 4 (Listing Ownership)</Label>
+                    <Input value={telegramLine4} onChange={e => setTelegramLine4(e.target.value)} className="text-sm" placeholder="Listing ownership (optional)" />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground mb-1 block">Line 5 (Notes — optional)</Label>
                     <Textarea
                       value={telegramLine3Notes}
                       onChange={e => setTelegramLine3Notes(e.target.value)}
                       className="min-h-16 text-sm"
                       placeholder="Add any notes here... (leave blank to skip)"
                     />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Line 4 (Broker / Owner)</Label>
-                    <Input value={telegramLine3} onChange={e => setTelegramLine3(e.target.value)} className="text-sm" />
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground mb-1 block">Line 5 (Listing Ownership)</Label>
-                    <Input value={telegramLine4} onChange={e => setTelegramLine4(e.target.value)} className="text-sm" placeholder="Listing ownership (optional)" />
                   </div>
                 </div>
 
