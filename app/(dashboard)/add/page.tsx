@@ -1612,20 +1612,18 @@ export default function AddListingPage() {
     setIsSendingOnly(true);
     setError(null);
     try {
-      const headerLines = [
-        telegramLine1,
-        telegramLine2,
-        telegramLine3,
-        telegramLine4,
-      ].filter(Boolean);
-      const msg = telegramLine3Notes
-        ? `${headerLines.join("\n")}\n\n${telegramLine3Notes}`
-        : headerLines.join("\n");
+      const msgObj = {
+        line1: telegramLine1,
+        line2: telegramLine2,
+        line3: telegramLine3,
+        line4: telegramLine4,
+        notes: telegramLine3Notes,
+      };
       const response = await fetch("/api/send-telegram-only", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: msg,
+          message: msgObj,
           groups: telegramGroups.length > 0 ? telegramGroups : undefined,
           summary: editSummary,
           geoId: searchResult?.id || newGeoId,
@@ -1649,24 +1647,22 @@ export default function AddListingPage() {
 
   const handleTelegramConfirm = () => {
     setShowTelegramModal(false);
-    const headerLines = [
-      telegramLine1,
-      telegramLine2, // status — skipped if empty
-      telegramLine3, // broker
-      telegramLine4, // ownership
-    ].filter(Boolean);
-    const msg = telegramLine3Notes
-      ? `${headerLines.join("\n")}\n\n${telegramLine3Notes}`
-      : headerLines.join("\n");
+    const msgObj = {
+      line1: telegramLine1,
+      line2: telegramLine2,
+      line3: telegramLine3,
+      line4: telegramLine4,
+      notes: telegramLine3Notes,
+    };
     if (searchResult) {
-      confirmUpdate(msg, pendingUpdateTab || undefined);
+      confirmUpdate(msgObj, pendingUpdateTab || undefined);
     } else {
-      confirmAddNew(msg);
+      confirmAddNew(msgObj);
     }
   };
 
   // Actually perform the update after confirmation
-  const confirmUpdate = async (telegramMsg?: string, overrideTargetTab?: "Sheet1" | "Sheet2") => {
+  const confirmUpdate = async (telegramMsg?: string | any, overrideTargetTab?: "Sheet1" | "Sheet2") => {
     if (!searchResult) return;
 
     setUpdating(true);
@@ -1856,7 +1852,7 @@ export default function AddListingPage() {
   };
 
   // Add the new listing
-  const confirmAddNew = async (telegramMsg?: string, overrideTargetTab?: "Sheet1" | "Sheet2") => {
+  const confirmAddNew = async (telegramMsg?: string | any, overrideTargetTab?: "Sheet1" | "Sheet2") => {
     setAdding(true);
     setError(null);
     

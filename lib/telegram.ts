@@ -1,4 +1,4 @@
-import { fetchTelegramChatIds } from "./supabase";
+import { fetchTelegramChatIds, supabase } from "./supabase";
 import { google } from "googleapis";
 import { getAuth } from "./google-sheets";
 
@@ -90,8 +90,53 @@ async function getFirstGoogleDriveImageUrl(photoLink: string): Promise<string | 
   return null;
 }
 
+export interface TelegramMessageObj {
+  line1: string;
+  line2: string;
+  line3: string;
+  line4: string;
+  notes: string;
+}
+
+function getMajorGroup(groupName: string): number {
+  const gName = groupName.trim();
+  if (gName === "UPDATE LISTING" || gName === "TEST") {
+    return 1;
+  }
+  if (gName === "DIRECT" || gName === "RESIDENTIAL" || gName === "COM 'L / IND'L") {
+    return 2;
+  }
+  return 3;
+}
+
+function formatTelegramMessageObj(msg: TelegramMessageObj, majorGroup: number): string | null {
+  if (majorGroup === 3) {
+    return null;
+  }
+  if (majorGroup === 1) {
+    const headerLines = [
+      msg.line1,
+      msg.line2,
+      msg.line3,
+      msg.line4,
+    ].filter(Boolean);
+    return headerLines.join("\n");
+  }
+  if (majorGroup === 2) {
+    const headerLines = [
+      msg.line3,
+      msg.line4,
+    ].filter(Boolean);
+    const trimmedNotes = (msg.notes || "").trim();
+    return trimmedNotes
+      ? `${headerLines.join("\n")}\n\n${trimmedNotes}`
+      : headerLines.join("\n");
+  }
+  return null;
+}
+
 export async function sendTelegramNotification(
-  message: string,
+  message: string | TelegramMessageObj,
   groups?: string[],  // e.g. ["RESIDENTIAL", "COMMERCIAL"]
   photoLink?: string | null,
   replyToMessageIds?: Record<string, number> | null
@@ -102,10 +147,11 @@ export async function sendTelegramNotification(
     return {};
   }
 
+  const chatIdToGroup: Record<string, string> = {};
   let chatIds: string[] = [];
 
   if (groups && groups.length > 0) {
-    console.log("Resolving Telegram groups:", groups);
+    console.log("Resolving Telegram groups for dynamic routing:", groups);
     
     const dbLookupGroups: string[] = [];
 
@@ -114,16 +160,38 @@ export async function sendTelegramNotification(
       const envKey = GROUP_ENV_MAP[g];
       const id = envKey ? process.env[envKey] : undefined;
       if (id) {
-        chatIds.push(id.trim());
+        const cid = id.trim();
+        chatIds.push(cid);
+        chatIdToGroup[cid] = g;
       } else {
         dbLookupGroups.push(g);
       }
     }
 
-    // 2. Fetch remaining from Supabase
+    // 2. Fetch remaining from Supabase to preserve group name mappings
     if (dbLookupGroups.length > 0) {
-      const dbIds = await fetchTelegramChatIds(dbLookupGroups);
-      chatIds = Array.from(new Set([...chatIds, ...dbIds]));
+      try {
+        const { data, error } = await supabase
+          .from('luxe_telegram_groups')
+          .select('name, chat_id')
+          .in('name', dbLookupGroups)
+          .not('chat_id', 'is', null)
+          .not('chat_id', 'eq', '');
+        
+        if (error) {
+          console.error("Error fetching chat IDs from Supabase:", error);
+        } else if (data) {
+          for (const row of data) {
+            if (row.chat_id) {
+              const cid = row.chat_id.trim();
+              chatIds.push(cid);
+              chatIdToGroup[cid] = row.name;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Supabase query exception:", err);
+      }
     }
   }
 
@@ -131,19 +199,21 @@ export async function sendTelegramNotification(
   if (!groups || groups.length === 0) {
     const updateListingId = process.env.TELEGRAM_CHAT_UPDATE_LISTING;
     if (updateListingId) {
-      chatIds = [updateListingId.trim()];
+      const cid = updateListingId.trim();
+      chatIds = [cid];
+      chatIdToGroup[cid] = "UPDATE LISTING";
     }
   }
 
   if (chatIds.length === 0) {
-    console.warn("⚠️ Telegram notification skipped: No chat IDs resolved (check TELEGRAM_CHAT_ID and category groups).");
+    console.warn("⚠️ Telegram notification skipped: No chat IDs resolved.");
     return {};
   }
 
-  console.log(`Sending Telegram notification to ${chatIds.length} chat(s):`, chatIds);
+  // Deduplicate chat IDs
+  chatIds = Array.from(new Set(chatIds));
 
-  // Telegram max message length is 4096 chars
-  const truncated = message.length > 4000 ? message.slice(0, 4000) + "\n...[truncated]" : message;
+  console.log(`Sending Telegram notification to ${chatIds.length} chat(s):`, chatIds);
 
   // Resolve photo URL first if photoLink is provided
   let resolvedPhotoUrl: string | null = null;
@@ -154,6 +224,24 @@ export async function sendTelegramNotification(
   const sentMessageIds: Record<string, number> = {};
 
   for (const chatId of chatIds) {
+    // Determine the text to send for this specific chat
+    let textToSend: string | null = null;
+    if (typeof message === "string") {
+      textToSend = message;
+    } else if (message && typeof message === "object") {
+      const groupName = chatIdToGroup[chatId] || "";
+      const majorGroup = getMajorGroup(groupName);
+      textToSend = formatTelegramMessageObj(message, majorGroup);
+    }
+
+    if (textToSend === null) {
+      console.log(`[Telegram API] Skipping TEXT 2 (metadata block) for chat ${chatId} (Group category 3)`);
+      continue;
+    }
+
+    // Telegram max message length is 4096 chars
+    const truncated = textToSend.length > 4000 ? textToSend.slice(0, 4000) + "\n...[truncated]" : textToSend;
+
     let firstMessageId: number | undefined = undefined;
     // 1. Send the photo first if available
     if (resolvedPhotoUrl) {
