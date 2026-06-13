@@ -1559,13 +1559,23 @@ export default function AddListingPage() {
     const today = `${month} ${day}, ${year}`;
 
     if (telegramPostEnabled) {
-      const today = new Date(getPHLDate()).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      let updateDateStr = "";
+      if (dateUpdated) {
+        const d = new Date(dateUpdated + "T00:00:00");
+        if (!isNaN(d.getTime())) {
+          updateDateStr = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        }
+      }
+      if (!updateDateStr) {
+        updateDateStr = new Date(getPHLDate()).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      }
+
       const formatOwnership = (val: string) => {
         const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
         return result === "Listing Ownership" ? "" : result;
       };
 
-      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 - ${today}*` : `*LISTING UPDATE - ${today}*`);
+      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 - ${updateDateStr}*` : `*LISTING UPDATE - ${updateDateStr}*`);
       setTelegramLine2(
         editStatus === "AVAILABLE" ? "UPDATED FORMAT" :
         editStatus === "SOLD" ? "SOLD" :
