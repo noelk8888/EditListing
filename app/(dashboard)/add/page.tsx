@@ -4543,7 +4543,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
         const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COM 'L / IND'L", "AGRICULTURAL", "TEST"];
         const specificGroups = [
           ...allTelegramGroups.filter(g => !META_GROUPS.includes(g.name)),
-          ...(!allTelegramGroups.some(g => g.name === "BUSINESS FOR SALE") ? [{
+          ...(!allTelegramGroups.some(g => g.name === "BUSINESS FOR SALE" || g.name === "BUSINESS FOR SALE x Luxe Realty") ? [{
             id: "legacy-business-for-sale",
             name: "BUSINESS FOR SALE",
             keywords: [],
