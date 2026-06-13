@@ -4540,7 +4540,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
       )}
 
       {showTelegramModal && (() => {
-        const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COM 'L / IND'L", "BUSINESS FOR SALE", "TEST"];
+        const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COM 'L / IND'L", "AGRICULTURAL", "TEST"];
         const specificGroups = allTelegramGroups.filter(g => !META_GROUPS.includes(g.name));
         
         const toggleGroup = (name: string) =>
