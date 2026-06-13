@@ -4541,7 +4541,17 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
 
       {showTelegramModal && (() => {
         const META_GROUPS = ["UPDATE LISTING", "DIRECT", "RESIDENTIAL", "COM 'L / IND'L", "AGRICULTURAL", "TEST"];
-        const specificGroups = allTelegramGroups.filter(g => !META_GROUPS.includes(g.name));
+        const specificGroups = [
+          ...allTelegramGroups.filter(g => !META_GROUPS.includes(g.name)),
+          ...(!allTelegramGroups.some(g => g.name === "BUSINESS FOR SALE") ? [{
+            id: "legacy-business-for-sale",
+            name: "BUSINESS FOR SALE",
+            keywords: [],
+            invite_link: null,
+            chat_id: "",
+            is_active: true
+          }] : [])
+        ];
         
         const toggleGroup = (name: string) =>
           setTelegramGroups(prev => prev.includes(name) ? prev.filter(x => x !== name) : [...prev, name]);
