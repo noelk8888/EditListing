@@ -1,6 +1,9 @@
 import { fetchTelegramChatIds, supabase } from "./supabase";
 import { google } from "googleapis";
 import { getAuth } from "./google-sheets";
+import sharp from "sharp";
+import path from "path";
+import fs from "fs";
 
 // Map group label → env var name
 const GROUP_ENV_MAP: Record<string, string> = {
@@ -88,6 +91,161 @@ async function getFirstGoogleDriveImageUrl(photoLink: string): Promise<string | 
   }
   
   return null;
+}
+
+/**
+ * Fetches an image from a URL and composites the LUXE Realty logo as a
+ * semi-transparent watermark on the bottom-right corner.
+ * Returns a JPEG buffer, or null if anything fails.
+ */
+async function applyLuxeWatermark(imageUrl: string): Promise<Buffer | null> {
+  try {
+    // Fetch the source image
+    const response = await fetch(imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
+    });
+    if (!response.ok) {
+      console.warn(`[Watermark] Failed to fetch image: ${response.status}`);
+      return null;
+    }
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+
+    // Get source image metadata
+    const metadata = await sharp(imageBuffer).metadata();
+    const imgW = metadata.width || 1200;
+    const imgH = metadata.height || 800;
+
+    // Load LUXE logo from public directory
+    const logoPath = path.join(process.cwd(), "public", "luxe-logo.png");
+    if (!fs.existsSync(logoPath)) {
+      console.warn("[Watermark] LUXE logo not found, sending without watermark.");
+      return null;
+    }
+
+    // Resize logo to ~15% of image width (min 80px, max 195px) — 25% smaller than original 20%
+    const logoWidth = Math.min(195, Math.max(80, Math.round(imgW * 0.15)));
+
+    // Make the logo background transparent by:
+    // 1. Resize to target width
+    // 2. Apply 80% opacity (multiply alpha channel)
+    const watermarkBuffer = await sharp(logoPath)
+      .resize(logoWidth)
+      .ensureAlpha()
+      .composite([{
+        // Blend the logo onto a transparent base to control opacity
+        input: {
+          create: {
+            width: logoWidth,
+            height: Math.round(logoWidth), // logos are square-ish
+            channels: 4 as const,
+            background: { r: 0, g: 0, b: 0, alpha: 0 }
+          }
+        },
+        blend: "dest-in"
+      }])
+      .toBuffer();
+
+    // Simpler approach: just resize and reduce opacity via modulate
+    const logoResized = await sharp(logoPath)
+      .resize(logoWidth)
+      .ensureAlpha()
+      .toBuffer();
+
+    // Apply opacity by mixing with transparent layer
+    const logoMeta = await sharp(logoResized).metadata();
+    const logoH = logoMeta.height || logoWidth;
+
+    // Composite watermark onto source image at top-right with padding
+    const padding = Math.round(imgW * 0.025); // 2.5% padding
+    const left = imgW - logoWidth - padding;
+    const top = padding;
+
+    const watermarked = await sharp(imageBuffer)
+      .composite([{
+        input: logoResized,
+        left: Math.max(0, left),
+        top: Math.max(0, top),
+        blend: "over"
+      }])
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    console.log(`[Watermark] Applied LUXE logo watermark (${logoWidth}px wide) to ${imgW}×${imgH} image`);
+    return watermarked;
+  } catch (err) {
+    console.error("[Watermark] Error applying watermark:", err);
+    return null;
+  }
+}
+
+/**
+ * Sends a photo buffer to Telegram using multipart/form-data upload.
+ * Falls back to URL-based send if buffer is null.
+ */
+async function sendTelegramPhoto(
+  token: string,
+  chatId: string,
+  photoBuffer: Buffer | null,
+  fallbackUrl: string,
+  caption?: string
+): Promise<number | undefined> {
+  // Try buffer upload first (watermarked)
+  if (photoBuffer) {
+    try {
+      const formData = new FormData();
+      formData.append("chat_id", chatId);
+      formData.append(
+        "photo",
+        new Blob([photoBuffer], { type: "image/jpeg" }),
+        "listing.jpg"
+      );
+      if (caption) {
+        formData.append("caption", caption);
+      }
+
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        console.log(`[Telegram Photo Upload] Successfully sent watermarked photo to chat ${chatId}`);
+        return data.result?.message_id;
+      } else {
+        const err = await res.text();
+        console.error(`[Telegram Photo Upload] Buffer upload failed for chat ${chatId}:`, err);
+      }
+    } catch (err) {
+      console.error(`[Telegram Photo Upload] Exception for chat ${chatId}:`, err);
+    }
+  }
+
+  // Fallback: send by URL (no watermark)
+  console.log(`[Telegram Photo URL] Falling back to URL send for chat ${chatId}`);
+  try {
+    const payload: Record<string, unknown> = { chat_id: chatId, photo: fallbackUrl };
+    if (caption) payload.caption = caption;
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.result?.message_id;
+    } else {
+      const err = await res.text();
+      console.error(`[Telegram Photo URL] Error for chat ${chatId}:`, err);
+    }
+  } catch (err) {
+    console.error(`[Telegram Photo URL] Exception for chat ${chatId}:`, err);
+  }
+
+  return undefined;
 }
 
 export interface TelegramMessageObj {
@@ -221,6 +379,13 @@ export async function sendTelegramNotification(
     resolvedPhotoUrl = await getFirstGoogleDriveImageUrl(photoLink);
   }
 
+  // Apply LUXE watermark to the resolved photo (done once, reused for all chats)
+  let watermarkedPhotoBuffer: Buffer | null = null;
+  if (resolvedPhotoUrl) {
+    console.log("[Watermark] Applying LUXE logo watermark to photo...");
+    watermarkedPhotoBuffer = await applyLuxeWatermark(resolvedPhotoUrl);
+  }
+
   const sentMessageIds: Record<string, number> = {};
 
   for (const chatId of chatIds) {
@@ -248,57 +413,21 @@ export async function sendTelegramNotification(
     // 1. Check if we can combine photo and text as caption (only for TEXT 1 string messages)
     const isText1 = typeof message === "string";
     if (isText1 && resolvedPhotoUrl && truncated.length <= 1024) {
-      try {
-        console.log(`[Telegram Photo Caption API] Sending combined photo and caption to chat ${chatId}`);
-        const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            photo: resolvedPhotoUrl,
-            caption: truncated,
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.text();
-          console.error(`Telegram sendPhoto with caption error for chat ${chatId}:`, err);
-        } else {
-          console.log(`[Telegram Photo Caption API] Successfully sent combined photo and caption to chat ${chatId}`);
-          const data = await res.json();
-          const msgId = data.result?.message_id;
-          if (msgId) {
-            firstMessageId = msgId;
-            photoSentCombined = true;
-          }
-        }
-      } catch (error) {
-        console.error(`Telegram sendPhoto combined failed for chat ${chatId}:`, error);
+      console.log(`[Telegram Photo Caption] Sending watermarked photo with caption to chat ${chatId}`);
+      const msgId = await sendTelegramPhoto(token, chatId, watermarkedPhotoBuffer, resolvedPhotoUrl, truncated);
+      if (msgId) {
+        firstMessageId = msgId;
+        photoSentCombined = true;
       }
     }
 
-    // 2. If not combined, send photo first (no caption) and details message second (current setup)
+    // 2. If not combined, send photo first then text message
     if (!photoSentCombined) {
       if (resolvedPhotoUrl) {
-        try {
-          console.log(`[Telegram Photo API] Sending photo ${resolvedPhotoUrl} to chat ${chatId}`);
-          const res = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: chatId, photo: resolvedPhotoUrl }),
-          });
-          if (!res.ok) {
-            const err = await res.text();
-            console.error(`Telegram sendPhoto error for chat ${chatId}:`, err);
-          } else {
-            console.log(`[Telegram Photo API] Successfully sent photo to chat ${chatId}`);
-            const data = await res.json();
-            const msgId = data.result?.message_id;
-            if (msgId) {
-              firstMessageId = msgId;
-            }
-          }
-        } catch (error) {
-          console.error(`Telegram sendPhoto failed for chat ${chatId}:`, error);
+        console.log(`[Telegram Photo] Sending watermarked photo to chat ${chatId}`);
+        const msgId = await sendTelegramPhoto(token, chatId, watermarkedPhotoBuffer, resolvedPhotoUrl);
+        if (msgId) {
+          firstMessageId = msgId;
         }
       }
 
