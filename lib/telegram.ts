@@ -127,35 +127,12 @@ async function applyLuxeWatermark(imageUrl: string): Promise<Buffer | null> {
     // Resize logo to ~15% of image width (min 80px, max 195px) — 25% smaller than original 20%
     const logoWidth = Math.min(195, Math.max(80, Math.round(imgW * 0.15)));
 
-    // Make the logo background transparent by:
-    // 1. Resize to target width
-    // 2. Apply 80% opacity (multiply alpha channel)
-    const watermarkBuffer = await sharp(logoPath)
-      .resize(logoWidth)
-      .ensureAlpha()
-      .composite([{
-        // Blend the logo onto a transparent base to control opacity
-        input: {
-          create: {
-            width: logoWidth,
-            height: Math.round(logoWidth), // logos are square-ish
-            channels: 4 as const,
-            background: { r: 0, g: 0, b: 0, alpha: 0 }
-          }
-        },
-        blend: "dest-in"
-      }])
-      .toBuffer();
-
-    // Simpler approach: just resize and reduce opacity via modulate
+    // Resize logo and apply 70% opacity (0.7 alpha)
     const logoResized = await sharp(logoPath)
       .resize(logoWidth)
       .ensureAlpha()
+      .linear([1, 1, 1, 0.7], [0, 0, 0, 0])
       .toBuffer();
-
-    // Apply opacity by mixing with transparent layer
-    const logoMeta = await sharp(logoResized).metadata();
-    const logoH = logoMeta.height || logoWidth;
 
     // Composite watermark onto source image at top-right with padding
     const padding = Math.round(imgW * 0.025); // 2.5% padding
@@ -172,7 +149,7 @@ async function applyLuxeWatermark(imageUrl: string): Promise<Buffer | null> {
       .jpeg({ quality: 88 })
       .toBuffer();
 
-    console.log(`[Watermark] Applied LUXE logo watermark (${logoWidth}px wide) to ${imgW}×${imgH} image`);
+    console.log(`[Watermark] Applied LUXE logo watermark (${logoWidth}px wide, 70% opacity) to ${imgW}×${imgH} image`);
     return watermarked;
   } catch (err) {
     console.error("[Watermark] Error applying watermark:", err);
@@ -198,7 +175,7 @@ async function sendTelegramPhoto(
       formData.append("chat_id", chatId);
       formData.append(
         "photo",
-        new Blob([photoBuffer], { type: "image/jpeg" }),
+        new Blob([photoBuffer as any], { type: "image/jpeg" }),
         "listing.jpg"
       );
       if (caption) {
