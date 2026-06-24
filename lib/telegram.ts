@@ -249,9 +249,10 @@ function formatTelegramMessageObj(msg: TelegramMessageObj, majorGroup: number): 
     return null;
   }
   if (majorGroup === 1) {
+    const trimmedNotes = (msg.notes || "").trim();
     const headerLines = [
       msg.line1,
-      msg.line2,
+      trimmedNotes || undefined,
       msg.line3,
       msg.line4,
     ].filter(Boolean);
