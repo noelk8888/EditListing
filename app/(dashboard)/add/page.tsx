@@ -1585,7 +1585,8 @@ export default function AddListingPage() {
         editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
         editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
-      setTelegramLine3Notes(comments || "");
+      // Auto-populate Notes from the Away field (UPDATE LISTING/RESIDENTIAL/TEST always included)
+      setTelegramLine3Notes(howManyAway?.trim() ? howManyAway.trim() : (comments || ""));
       setTelegramLine3(ownerBroker);
       setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
@@ -1829,7 +1830,8 @@ export default function AddListingPage() {
         editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
         editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
-      setTelegramLine3Notes(comments || "");
+      // Auto-populate Notes from the Away field (UPDATE LISTING/RESIDENTIAL/TEST always included)
+      setTelegramLine3Notes(howManyAway?.trim() ? howManyAway.trim() : (comments || ""));
       setTelegramLine3(ownerBroker);
       setTelegramLine4(formatOwnership(listingOwnership));
       const isDirect = directOrCobroker?.toLowerCase().includes("direct");
