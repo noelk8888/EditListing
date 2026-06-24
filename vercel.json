@@ -1,6 +1,5 @@
 {
   "regions": ["sin1"],
-  "toolbar": false,
   "crons": [
     {
       "path": "/api/admin/backup",
