@@ -2847,102 +2847,6 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   </div>
                 )}
 
-                {/* Backup: conflict resolution (SUPERADMIN only) */}
-                {permissions.sheet2 === true && backupStatus === "conflict" && !conflictResolved && backupData && (
-                  <Card className="border-orange-200 bg-orange-50/50">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2 text-base font-semibold text-orange-800">
-                        <AlertCircle className="h-4 w-4" />
-                        Conflict Detected — Data Mismatch
-                      </CardTitle>
-                      <CardDescription className="text-orange-700 font-medium">
-                        The Working GSheet data differs from the 2nd Backup. Choose the version to keep.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="overflow-hidden rounded-md border border-orange-200 bg-white shadow-sm">
-                        <table className="w-full text-xs border-collapse">
-                          <thead>
-                            <tr className="bg-orange-100/30">
-                              <th className="px-3 py-2 text-left font-bold text-orange-900 border-b border-orange-200">Field</th>
-                              <th className="px-3 py-2 text-left font-bold text-blue-900 border-b border-orange-200">Working Sheet</th>
-                              <th className="px-3 py-2 text-left font-bold text-purple-900 border-b border-orange-200">2nd Backup</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-orange-100">
-                            {[
-                              { label: "Status", working: available || searchResult.status || "", backup: backupData.available },
-                              { label: "City", working: editCity, backup: backupData.city },
-                              { label: "Lot Area", working: editLotArea, backup: backupData.lotArea },
-                              { label: "Floor Area", working: editFloorArea, backup: backupData.floorArea },
-                              { label: "Price", working: editPrice, backup: backupData.price },
-                            ].map(({ label, working, backup }) => {
-                              const diff = normalizeTextNumbers(working) !== normalizeTextNumbers(backup);
-                              return (
-                                <tr key={label} className={diff ? "bg-red-50/40" : "hover:bg-gray-50/40 transition-colors"}>
-                                  <td className="px-3 py-2.5 font-semibold text-gray-700">{label}</td>
-                                  <td className={`px-3 py-2.5 ${diff ? "font-bold text-blue-700" : "text-gray-500 italic"}`}>{working || "—"}</td>
-                                  <td className={`px-3 py-2.5 ${diff ? "font-bold text-purple-700" : "text-gray-500 italic"}`}>{backup || "—"}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setConflictResolved(true)}
-                          className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
-                        >
-                          Keep Working Sheet
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setEditSummary(backupData.blastedFormat);
-                            setEditArea(backupData.area);
-                            setEditCity(backupData.city);
-                            setEditLotArea(backupData.lotArea);
-                            setEditFloorArea(backupData.floorArea);
-                            setEditPrice(backupData.price);
-                            setEditStatus(normalizeStatus(backupData.available));
-                            setAvailable(backupData.available);
-                            if (backupData.saleOrLease) {
-                              const v = backupData.saleOrLease.toLowerCase();
-                              if (v.includes("sale") && v.includes("lease")) setSaleOrLease("Sale/Lease");
-                              else if (v.includes("lease")) setSaleOrLease("Lease");
-                              else if (v.includes("sale")) setSaleOrLease("Sale");
-                            }
-                            setOwnerBroker(backupData.ownerBroker);
-                            setHowManyAway(backupData.away);
-                            setListingOwnership(backupData.listingOwnership);
-                            setConflictResolved(true);
-                            toast({
-                              title: "Restored from Backup",
-                              description: "The form has been updated with values from the 2nd Backup.",
-                            });
-                          }}
-                          className="border-purple-300 text-purple-700 hover:bg-purple-50"
-                        >
-                          Keep 2nd Backup
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Backup: conflict resolved confirmation */}
-                {backupStatus === "conflict" && conflictResolved && (
-                  <div className="flex items-center gap-2 rounded-md border border-green-400 bg-green-50 px-3 py-2 text-sm text-green-800">
-                    <span>✅</span>
-                    <span>Conflict resolved — Extract / Update will write to both Working GSheet and 2nd Backup.</span>
-                  </div>
-                )}
-
                 <Card className={batchAutoPaused && !flashDismissed ? (flashOn ? "border-2 border-red-600 bg-red-500 text-white" : "border-2 border-red-400 bg-red-50") : useExistingMain ? "border-green-500 ring-1 ring-green-500" : ""}>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -3148,7 +3052,103 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
             )}
           </div>{/* end grid */}
 
-          {/* Full-width: form fields for existing listing */}
+                          {/* Backup: conflict resolution (SUPERADMIN only) */}
+                {permissions.sheet2 === true && backupStatus === "conflict" && !conflictResolved && backupData && (
+                  <Card className="border-orange-200 bg-orange-50/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="flex items-center gap-2 text-base font-semibold text-orange-800">
+                        <AlertCircle className="h-4 w-4" />
+                        Conflict Detected — Data Mismatch
+                      </CardTitle>
+                      <CardDescription className="text-orange-700 font-medium">
+                        The Working GSheet data differs from the 2nd Backup. Choose the version to keep.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="overflow-hidden rounded-md border border-orange-200 bg-white shadow-sm">
+                        <table className="w-full text-xs border-collapse">
+                          <thead>
+                            <tr className="bg-orange-100/30">
+                              <th className="px-3 py-2 text-left font-bold text-orange-900 border-b border-orange-200">Field</th>
+                              <th className="px-3 py-2 text-left font-bold text-blue-900 border-b border-orange-200">Working Sheet</th>
+                              <th className="px-3 py-2 text-left font-bold text-purple-900 border-b border-orange-200">2nd Backup</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-orange-100">
+                            {[
+                              { label: "Status", working: available || searchResult.status || "", backup: backupData.available },
+                              { label: "City", working: editCity, backup: backupData.city },
+                              { label: "Lot Area", working: editLotArea, backup: backupData.lotArea },
+                              { label: "Floor Area", working: editFloorArea, backup: backupData.floorArea },
+                              { label: "Price", working: editPrice, backup: backupData.price },
+                            ].map(({ label, working, backup }) => {
+                              const diff = normalizeTextNumbers(working) !== normalizeTextNumbers(backup);
+                              return (
+                                <tr key={label} className={diff ? "bg-red-50/40" : "hover:bg-gray-50/40 transition-colors"}>
+                                  <td className="px-3 py-2.5 font-semibold text-gray-700">{label}</td>
+                                  <td className={`px-3 py-2.5 ${diff ? "font-bold text-blue-700" : "text-gray-500 italic"}`}>{working || "—"}</td>
+                                  <td className={`px-3 py-2.5 ${diff ? "font-bold text-purple-700" : "text-gray-500 italic"}`}>{backup || "—"}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setConflictResolved(true)}
+                          className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white"
+                        >
+                          Keep Working Sheet
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setEditSummary(backupData.blastedFormat);
+                            setEditArea(backupData.area);
+                            setEditCity(backupData.city);
+                            setEditLotArea(backupData.lotArea);
+                            setEditFloorArea(backupData.floorArea);
+                            setEditPrice(backupData.price);
+                            setEditStatus(normalizeStatus(backupData.available));
+                            setAvailable(backupData.available);
+                            if (backupData.saleOrLease) {
+                              const v = backupData.saleOrLease.toLowerCase();
+                              if (v.includes("sale") && v.includes("lease")) setSaleOrLease("Sale/Lease");
+                              else if (v.includes("lease")) setSaleOrLease("Lease");
+                              else if (v.includes("sale")) setSaleOrLease("Sale");
+                            }
+                            setOwnerBroker(backupData.ownerBroker);
+                            setHowManyAway(backupData.away);
+                            setListingOwnership(backupData.listingOwnership);
+                            setConflictResolved(true);
+                            toast({
+                              title: "Restored from Backup",
+                              description: "The form has been updated with values from the 2nd Backup.",
+                            });
+                          }}
+                          className="border-purple-300 text-purple-700 hover:bg-purple-50"
+                        >
+                          Keep 2nd Backup
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Backup: conflict resolved confirmation */}
+                {backupStatus === "conflict" && conflictResolved && (
+                  <div className="flex items-center gap-2 rounded-md border border-green-400 bg-green-50 px-3 py-2 text-sm text-green-800">
+                    <span>✅</span>
+                    <span>Conflict resolved — Extract / Update will write to both Working GSheet and 2nd Backup.</span>
+                  </div>
+                )}
+
+                {/* Full-width: form fields for existing listing */}
           {searchResult && (
             <Card>
               <CardContent className="space-y-3 pt-4">
