@@ -3076,7 +3076,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                           </thead>
                           <tbody className="divide-y divide-orange-100">
                             {[
-                              { label: "Status", working: available || searchResult.status || "", backup: backupData.available },
+                              { label: "Status", working: available || searchResult?.status || "", backup: backupData.available },
                               { label: "City", working: editCity, backup: backupData.city },
                               { label: "Lot Area", working: editLotArea, backup: backupData.lotArea },
                               { label: "Floor Area", working: editFloorArea, backup: backupData.floorArea },
