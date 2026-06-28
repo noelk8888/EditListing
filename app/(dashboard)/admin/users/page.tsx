@@ -215,9 +215,9 @@ export default function UsersPage() {
                       </td>
                     )}
                     {myRole === "SUPERADMIN" && (
-                      <td className="py-2 pr-4">
+                      <td className="py-2 pr-4" title={u.last_login && (Date.now() - new Date(u.last_login).getTime() < 24 * 60 * 60 * 1000) ? "Active Session" : undefined}>
                         {u.last_login && (Date.now() - new Date(u.last_login).getTime() < 24 * 60 * 60 * 1000) ? (
-                          <Check className="h-5 w-5 text-green-500 mx-auto" title="Active Session" />
+                          <Check className="h-5 w-5 text-green-500 mx-auto" />
                         ) : null}
                       </td>
                     )}
