@@ -55,6 +55,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
+    // Track logins
+    signIn: async ({ user }) => {
+      if (user?.email) {
+        const emailLower = user.email.toLowerCase();
+        const supabase = getSupabase();
+        
+        const { data: userData } = await supabase
+          .from("app_users")
+          .select("login_count")
+          .eq("email", emailLower)
+          .single();
+          
+        if (userData) {
+          await supabase
+            .from("app_users")
+            .update({
+              login_count: (userData.login_count || 0) + 1,
+              last_login: new Date().toISOString()
+            })
+            .eq("email", emailLower);
+        }
+      }
+      return true;
+    },
     // Store/Refresh role in JWT
     jwt: async ({ token, user }) => {
       // On first sign-in, user object is available

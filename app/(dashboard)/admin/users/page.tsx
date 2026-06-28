@@ -15,6 +15,8 @@ type AppUser = {
   role: string;
   created_at: string;
   created_by: string;
+  login_count?: number;
+  last_login?: string;
 };
 
 type FormState = { email: string; name: string; role: string };
@@ -184,6 +186,7 @@ export default function UsersPage() {
                   <th className="py-2 pr-4 font-medium">Email</th>
                   <th className="py-2 pr-4 font-medium">Role</th>
                   <th className="py-2 pr-4 font-medium">Added by</th>
+                  {myRole === "SUPERADMIN" && <th className="py-2 pr-4 font-medium">Logins</th>}
                   <th className="py-2 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -198,6 +201,18 @@ export default function UsersPage() {
                       </span>
                     </td>
                     <td className="py-2 pr-4 text-muted-foreground text-xs">{u.created_by}</td>
+                    {myRole === "SUPERADMIN" && (
+                      <td className="py-2 pr-4 text-sm text-center">
+                        <div className="font-medium">{u.login_count || 0}</div>
+                        {u.last_login ? (
+                          <div className="text-xs text-muted-foreground">
+                            {new Date(u.last_login).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: 'numeric', hour12: true })}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">—</div>
+                        )}
+                      </td>
+                    )}
                     <td className="py-2">
                       <div className="flex gap-2">
                         <Button variant="ghost" size="sm" onClick={() => openEdit(u)}>
