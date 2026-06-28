@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, UserPlus, Pencil } from "lucide-react";
+import { Trash2, UserPlus, Pencil, Check } from "lucide-react";
 
 type AppUser = {
   id: string;
@@ -186,7 +186,8 @@ export default function UsersPage() {
                   <th className="py-2 pr-4 font-medium">Email</th>
                   <th className="py-2 pr-4 font-medium">Role</th>
                   <th className="py-2 pr-4 font-medium">Added by</th>
-                  {myRole === "SUPERADMIN" && <th className="py-2 pr-4 font-medium">Logins</th>}
+                  {myRole === "SUPERADMIN" && <th className="py-2 pr-4 font-medium text-center">Logins</th>}
+                  {myRole === "SUPERADMIN" && <th className="py-2 pr-4 font-medium text-center">Active</th>}
                   <th className="py-2 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -211,6 +212,13 @@ export default function UsersPage() {
                         ) : (
                           <div className="text-xs text-muted-foreground">—</div>
                         )}
+                      </td>
+                    )}
+                    {myRole === "SUPERADMIN" && (
+                      <td className="py-2 pr-4">
+                        {u.last_login && (Date.now() - new Date(u.last_login).getTime() < 24 * 60 * 60 * 1000) ? (
+                          <Check className="h-5 w-5 text-green-500 mx-auto" title="Active Session" />
+                        ) : null}
                       </td>
                     )}
                     <td className="py-2">

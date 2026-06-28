@@ -54,6 +54,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
   },
+  session: {
+    maxAge: 24 * 60 * 60, // 24 hours
+  },
   callbacks: {
     // Track logins
     signIn: async ({ user }) => {
