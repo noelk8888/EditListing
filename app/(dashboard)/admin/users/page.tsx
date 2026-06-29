@@ -197,7 +197,11 @@ export default function UsersPage() {
                     <td className="py-2 pr-4">{u.name}</td>
                     <td className="py-2 pr-4 text-muted-foreground">{u.email}</td>
                     <td className="py-2 pr-4">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${ROLE_BADGE[u.role] || ""}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        myRole === "SUPERADMIN" && u.last_login && (Date.now() - new Date(u.last_login).getTime() < 24 * 60 * 60 * 1000)
+                          ? "bg-red-600 text-white font-bold"
+                          : ROLE_BADGE[u.role] || ""
+                      }`}>
                         {u.role}
                       </span>
                     </td>
