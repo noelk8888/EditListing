@@ -169,6 +169,7 @@ export default function AddListingPage() {
   const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
   const [socmedLink, setSocmedLink] = useState("");
   const [clientVersion, setClientVersion] = useState("");
+  const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
     fetchSpearheadedByNames().then(setDynamicOptions);
@@ -178,6 +179,11 @@ export default function AddListingPage() {
       setRawText(prefill);
       localStorage.removeItem("luxe_prefill_text");
     }
+    // Fetch logged-in user email for per-user date formatting
+    fetch("/api/auth/session")
+      .then(r => r.json())
+      .then(s => { if (s?.user?.email) setUserEmail(s.user.email.toLowerCase()); })
+      .catch(() => {});
   }, []);
 
   const allOwnershipOptions = Array.from(new Set([...LISTING_OWNERSHIP_OPTIONS, ...dynamicOptions]));
@@ -1554,9 +1560,13 @@ export default function AddListingPage() {
     if (!searchResult) return;
     setPendingUpdateTab(overrideTargetTab || null);
 
+    // Per-user date format: full month for noelkiu/iamnoel888, abbreviated for others
+    const useFullMonth = ["noelkiu@gmail.com", "iamnoel888@gmail.com"].includes(userEmail);
+    const monthFormat: "long" | "short" = useFullMonth ? "long" : "short";
+
     const now = new Date();
     const day = String(now.getDate()).padStart(2, "0");
-    const month = now.toLocaleDateString("en-US", { month: "long" });
+    const month = now.toLocaleDateString("en-US", { month: monthFormat });
     const year = now.getFullYear();
     const today = `${month} ${day}, ${year}`;
 
@@ -1565,11 +1575,11 @@ export default function AddListingPage() {
       if (dateUpdated) {
         const d = new Date(dateUpdated + "T00:00:00");
         if (!isNaN(d.getTime())) {
-          updateDateStr = d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+          updateDateStr = d.toLocaleDateString("en-US", { month: monthFormat, day: "numeric", year: "numeric" });
         }
       }
       if (!updateDateStr) {
-        updateDateStr = new Date(getPHLDate()).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+        updateDateStr = new Date(getPHLDate()).toLocaleDateString("en-US", { month: monthFormat, day: "numeric", year: "numeric" });
       }
 
       const formatOwnership = (val: string) => {
@@ -1816,7 +1826,9 @@ export default function AddListingPage() {
   // Directly perform the save without confirmation OR trigger modal
   const handleSaveNew = () => {
     if (telegramPostEnabled) {
-      const today = new Date(getPHLDate()).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const useFullMonth = ["noelkiu@gmail.com", "iamnoel888@gmail.com"].includes(userEmail);
+      const monthFormat: "long" | "short" = useFullMonth ? "long" : "short";
+      const today = new Date(getPHLDate()).toLocaleDateString("en-US", { month: monthFormat, day: "numeric", year: "numeric" });
       const formatOwnership = (val: string) => {
         const result = (val || "").replace(/(Sales\s?Asscociate|Sales\s?Associate|Broker)/gi, "Listing Ownership").trim();
         return result === "Listing Ownership" ? "" : result;
