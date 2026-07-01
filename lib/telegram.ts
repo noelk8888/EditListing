@@ -244,15 +244,18 @@ function getMajorGroup(groupName: string): number {
   return 3;
 }
 
-function formatTelegramMessageObj(msg: TelegramMessageObj, majorGroup: number): string | null {
+function formatTelegramMessageObj(msg: TelegramMessageObj, majorGroup: number, groupName: string): string | null {
   if (majorGroup === 3) {
     return null;
   }
   if (majorGroup === 1) {
     const trimmedNotes = (msg.notes || "").trim();
+    // For "UPDATE LISTING" group only: show Line 2 (status) when Line 5 (notes) is blank
+    const isUpdateListing = groupName.trim() === "UPDATE LISTING";
+    const secondLine = trimmedNotes || (isUpdateListing ? (msg.line2 || "").trim() || undefined : undefined);
     const headerLines = [
       msg.line1,
-      trimmedNotes || undefined,
+      secondLine,
       msg.line3,
       msg.line4,
     ].filter(Boolean);
@@ -374,7 +377,7 @@ export async function sendTelegramNotification(
     } else if (message && typeof message === "object") {
       const groupName = chatIdToGroup[chatId] || "";
       const majorGroup = getMajorGroup(groupName);
-      textToSend = formatTelegramMessageObj(message, majorGroup);
+      textToSend = formatTelegramMessageObj(message, majorGroup, groupName);
     }
 
     if (textToSend === null) {
