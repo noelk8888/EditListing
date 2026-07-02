@@ -5,6 +5,7 @@ import { cn, getPHLDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MobileDatePicker } from "@/components/ui/mobile-date-picker";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -3320,7 +3321,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   {/* Row 4 */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                    <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm flex-1" />
+                    <MobileDatePicker value={dateReceived} max={getTodayDate()} onChange={(v) => handleInputChange(setDateReceived)(v)} className="h-8 text-sm flex-1" />
                     <Button
                       type="button"
                       variant={dateReceived === getTodayDate() ? "default" : "outline"}
@@ -3333,7 +3334,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Updated</Label>
-                    <Input type="date" value={dateUpdated} max={getTodayDate()} onChange={(e) => { setDateUpdated(e.target.value); setTodayToggle(e.target.value === getTodayDate()); }} className="h-8 text-sm flex-1" />
+                    <MobileDatePicker value={dateUpdated} max={getTodayDate()} onChange={(v) => { setDateUpdated(v); setTodayToggle(v === getTodayDate()); }} className="h-8 text-sm flex-1" />
                     <Button
                       type="button"
                       variant={todayToggle ? "default" : "outline"}
@@ -3701,7 +3702,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   )}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                    <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm flex-1" />
+                    <MobileDatePicker value={dateReceived} max={getTodayDate()} onChange={(v) => handleInputChange(setDateReceived)(v)} className="h-8 text-sm flex-1" />
                     <Button
                       type="button"
                       variant={dateReceived === getTodayDate() ? "default" : "outline"}
@@ -4265,7 +4266,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 {/* Row 4 */}
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                  <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm flex-1" />
+                  <MobileDatePicker value={dateReceived} max={getTodayDate()} onChange={(v) => handleInputChange(setDateReceived)(v)} className="h-8 text-sm flex-1" />
                   <Button
                     type="button"
                     variant={dateReceived === getTodayDate() ? "default" : "outline"}
@@ -4278,7 +4279,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Updated</Label>
-                  <Input type="date" value={dateUpdated} max={getTodayDate()} onChange={(e) => { setDateUpdated(e.target.value); setTodayToggle(e.target.value === getTodayDate()); }} className="h-8 text-sm flex-1" />
+                  <MobileDatePicker value={dateUpdated} max={getTodayDate()} onChange={(v) => { setDateUpdated(v); setTodayToggle(v === getTodayDate()); }} className="h-8 text-sm flex-1" />
                   <Button
                     type="button"
                     variant={todayToggle ? "default" : "outline"}
