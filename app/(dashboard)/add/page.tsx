@@ -3320,8 +3320,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   {/* Row 4 */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                                        <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
-
+                    <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm flex-1" />
+                    <Button
+                      type="button"
+                      variant={dateReceived === getTodayDate() ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleInputChange(setDateReceived)(getTodayDate())}
+                      className="h-8 px-2 text-xs shrink-0"
+                    >
+                      TODAY
+                    </Button>
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Updated</Label>
@@ -3693,8 +3701,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   )}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                                        <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
-
+                    <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm flex-1" />
+                    <Button
+                      type="button"
+                      variant={dateReceived === getTodayDate() ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleInputChange(setDateReceived)(getTodayDate())}
+                      className="h-8 px-2 text-xs shrink-0"
+                    >
+                      TODAY
+                    </Button>
                   </div>
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
@@ -4249,8 +4265,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 {/* Row 4 */}
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Received</Label>
-                                    <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm" />
-
+                  <Input type="date" value={dateReceived} max={getTodayDate()} onChange={(e) => handleInputChange(setDateReceived)(e.target.value)} className="h-8 text-sm flex-1" />
+                  <Button
+                    type="button"
+                    variant={dateReceived === getTodayDate() ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => handleInputChange(setDateReceived)(getTodayDate())}
+                    className="h-8 px-2 text-xs shrink-0"
+                  >
+                    TODAY
+                  </Button>
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-xs text-muted-foreground w-16 shrink-0">Updated</Label>
