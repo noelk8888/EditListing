@@ -1588,7 +1588,20 @@ export default function AddListingPage() {
         return result === "Listing Ownership" ? "" : result;
       };
 
-      setTelegramLine1(overrideTargetTab === "Sheet1" ? `*PROMOTED to Sheet1 - ${updateDateStr}*` : `*LISTING UPDATE - ${updateDateStr}*`);
+      const telegramUpdateHeading =
+        editStatus === "SOLD" ? "SOLD" :
+        editStatus === "LEASED OUT" ? "LEASED OUT" :
+        editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
+        editStatus === "ON HOLD" ? "ON HOLD" :
+        editStatus === "UNDER NEGO" ? "UNDER NEGO" :
+        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" :
+        "LISTING UPDATE";
+
+      setTelegramLine1(
+        overrideTargetTab === "Sheet1"
+          ? `*PROMOTED to Sheet1 - ${updateDateStr}*`
+          : `*${telegramUpdateHeading} - ${updateDateStr}*`
+      );
       setTelegramLine2(
         editStatus === "AVAILABLE" ? "UPDATED FORMAT" :
         editStatus === "SOLD" ? "SOLD" :
