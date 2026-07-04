@@ -1596,11 +1596,12 @@ export default function AddListingPage() {
         editStatus === "UNDER NEGO" ? "UNDER NEGO" :
         editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" :
         "LISTING UPDATE";
+      const telegramUpdateSuffix = telegramUpdateHeading === "LISTING UPDATE" ? "" : " UPDATE";
 
       setTelegramLine1(
         overrideTargetTab === "Sheet1"
           ? `*PROMOTED to Sheet1 - ${updateDateStr}*`
-          : `*${telegramUpdateHeading} - ${updateDateStr}*`
+          : `*${telegramUpdateHeading} - ${updateDateStr}${telegramUpdateSuffix}*`
       );
       setTelegramLine2(
         editStatus === "AVAILABLE" ? "UPDATED FORMAT" :
