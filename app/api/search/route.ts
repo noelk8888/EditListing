@@ -302,6 +302,7 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow, isDuplicateT
     sponsor_start: gsheetRow.supabaseSponsorStart || null,
     sponsor_end: gsheetRow.supabaseSponsorEnd || null,
     map_verified: gsheetRow.mapVerified || null,
+    col_q: gsheetRow.colQ || null,
     row_index: gsheetRow.rowNumber ?? null,
     source_column: sourceColumn,
   };
