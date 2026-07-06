@@ -16,6 +16,7 @@ export type Feature =
   | "view_photos"
   | "export_data"
   | "manage_users"
+  | "manage_ownership"
   | "sheet2"
   | "promote_to_sheet1";
 
@@ -34,6 +35,7 @@ export const ALL_FEATURES: Feature[] = [
   "view_photos",
   "export_data",
   "manage_users",
+  "manage_ownership",
   "sheet2",
   "promote_to_sheet1",
 ];
@@ -53,6 +55,7 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   view_photos:      "View Photos",
   export_data:      "Export Data",
   manage_users:     "Manage Users",
+  manage_ownership: "Manage Listing Ownership",
   sheet2:           "Sheet2 Features (Superadmin only)",
   promote_to_sheet1:"Promote to Sheet1 / Silent Transfer",
 };
@@ -76,7 +79,7 @@ export const FEATURE_GROUPS: { label: string; features: Feature[] }[] = [
   },
   {
     label: "Administration",
-    features: ["manage_users"],
+    features: ["manage_users", "manage_ownership"],
   },
 ];
 
@@ -97,6 +100,7 @@ export const ROLE_DEFAULTS: Record<"ADMIN" | "EDITOR", Record<Feature, boolean>>
     view_photos:      true,
     export_data:      true,
     manage_users:     true,
+    manage_ownership: true,
     sheet2:           false,
     promote_to_sheet1:true,
   },
@@ -115,6 +119,7 @@ export const ROLE_DEFAULTS: Record<"ADMIN" | "EDITOR", Record<Feature, boolean>>
     view_photos:      true,
     export_data:      true,
     manage_users:     false,
+    manage_ownership: false,
     sheet2:           false,
     promote_to_sheet1:true,
   },

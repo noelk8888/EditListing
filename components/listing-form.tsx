@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Listing, PROPERTY_TYPES, STATUS_OPTIONS, DIRECT_COBROKER_OPTIONS, LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 import { Loader2, Save, MapPin } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { fetchSpearheadedByNames } from "@/lib/supabase";
+import { fetchListingOwnerships } from "@/lib/supabase";
 
 interface ListingFormProps {
   listing: Partial<Listing>;
@@ -32,7 +32,7 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
   const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchSpearheadedByNames().then(setDynamicOptions);
+    fetchListingOwnerships().then(setDynamicOptions);
   }, []);
 
   const allOwnershipOptions = Array.from(new Set([...LISTING_OWNERSHIP_OPTIONS, ...dynamicOptions]));

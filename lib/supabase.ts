@@ -119,22 +119,21 @@ export async function searchListingsByText(searchText: string): Promise<Supabase
   return data as SupabaseListing[];
 }
 
-export async function fetchSpearheadedByNames(): Promise<string[]> {
+export async function fetchListingOwnerships(): Promise<string[]> {
   const { data, error } = await supabase
-    .from('luxe_listing_fb_groups')
-    .select('spearheaded_by')
-    .not('spearheaded_by', 'is', null)
-    .not('spearheaded_by', 'eq', '');
+    .from('luxe_listing_ownerships')
+    .select('name')
+    .order('name', { ascending: true });
 
   if (error) {
-    console.error('Error fetching spearheaded names:', error);
+    console.error('Error fetching listing ownerships:', error);
     return [];
   }
 
   // Get unique non-empty names
   const names = (data as any[]) || [];
   const processedNames = names
-    .map(item => item.spearheaded_by?.trim())
+    .map(item => item.name?.trim())
     .filter((name): name is string => !!name);
   
   const uniqueNames = Array.from(new Set(processedNames));

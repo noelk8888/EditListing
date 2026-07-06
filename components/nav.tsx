@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send, Copy, Scale, SearchCheck } from "lucide-react";
+import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send, Copy, Scale, SearchCheck, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 import { BackupModal } from "@/components/BackupModal";
@@ -72,6 +72,15 @@ export function Nav({ user, permissions }: NavProps) {
     ...(isAdmin
       ? [
           { href: "/admin/users", label: "Users", icon: Users },
+        ]
+      : []),
+    ...(permissions?.manage_ownership
+      ? [
+          { href: "/admin/ownership", label: "Ownership", icon: UserCheck },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
           { href: "/admin/duplicates/declare", label: "Duplicate Tagging", icon: Copy }
         ]
       : []),

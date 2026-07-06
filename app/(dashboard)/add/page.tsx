@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2, Play, Pause } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { SupabaseListing, fetchSpearheadedByNames, SupabaseTelegramGroup, fetchTelegramGroups } from "@/lib/supabase";
+import { SupabaseListing, fetchListingOwnerships, SupabaseTelegramGroup, fetchTelegramGroups } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
 import { LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 import { useToast } from "@/components/ui/use-toast";
@@ -173,7 +173,7 @@ export default function AddListingPage() {
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
-    fetchSpearheadedByNames().then(setDynamicOptions);
+    fetchListingOwnerships().then(setDynamicOptions);
     // Pre-fill from DuplicatesModal "Open Original in Add Listing"
     const prefill = localStorage.getItem("luxe_prefill_text");
     if (prefill) {
