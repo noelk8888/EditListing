@@ -3381,7 +3381,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </Select>
                   </div>
 
-                  {/* Row 5: Income + Photos Link */}
+                  {/* Row 5: Income + Photos Link + Referror */}
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Income</Label>
                     <Select value={withIncome} onValueChange={(v) => handleInputChange(setWithIncome)(v)}>
@@ -3395,15 +3395,6 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </Select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
-                    <Input 
-                      value={referredBy} 
-                      onChange={(e) => setReferredBy(e.target.value)} 
-                      className="h-8 text-sm" 
-                      placeholder="Name..."
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">
                       {photosLink ? "Photos (extracted)" : "Photos Link"}
                     </Label>
@@ -3419,6 +3410,15 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                         }
                       }}
                       className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
+                    <Input 
+                      value={referredBy} 
+                      onChange={(e) => setReferredBy(e.target.value)} 
+                      className="h-8 text-sm" 
+                      placeholder="Name..."
                     />
                   </div>
                 </div>
@@ -3759,15 +3759,6 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </Select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
-                    <Input 
-                      value={referredBy} 
-                      onChange={(e) => setReferredBy(e.target.value)} 
-                      className="h-8 text-sm" 
-                      placeholder="Name..."
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">
                       {photosLink ? "Photos (extracted)" : "Photos Link"}
                     </Label>
@@ -3777,6 +3768,15 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       value={photosLink}
                       onChange={(e) => setPhotosLink(e.target.value)}
                       className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
+                    <Input 
+                      value={referredBy} 
+                      onChange={(e) => setReferredBy(e.target.value)} 
+                      className="h-8 text-sm" 
+                      placeholder="Name..."
                     />
                   </div>
                 </div>
@@ -4336,15 +4336,6 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   </Select>
                 </div>
                   <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
-                    <Input 
-                      value={referredBy} 
-                      onChange={(e) => setReferredBy(e.target.value)} 
-                      className="h-8 text-sm" 
-                      placeholder="Name..."
-                    />
-                  </div>
-                  <div className="col-span-2 flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">
                       {photosLink ? "Photos (extracted)" : "Photos Link"}
                     </Label>
@@ -4354,6 +4345,15 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       value={photosLink}
                       onChange={(e) => handleInputChange(setPhotosLink, true)(e.target.value)}
                       className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
+                    <Input 
+                      value={referredBy} 
+                      onChange={(e) => setReferredBy(e.target.value)} 
+                      className="h-8 text-sm" 
+                      placeholder="Name..."
                     />
                   </div>
 
