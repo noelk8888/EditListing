@@ -360,10 +360,11 @@ export async function sendTelegramNotification(
     resolvedPhotoUrl = await getFirstGoogleDriveImageUrl(photoLink);
   }
 
-  // Apply LUXE watermark to the resolved photo (done once, reused for all chats)
+  // Apply LUXE watermark to the resolved photo only for TEST groups
   let watermarkedPhotoBuffer: Buffer | null = null;
-  if (resolvedPhotoUrl) {
-    console.log("[Watermark] Applying LUXE logo watermark to photo...");
+  const isAnyTestGroup = chatIds.some(chatId => (chatIdToGroup[chatId] || "").toUpperCase().includes("TEST"));
+  if (resolvedPhotoUrl && isAnyTestGroup) {
+    console.log("[Watermark] Applying LUXE logo watermark to photo for TEST group...");
     watermarkedPhotoBuffer = await applyLuxeWatermark(resolvedPhotoUrl);
   }
 
@@ -390,12 +391,14 @@ export async function sendTelegramNotification(
 
     let firstMessageId: number | undefined = undefined;
     let photoSentCombined = false;
+    const isTestGroup = (chatIdToGroup[chatId] || "").toUpperCase().includes("TEST");
+    const bufferToSend = isTestGroup ? watermarkedPhotoBuffer : null;
 
     // 1. Check if we can combine photo and text as caption (only for TEXT 1 string messages)
     const isText1 = typeof message === "string";
     if (isText1 && resolvedPhotoUrl && truncated.length <= 1024) {
-      console.log(`[Telegram Photo Caption] Sending watermarked photo with caption to chat ${chatId}`);
-      const msgId = await sendTelegramPhoto(token, chatId, watermarkedPhotoBuffer, resolvedPhotoUrl, truncated);
+      console.log(`[Telegram Photo Caption] Sending photo with caption to chat ${chatId}`);
+      const msgId = await sendTelegramPhoto(token, chatId, bufferToSend, resolvedPhotoUrl, truncated);
       if (msgId) {
         firstMessageId = msgId;
         photoSentCombined = true;
@@ -405,8 +408,8 @@ export async function sendTelegramNotification(
     // 2. If not combined, send photo first then text message
     if (!photoSentCombined) {
       if (resolvedPhotoUrl) {
-        console.log(`[Telegram Photo] Sending watermarked photo to chat ${chatId}`);
-        const msgId = await sendTelegramPhoto(token, chatId, watermarkedPhotoBuffer, resolvedPhotoUrl);
+        console.log(`[Telegram Photo] Sending photo to chat ${chatId}`);
+        const msgId = await sendTelegramPhoto(token, chatId, bufferToSend, resolvedPhotoUrl);
         if (msgId) {
           firstMessageId = msgId;
         }
