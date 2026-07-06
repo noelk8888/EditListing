@@ -360,13 +360,8 @@ export async function sendTelegramNotification(
     resolvedPhotoUrl = await getFirstGoogleDriveImageUrl(photoLink);
   }
 
-  // Apply LUXE watermark to the resolved photo only for TEST groups
+  // Watermark is completely disabled for all groups per user request
   let watermarkedPhotoBuffer: Buffer | null = null;
-  const isAnyTestGroup = chatIds.some(chatId => (chatIdToGroup[chatId] || "").toUpperCase().includes("TEST"));
-  if (resolvedPhotoUrl && isAnyTestGroup) {
-    console.log("[Watermark] Applying LUXE logo watermark to photo for TEST group...");
-    watermarkedPhotoBuffer = await applyLuxeWatermark(resolvedPhotoUrl);
-  }
 
   const sentMessageIds: Record<string, number> = {};
 
@@ -391,8 +386,7 @@ export async function sendTelegramNotification(
 
     let firstMessageId: number | undefined = undefined;
     let photoSentCombined = false;
-    const isTestGroup = (chatIdToGroup[chatId] || "").toUpperCase().includes("TEST");
-    const bufferToSend = isTestGroup ? watermarkedPhotoBuffer : null;
+    const bufferToSend = null; // No watermark for any group
 
     // 1. Check if we can combine photo and text as caption (only for TEXT 1 string messages)
     const isText1 = typeof message === "string";
