@@ -213,6 +213,7 @@ function supabaseToResult(row: SupabaseResult, isDuplicateTagging?: boolean) {
     sponsor_start: row["SPONSOR START"] || null,
     sponsor_end: row["SPONSOR END"] || null,
     map_verified: row["MAP VERIFIED"] || null,
+    col_q: null as string | null,
     row_index: null as number | null,
     source_column: "COL AA", // Supabase MAIN maps to COL AA
   };
@@ -367,6 +368,7 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>, 
       area: fallback(result.area, gsheetRow.supabaseArea),
       // Monthly dues: GSheet BB (supabaseMonthlyDues)
       monthly_dues: fallback(result.monthly_dues, gsheetRow.supabaseMonthlyDues),
+      col_q: fallback(result.col_q, gsheetRow.colQ),
       row_index: gsheetRow.rowNumber ?? null,
     };
   } catch (gsheetError) {
