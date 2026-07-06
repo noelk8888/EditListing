@@ -3412,7 +3412,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       className="h-8 text-sm"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="hidden">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
                     <Input 
                       value={referredBy} 
@@ -3770,7 +3770,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       className="h-8 text-sm"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="hidden">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
                     <Input 
                       value={referredBy} 
@@ -4347,7 +4347,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       className="h-8 text-sm"
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="hidden">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
                     <Input 
                       value={referredBy} 
