@@ -1944,7 +1944,6 @@ export default function AddListingPage() {
           geo_id: (geoIdConfirmed && newGeoId) ? newGeoId : undefined,
           // batch: always pass source sheet + row so GEO ID is written back to Shadow GSheet MAIN tab COL AC
           ...(batchActive && batchRows[batchIndex] ? {
-            col_q: batchRows[batchIndex].colQ,
             col_r: batchRows[batchIndex].colR,
             batch_source_sheet_id: batchSheetUrl.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/)?.[1] || "",
             batch_source_sheet_gid: batchSheetUrl.match(/[?&#]gid=(\d+)/)?.[1] || "",
