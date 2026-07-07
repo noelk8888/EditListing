@@ -2625,6 +2625,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 disabled={!canProceedFromPaste}
                 onClick={() => {
                   let finalRawText = rawText;
+                  
+                  // Strip out any trailing date "update" section and everything below it
+                  const lines = finalRawText.split('\n');
+                  const updateRegex = /^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})\s+update/i;
+                  const updateIndex = lines.findIndex(line => updateRegex.test(line.trim()));
+                  if (updateIndex !== -1) {
+                    finalRawText = lines.slice(0, updateIndex).join('\n').trim();
+                    setRawText(finalRawText);
+                  }
+
                   if (statusReplacement) {
                     const todayFormatted = new Intl.DateTimeFormat('en-US', {
                       timeZone: 'Asia/Manila',
