@@ -259,7 +259,7 @@ function formatTelegramMessageObj(msg: TelegramMessageObj, majorGroup: number, g
       msg.line3,
       msg.line4,
     ].filter(Boolean);
-    return headerLines.join("\n");
+    return headerLines.join("\n").replace(/\n+/g, '\n');
   }
   if (majorGroup === 2) {
     const headerLines = [
@@ -268,8 +268,8 @@ function formatTelegramMessageObj(msg: TelegramMessageObj, majorGroup: number, g
     ].filter(Boolean);
     const trimmedNotes = (msg.notes || "").trim();
     return trimmedNotes
-      ? `${headerLines.join("\n")}\n\n${trimmedNotes}`
-      : headerLines.join("\n");
+      ? `${headerLines.join("\n")}\n${trimmedNotes}`.replace(/\n+/g, '\n')
+      : headerLines.join("\n").replace(/\n+/g, '\n');
   }
   return null;
 }
