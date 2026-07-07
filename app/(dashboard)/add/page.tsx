@@ -29,8 +29,8 @@ const STATUS_MAP: Record<string, string> = {
   "on hold": "ON HOLD",
   "under nego": "UNDER NEGO",
   "under negotiation": "UNDER NEGO",
-  "undecisive seller": "UNDECISIVE SELLER",
-  "undecisive": "UNDECISIVE SELLER",
+  "undecisive seller": "DELISTED",
+  "undecisive": "DELISTED",
 };
 const normalizeStatus = (raw: string): string =>
   STATUS_MAP[raw.toLowerCase().trim()] ?? raw.toUpperCase();
@@ -1496,7 +1496,7 @@ export default function AddListingPage() {
       year: 'numeric'
     }).format(new Date()).toUpperCase();
     
-    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|UNDECISIVE SELLER)\b.*$/im;
+    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|DELISTED)\b.*$/im;
     
     if (regex.test(currentSummary)) {
       currentSummary = currentSummary.replace(regex, `*${newStatus} - ${todayFormatted}*`);
@@ -1594,7 +1594,7 @@ export default function AddListingPage() {
         editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
         editStatus === "ON HOLD" ? "ON HOLD" :
         editStatus === "UNDER NEGO" ? "UNDER NEGO" :
-        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" :
+        editStatus === "DELISTED" ? "DELISTED" :
         "LISTING UPDATE";
       const telegramUpdateSuffix = telegramUpdateHeading === "LISTING UPDATE" ? "" : " UPDATE";
 
@@ -1609,7 +1609,7 @@ export default function AddListingPage() {
         editStatus === "LEASED OUT" ? "LEASED OUT" :
         editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
         editStatus === "UNDER NEGO" ? "UNDER NEGO" :
-        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
+        editStatus === "DELISTED" ? "DELISTED" : 
         editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
       // Auto-populate Notes from the Away field (UPDATE LISTING/RESIDENTIAL/TEST always included)
@@ -1856,7 +1856,7 @@ export default function AddListingPage() {
         editStatus === "LEASED OUT" ? "LEASED OUT" :
         editStatus === "OFF MARKET" || editStatus === "OFF THE MARKET" ? "OFF THE MARKET" :
         editStatus === "UNDER NEGO" ? "UNDER NEGO" :
-        editStatus === "UNDECISIVE SELLER" ? "UNDECISIVE SELLER" : 
+        editStatus === "DELISTED" ? "DELISTED" : 
         editStatus === "ON HOLD" ? "ON HOLD" : ""
       );
       // Auto-populate Notes from the Away field (UPDATE LISTING/RESIDENTIAL/TEST always included)
@@ -2502,7 +2502,7 @@ export default function AddListingPage() {
                                     year: 'numeric'
                                   }).format(new Date()).toUpperCase();
                                   
-                                  const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|UNDECISIVE SELLER)\b.*$/im;
+                                  const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|DELISTED)\b.*$/im;
                                   
                                   if (regex.test(finalRawText)) {
                                     finalRawText = finalRawText.replace(regex, `*${statusReplacement} - ${todayFormatted}*`);
@@ -2552,7 +2552,7 @@ export default function AddListingPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {["SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                {["SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "DELISTED"].map((status) => (
                   <Button
                     key={status}
                     type="button"
@@ -2643,7 +2643,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     }).format(new Date()).toUpperCase();
                     
                     // Match FOR SALE, FOR LEASE, etc. OR any existing status like ON HOLD, AVAILABLE wrapped in asterisks on the first line
-                    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|UNDECISIVE SELLER)\b.*$/im;
+                    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|DELISTED)\b.*$/im;
                     
                     if (regex.test(finalRawText)) {
                       finalRawText = finalRawText.replace(regex, `*${statusReplacement} - ${todayFormatted}*`);
@@ -3235,7 +3235,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     <span className={`text-xs min-w-[100px] font-medium ${searchResult && normalizeStatus(editStatus) !== normalizeStatus(searchResult.status || "") ? "text-red-600 font-bold" : ""}`}>
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "DELISTED"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -3644,7 +3644,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     <span className="text-xs min-w-[100px] font-medium">
                       {editStatus || "—"}
                     </span>
-                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                    {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "DELISTED"].map((status) => (
                       <div key={status} className="flex items-center gap-1">
                         <input
                           type="radio"
@@ -4176,7 +4176,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   <span className="text-xs min-w-[100px] font-medium">
                     {editStatus || "—"}
                   </span>
-                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "UNDECISIVE SELLER"].map((status) => (
+                  {["AVAILABLE", "SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "DELISTED"].map((status) => (
                     <div key={status} className="flex items-center gap-1">
                       <input
                         type="radio"
@@ -4698,7 +4698,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <option value="UPDATED FORMAT">UPDATED FORMAT</option>
                       <option value="OFF THE MARKET">OFF THE MARKET</option>
                       <option value="UNDER NEGO">UNDER NEGO</option>
-                      <option value="UNDECISIVE SELLER">UNDECISIVE SELLER</option>
+                      <option value="DELISTED">DELISTED</option>
                       <option value="ON HOLD">ON HOLD</option>
                     </select>
                   </div>

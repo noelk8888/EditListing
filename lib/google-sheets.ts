@@ -57,7 +57,7 @@ export function getRowFormattingRequest(sheetId: number, rowNumber: number, stat
     backgroundColor = { red: 255/255, green: 229/255, blue: 152/255 }; // #ffe598
   } else if (statusGroup === "ON HOLD") {
     backgroundColor = { red: 168/255, green: 203/255, blue: 175/255 }; // #a8cbaf
-  } else if (statusGroup === "UNDECISIVE SELLER" || statusGroup === "UNDECISIVE") {
+  } else if (statusGroup === "DELISTED" || statusGroup === "UNDECISIVE") {
     backgroundColor = { red: 141/255, green: 156/255, blue: 206/255 }; // #8d9cce
   } else if (statusGroup === "UNDER NEGO" || statusGroup === "UNDER NEGOTIATION") {
     backgroundColor = { red: 115/255, green: 26/255, blue: 71/255 }; // #731a47

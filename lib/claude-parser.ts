@@ -16,13 +16,13 @@ IMPORTANT RULES:
 6. Determine property categories (can be multiple): RESIDENTIAL, COMMERCIAL, INDUSTRIAL, AGRICULTURAL
 6a. CRITICAL: Do NOT classify a property based on proximity references. Phrases like "backing a commercial lot", "beside a commercial building", "near an industrial zone", "facing a commercial area", "adjacent to agricultural land" describe NEARBY features, NOT the property itself. Only classify based on the property's own characteristics (e.g., "Commercial Vacant Lot", "Industrial Warehouse", "Residential House and Lot").
 7. Determine property type: TOWNHOUSE, WAREHOUSE, VACANT LOT, HOUSE AND LOT, CONDO, OFFICE/COMMERCIAL, BUILDING, CLUB SHARE/BUSINESS
-8. Status should be: AVAILABLE, SOLD, LEASED OUT, OFF THE MARKET, ON HOLD, UNDER NEGO, or UNDECISIVE SELLER (default to AVAILABLE if not specified).
+8. Status should be: AVAILABLE, SOLD, LEASED OUT, OFF THE MARKET, ON HOLD, UNDER NEGO, or DELISTED (default to AVAILABLE if not specified).
 19. CRITICAL indicators:
     - "UNDER NEGO", "Under Negotiation", or "Negotiation" means status is "UNDER NEGO".
     - "FOR LEASE" or "FOR RENT" in the listing means the property IS AVAILABLE to be leased — set status to "AVAILABLE". Do NOT confuse "FOR LEASE" with "LEASED OUT".
     - Only set status to "LEASED OUT" if the listing explicitly says "LEASED OUT", "already leased", "currently leased", "tenant occupied and not available", or similar meaning the property is no longer available.
     - "OFF THE MARKET" or "Sold" means what they say.
-    - "UNDECISIVE" or "UNDECISIVE SELLER" means status is "UNDECISIVE SELLER".
+    - "DELISTED" or "UNDECISIVE SELLER" means status is "DELISTED".
 9. Extract photo URLs if present (lines with "Photos:", "Photo Link:", etc.)
 9a. Extract Facebook / Social Media links if present (FB, Instagram, TikTok links).
 9b. Extract Google Map / map link URLs if present (lines with "Google Map:", "Map Link:", "MAP LINK:", etc.)
@@ -56,7 +56,7 @@ Return a JSON object with these fields (use empty string "" for unknown values, 
   "agricultural": boolean,
   "lotArea": "string (numeric value with sqm)",
   "floorArea": "string (numeric value with sqm)",
-  "status": "AVAILABLE" | "SOLD" | "LEASED OUT" | "OFF THE MARKET" | "ON HOLD" | "UNDER NEGO" | "UNDECISIVE SELLER",
+  "status": "AVAILABLE" | "SOLD" | "LEASED OUT" | "OFF THE MARKET" | "ON HOLD" | "UNDER NEGO" | "DELISTED",
   "type": "TOWNHOUSE" | "WAREHOUSE" | "VACANT LOT" | "HOUSE AND LOT" | "CONDO" | "OFFICE/COMMERCIAL" | "BUILDING" | "CLUB SHARE/BUSINESS" | "",
   "salePrice": "string (numeric value only)",
   "salePricePerSqm": "string (calculated or extracted)",
@@ -92,8 +92,9 @@ const STATUS_MAP: Record<string, string> = {
   "under nego": "UNDER NEGO",
   "under negotiation": "UNDER NEGO",
   "negotiation": "UNDER NEGO",
-  "undecisive": "UNDECISIVE SELLER",
-  "undecisive seller": "UNDECISIVE SELLER",
+  "delisted": "DELISTED",
+  "undecisive seller": "DELISTED",
+  "undecisive": "DELISTED",
 };
 
 function normalizeStatus(raw: string | undefined): string {
