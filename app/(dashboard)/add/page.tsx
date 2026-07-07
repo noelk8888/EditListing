@@ -169,7 +169,7 @@ export default function AddListingPage() {
   const [monthlyDues, setMonthlyDues] = useState("");
   const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
   const [socmedLink, setSocmedLink] = useState("");
-  const [referredBy, setReferredBy] = useState("");
+
   const [userEmail, setUserEmail] = useState("");
 
   useEffect(() => {
@@ -602,7 +602,7 @@ export default function AddListingPage() {
       setLeasePricePerSqm(prev => data.leasePricePerSqm || prev);
       setSocmedLink(prev => data.fbLink || data.socmedLink || prev);
       overrideIfFound(data.photos, setPhotosLink, photosLink);
-      setReferredBy(prev => data.col_q || data.colQ || prev);
+
 
       // Preserve Location Verified status and coordinates if already verified
       if (!locationVerified) {
@@ -774,7 +774,7 @@ export default function AddListingPage() {
     setCompound("");
     setMonthlyDues("");
     setComments("");
-    setReferredBy("");
+
     setTelegramGroups([]);
     setTargetTab(permissions.sheet2 ? "Sheet2" : "Sheet1");
   };
@@ -1747,7 +1747,7 @@ export default function AddListingPage() {
           monthly_dues: monthlyDues,
           comments: comments,
           fb_link: socmedLink,
-          col_q: referredBy,
+          col_q: comments,
 
           photo_link: photosLink,
           send_telegram: telegramPostEnabled,
@@ -1939,7 +1939,7 @@ export default function AddListingPage() {
           comments: comments,
           photo_link: photosLink,
           fb_link: socmedLink,
-          col_q: referredBy,
+          col_q: comments,
 
           geo_id: (geoIdConfirmed && newGeoId) ? newGeoId : undefined,
           // batch: always pass source sheet + row so GEO ID is written back to Shadow GSheet MAIN tab COL AC
@@ -3412,13 +3412,13 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       className="h-8 text-sm"
                     />
                   </div>
-                  <div className="hidden">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">COMMENTS</Label>
                     <Input 
-                      value={referredBy} 
-                      onChange={(e) => setReferredBy(e.target.value)} 
+                      value={comments} 
+                      onChange={(e) => handleInputChange(setComments, true)(e.target.value)} 
                       className="h-8 text-sm" 
-                      placeholder="Name..."
+                      placeholder="Add comments..."
                     />
                   </div>
                 </div>
@@ -3607,11 +3607,8 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <Input value={monthlyDues} onChange={(e) => handleInputChange(setMonthlyDues)(e.target.value)} className="h-8 text-sm" placeholder="e.g. 5,000/month" />
                     </div>
 
-                    {/* Row 10: COMMENTS, SPONSOR START, SPONSOR END */}
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                      <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
-                    </div>
+                    {/* Row 10: COMMENTS, SOCMED LINK */}
+
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Socmed Link</Label>
                       <Input value={socmedLink} onChange={(e) => handleInputChange(setSocmedLink)(e.target.value)} className="h-8 text-sm" placeholder="Facebook / Instagram / TikTok link" />
@@ -3770,13 +3767,13 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       className="h-8 text-sm"
                     />
                   </div>
-                  <div className="hidden">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">COMMENTS</Label>
                     <Input 
-                      value={referredBy} 
-                      onChange={(e) => setReferredBy(e.target.value)} 
+                      value={comments} 
+                      onChange={(e) => handleInputChange(setComments, true)(e.target.value)} 
                       className="h-8 text-sm" 
-                      placeholder="Name..."
+                      placeholder="Add comments..."
                     />
                   </div>
                 </div>
@@ -3917,10 +3914,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <Input value={monthlyDues} onChange={(e) => handleInputChange(setMonthlyDues)(e.target.value)} className="h-8 text-sm" placeholder="e.g. 5,000/month" />
                     </div>
                     {/* Row 9: COMMENTS, SPONSOR START, SPONSOR END */}
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                      <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
-                    </div>
+
                     <div className="flex items-center gap-2">
                       <Label className="text-xs text-muted-foreground w-16 shrink-0">Socmed Link</Label>
                       <Input value={socmedLink} onChange={(e) => handleInputChange(setSocmedLink)(e.target.value)} className="h-8 text-sm" placeholder="Facebook / Instagram / TikTok link" />
@@ -4347,13 +4341,13 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       className="h-8 text-sm"
                     />
                   </div>
-                  <div className="hidden">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Referror</Label>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs text-muted-foreground w-16 shrink-0">COMMENTS</Label>
                     <Input 
-                      value={referredBy} 
-                      onChange={(e) => setReferredBy(e.target.value)} 
+                      value={comments} 
+                      onChange={(e) => handleInputChange(setComments, true)(e.target.value)} 
                       className="h-8 text-sm" 
-                      placeholder="Name..."
+                      placeholder="Add comments..."
                     />
                   </div>
 
@@ -4497,10 +4491,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     <Input value={monthlyDues} onChange={(e) => handleInputChange(setMonthlyDues)(e.target.value)} className="h-8 text-sm" placeholder="e.g. 5,000/month" />
                   </div>
                   {/* Row 9: comments, sponsor start, sponsor end */}
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Comments</Label>
-                    <Input value={comments} onChange={(e) => handleInputChange(setComments, true)(e.target.value)} className="h-8 text-sm" />
-                  </div>
+
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Socmed Link</Label>
                     <Input value={socmedLink} onChange={(e) => handleInputChange(setSocmedLink)(e.target.value)} className="h-8 text-sm" placeholder="Facebook / Instagram / TikTok link" />
