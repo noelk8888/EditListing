@@ -20,6 +20,8 @@ import { Loader2, Save, MapPin } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { fetchListingOwnerships } from "@/lib/supabase";
 
+const MANUAL_LISTING_OWNERSHIP_VALUE = "__manual_listing_ownership__";
+
 interface ListingFormProps {
   listing: Partial<Listing>;
   mode: "add" | "edit";
@@ -30,16 +32,40 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
   const [listing, setListing] = useState<Partial<Listing>>(initialListing);
   const [loading, setLoading] = useState(false);
   const [dynamicOptions, setDynamicOptions] = useState<string[]>([]);
+  const [manualListingOwnership, setManualListingOwnership] = useState(false);
 
   useEffect(() => {
     fetchListingOwnerships().then(setDynamicOptions);
   }, []);
 
   const allOwnershipOptions = Array.from(new Set([...LISTING_OWNERSHIP_OPTIONS, ...dynamicOptions]));
+  const listingOwnership = listing.listingOwnership || "";
+  const isCustomListingOwnership = listingOwnership !== "" && !allOwnershipOptions.includes(listingOwnership);
+  const isManualListingOwnership = manualListingOwnership || isCustomListingOwnership;
+  const listingOwnershipSelectValue = isManualListingOwnership
+    ? MANUAL_LISTING_OWNERSHIP_VALUE
+    : listingOwnership;
   const [geocoding, setGeocoding] = useState(false);
 
   const updateField = <K extends keyof Listing>(field: K, value: Listing[K]) => {
     setListing((prev) => ({ ...prev, [field]: value }));
+  };
+
+  useEffect(() => {
+    if (allOwnershipOptions.includes(listingOwnership)) {
+      setManualListingOwnership(false);
+    }
+  }, [allOwnershipOptions, listingOwnership]);
+
+  const handleListingOwnershipChange = (value: string) => {
+    if (value === MANUAL_LISTING_OWNERSHIP_VALUE) {
+      setManualListingOwnership(true);
+      if (!isCustomListingOwnership) updateField("listingOwnership", "");
+      return;
+    }
+
+    setManualListingOwnership(false);
+    updateField("listingOwnership", value);
   };
 
   const handleDirectOrCobrokerChange = (value: Listing["directOrCobroker"]) => {
@@ -480,11 +506,11 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
           <div className="space-y-2">
             <Label htmlFor="listingOwnership">Listing Ownership</Label>
             <Select
-              value={listing.listingOwnership || ""}
-              onValueChange={(value) => updateField("listingOwnership", value)}
+              value={listingOwnershipSelectValue}
+              onValueChange={handleListingOwnershipChange}
             >
               <SelectTrigger>
-                <span className={listing.listingOwnership === "" ? "opacity-0" : ""}>
+                <span className={listingOwnershipSelectValue === "" ? "opacity-0" : ""}>
                   <SelectValue placeholder="Select ownership..." />
                 </span>
               </SelectTrigger>
@@ -495,8 +521,17 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
                     {option}
                   </SelectItem>
                 ))}
+                <SelectItem value={MANUAL_LISTING_OWNERSHIP_VALUE}>Enter manually...</SelectItem>
               </SelectContent>
             </Select>
+            {isManualListingOwnership && (
+              <Input
+                value={isCustomListingOwnership ? listingOwnership : ""}
+                onChange={(e) => updateField("listingOwnership", e.target.value)}
+                placeholder="Enter listing ownership"
+                autoFocus
+              />
+            )}
           </div>
         </CardContent>
       </Card>

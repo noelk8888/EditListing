@@ -35,6 +35,9 @@ const STATUS_MAP: Record<string, string> = {
 const normalizeStatus = (raw: string): string =>
   STATUS_MAP[raw.toLowerCase().trim()] ?? raw.toUpperCase();
 
+const BLANK_LISTING_OWNERSHIP_VALUE = " ";
+const MANUAL_LISTING_OWNERSHIP_VALUE = "__manual_listing_ownership__";
+
 // Format number with commas for display
 const formatNumber = (value: string | number | null): string => {
   if (!value) return "";
@@ -121,6 +124,72 @@ function FormattedNumberInput({
       placeholder={placeholder}
       disabled={disabled}
     />
+  );
+}
+
+interface ListingOwnershipFieldProps {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}
+
+function ListingOwnershipField({ value, options, onChange }: ListingOwnershipFieldProps) {
+  const [manualMode, setManualMode] = useState(false);
+  const isBlank = value === "" || value === BLANK_LISTING_OWNERSHIP_VALUE;
+  const isCustomValue = !isBlank && !options.includes(value);
+  const isManual = manualMode || isCustomValue;
+  const selectValue = isManual
+    ? MANUAL_LISTING_OWNERSHIP_VALUE
+    : value || BLANK_LISTING_OWNERSHIP_VALUE;
+
+  useEffect(() => {
+    if (options.includes(value)) {
+      setManualMode(false);
+    }
+  }, [options, value]);
+
+  const handleSelectChange = (nextValue: string) => {
+    if (nextValue === MANUAL_LISTING_OWNERSHIP_VALUE) {
+      setManualMode(true);
+      if (!isCustomValue) onChange("");
+      return;
+    }
+
+    setManualMode(false);
+    onChange(nextValue);
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
+      <div className="flex-1 space-y-2">
+        <Select value={selectValue} onValueChange={handleSelectChange}>
+          <SelectTrigger className="h-8 text-sm">
+            <span className={selectValue === BLANK_LISTING_OWNERSHIP_VALUE ? "opacity-0" : ""}>
+              <SelectValue placeholder="Select ownership..." />
+            </span>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={BLANK_LISTING_OWNERSHIP_VALUE}>&lt;blank&gt;</SelectItem>
+            {options.map((option) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+            <SelectItem value={MANUAL_LISTING_OWNERSHIP_VALUE}>Enter manually...</SelectItem>
+          </SelectContent>
+        </Select>
+        {isManual && (
+          <Input
+            value={isCustomValue ? value : ""}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-8 text-sm"
+            placeholder="Enter listing ownership"
+            autoFocus
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -3369,27 +3438,11 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       TODAY
                     </Button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
-                    <Select 
-                      value={listingOwnership} 
-                      onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <span className={listingOwnership === " " ? "opacity-0" : ""}>
-                          <SelectValue placeholder="Select ownership..." />
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value=" ">&lt;blank&gt;</SelectItem>
-                        {allOwnershipOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <ListingOwnershipField
+                    value={listingOwnership}
+                    options={allOwnershipOptions}
+                    onChange={handleInputChange(setListingOwnership)}
+                  />
 
                   {/* Row 5: Income + Photos Link + Referror */}
                   <div className="flex items-center gap-2">
@@ -3732,27 +3785,11 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       TODAY
                     </Button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
-                    <Select 
-                      value={listingOwnership} 
-                      onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
-                    >
-                      <SelectTrigger className="h-8 text-sm">
-                        <span className={listingOwnership === " " ? "opacity-0" : ""}>
-                          <SelectValue placeholder="Select ownership..." />
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value=" ">&lt;blank&gt;</SelectItem>
-                        {allOwnershipOptions.map((option) => (
-                          <SelectItem key={option} value={option}>
-                            {option}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <ListingOwnershipField
+                    value={listingOwnership}
+                    options={allOwnershipOptions}
+                    onChange={handleInputChange(setListingOwnership)}
+                  />
                   <div className="flex items-center gap-2">
                     <Label className="text-xs text-muted-foreground w-16 shrink-0">Income</Label>
                     <Select value={withIncome} onValueChange={(v) => handleInputChange(setWithIncome)(v)}>
@@ -4304,27 +4341,11 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     TODAY
                   </Button>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground w-16 shrink-0">Listing Ownership</Label>
-                  <Select 
-                    value={listingOwnership} 
-                    onValueChange={(v) => handleInputChange(setListingOwnership)(v)}
-                  >
-                    <SelectTrigger className="h-8 text-sm">
-                      <span className={listingOwnership === " " ? "opacity-0" : ""}>
-                        <SelectValue placeholder="Select ownership..." />
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value=" ">&lt;blank&gt;</SelectItem>
-                      {allOwnershipOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <ListingOwnershipField
+                  value={listingOwnership}
+                  options={allOwnershipOptions}
+                  onChange={handleInputChange(setListingOwnership)}
+                />
 
                 {/* Row 5 */}
                 <div className="flex items-center gap-2">
