@@ -414,11 +414,11 @@ export async function POST(request: Request) {
 
       // 1. Send default notification
       const defaultMsg = [newGeoId, summary].filter(Boolean).join("\n");
-      const sentMessageIds = await sendTelegramNotification(defaultMsg, groups, photo_link, null, session?.user?.email);
+      const sentMessageIds = await sendTelegramNotification(defaultMsg, groups, photo_link);
 
       // 2. Send custom message if provided
       if (telegram_post_message) {
-        await sendTelegramNotification(telegram_post_message, groups, null, sentMessageIds, session?.user?.email);
+        await sendTelegramNotification(telegram_post_message, groups, null, sentMessageIds);
       }
     }
 

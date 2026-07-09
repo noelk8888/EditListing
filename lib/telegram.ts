@@ -233,15 +233,7 @@ export interface TelegramMessageObj {
   notes: string;
 }
 
-const TELEGRAM_HIDE_GEO_ID_EMAILS = new Set([
-  "sales@luxerealtyph.com",
-]);
-
-function hideGeoIdForUser(message: string, userEmail?: string | null): string {
-  if (!userEmail || !TELEGRAM_HIDE_GEO_ID_EMAILS.has(userEmail.trim().toLowerCase())) {
-    return message;
-  }
-
+function hideGeoId(message: string): string {
   return message
     .split(/\r?\n/)
     .map((line) => line
@@ -299,8 +291,7 @@ export async function sendTelegramNotification(
   message: string | TelegramMessageObj,
   groups?: string[],  // e.g. ["RESIDENTIAL", "COMMERCIAL"]
   photoLink?: string | null,
-  replyToMessageIds?: Record<string, number> | null,
-  userEmail?: string | null
+  replyToMessageIds?: Record<string, number> | null
 ): Promise<Record<string, number>> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
@@ -391,7 +382,7 @@ export async function sendTelegramNotification(
     // Determine the text to send for this specific chat
     let textToSend: string | null = null;
     if (typeof message === "string") {
-      textToSend = hideGeoIdForUser(message, userEmail);
+      textToSend = hideGeoId(message);
     } else if (message && typeof message === "object") {
       const groupName = chatIdToGroup[chatId] || "";
       const majorGroup = getMajorGroup(groupName);
