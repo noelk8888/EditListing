@@ -604,10 +604,27 @@ export default function AddListingPage() {
     }
   };
 
-  const handleExtractData = async () => {
+  const applyStatusReplacement = (text: string, status: string) => {
+    if (!status) return text;
+
+    const todayFormatted = new Intl.DateTimeFormat("en-US", {
+      timeZone: "Asia/Manila",
+      month: "long",
+      year: "numeric",
+    }).format(new Date()).toUpperCase();
+    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|DELISTED)\b.*$/im;
+
+    return regex.test(text)
+      ? text.replace(regex, `*${status} - ${todayFormatted}*`)
+      : `*${status} - ${todayFormatted}*\n${text}`;
+  };
+
+  const handleExtractData = async (overrideText?: unknown) => {
     // When USE THIS LISTING is active, extract from the editable MAIN textarea (editSummary).
     // Otherwise extract from the newly pasted text (rawText).
-    const textToExtract = (step === "review" || useExistingMain) ? editSummary : rawText;
+    const textToExtract = typeof overrideText === "string"
+      ? overrideText
+      : ((step === "review" || useExistingMain) ? editSummary : rawText);
     if (!textToExtract.trim()) {
       setError("Please enter a listing to parse");
       return;
@@ -637,7 +654,7 @@ export default function AddListingPage() {
         else if (!current) setter(""); // only blank if it was already blank
       };
 
-      if (!useExistingMain && step !== "review") setEditSummary(rawText);
+      if (!useExistingMain && step !== "review") setEditSummary(textToExtract);
       overrideIfFound(data.region, setEditRegion, editRegion);
       if (data.region?.trim().toUpperCase() === "NCR") setEditProvince("Metro Manila");
       else overrideIfFound(data.province, setEditProvince, editProvince);
@@ -650,7 +667,10 @@ export default function AddListingPage() {
       overrideIfFound(data.salePrice, setEditPrice, editPrice);
       overrideIfFound(data.leasePrice, setEditLeasePrice, editLeasePrice);
       overrideIfFound(data.type, setEditType, editType);
-      if (data.status) setEditStatus(normalizeStatus(data.status));
+      // For a newly detected listing, the user's explicit status selection wins.
+      // With no selection, every new listing starts as AVAILABLE.
+      if (!searchResult) setEditStatus(statusReplacement || "AVAILABLE");
+      else if (data.status) setEditStatus(normalizeStatus(data.status));
       overrideIfFound(data.type, setPropertyType, propertyType);
       overrideIfFound(data.bedrooms, setBedrooms, bedrooms);
       overrideIfFound(data.toilets, setToilet, toilet);
@@ -2929,8 +2949,30 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </p>
                   )}
                 </div>
-                {/* GEO ID confirm + Extract */}
+                {/* Status + GEO ID confirm + Extract */}
                 <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+                  <div className="space-y-2 w-full">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide text-left">
+                      Update Status (optional)
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {["SOLD", "LEASED OUT", "OFF THE MARKET", "ON HOLD", "UNDER NEGO", "DELISTED"].map((status) => (
+                        <Button
+                          key={status}
+                          type="button"
+                          variant={statusReplacement === status ? "default" : "outline"}
+                          size="sm"
+                          className="rounded-full text-xs"
+                          onClick={() => setStatusReplacement(status === statusReplacement ? "" : status)}
+                        >
+                          {status}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground text-left">
+                      No selection defaults to AVAILABLE.
+                    </p>
+                  </div>
                   <div className="flex items-center gap-2 p-2 rounded-md border bg-white w-full">
                     <Checkbox
                       id="geo-id-confirm-notice"
@@ -2960,7 +3002,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     )}
                   </div>
                   {permissions.ai_extract !== false && (
-                    <Button onClick={handleExtractData} disabled={loading} variant="default" className="w-full">
+                    <Button
+                      onClick={() => {
+                        const textForExtraction = applyStatusReplacement(rawText, statusReplacement);
+                        if (textForExtraction !== rawText) setRawText(textForExtraction);
+                        handleExtractData(textForExtraction);
+                      }}
+                      disabled={loading}
+                      variant="default"
+                      className="w-full"
+                    >
                       {loading ? (
                         <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Extracting...</>
                       ) : (
