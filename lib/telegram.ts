@@ -233,6 +233,26 @@ export interface TelegramMessageObj {
   notes: string;
 }
 
+const TELEGRAM_HIDE_GEO_ID_EMAILS = new Set([
+  "sales@luxerealtyph.com",
+]);
+
+function hideGeoIdForUser(message: string, userEmail?: string | null): string {
+  if (!userEmail || !TELEGRAM_HIDE_GEO_ID_EMAILS.has(userEmail.trim().toLowerCase())) {
+    return message;
+  }
+
+  return message
+    .split(/\r?\n/)
+    .map((line) => line
+      .replace(/\b[A-Z]\d{4,6}(?:-D)*\b/gi, "")
+      .replace(/:\s*$/, "")
+      .trimEnd())
+    .filter((line, index) => line.trim() !== "" || index > 0)
+    .join("\n")
+    .replace(/^\n+/, "");
+}
+
 function getMajorGroup(groupName: string): number {
   const gName = groupName.trim();
   if (gName === "UPDATE LISTING" || gName === "TEST") {
@@ -250,12 +270,13 @@ function formatTelegramMessageObj(msg: TelegramMessageObj, majorGroup: number, g
   }
   if (majorGroup === 1) {
     const trimmedNotes = (msg.notes || "").trim();
-    // For "UPDATE LISTING" group only: show Line 2 (status) when Line 5 (notes) is blank
-    const isUpdateListing = groupName.trim() === "UPDATE LISTING";
-    const secondLine = trimmedNotes || (isUpdateListing ? (msg.line2 || "").trim() || undefined : undefined);
+    const line2 = (msg.line2 || "").trim().toUpperCase() === "UPDATED FORMAT"
+      ? (msg.line2 || "").trim()
+      : undefined;
     const headerLines = [
       msg.line1,
-      secondLine,
+      line2,
+      trimmedNotes || undefined,
       msg.line3,
       msg.line4,
     ].filter(Boolean);
@@ -278,7 +299,8 @@ export async function sendTelegramNotification(
   message: string | TelegramMessageObj,
   groups?: string[],  // e.g. ["RESIDENTIAL", "COMMERCIAL"]
   photoLink?: string | null,
-  replyToMessageIds?: Record<string, number> | null
+  replyToMessageIds?: Record<string, number> | null,
+  userEmail?: string | null
 ): Promise<Record<string, number>> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   if (!token) {
@@ -369,7 +391,7 @@ export async function sendTelegramNotification(
     // Determine the text to send for this specific chat
     let textToSend: string | null = null;
     if (typeof message === "string") {
-      textToSend = message;
+      textToSend = hideGeoIdForUser(message, userEmail);
     } else if (message && typeof message === "object") {
       const groupName = chatIdToGroup[chatId] || "";
       const majorGroup = getMajorGroup(groupName);
@@ -449,4 +471,3 @@ export async function sendTelegramNotification(
 
   return sentMessageIds;
 }
-

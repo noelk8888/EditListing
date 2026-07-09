@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { sendTelegramNotification } from "@/lib/telegram";
+import { auth } from "@/lib/auth";
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
     const body = await request.json();
     const { message, groups, summary, geoId, photoLink } = body;
 
@@ -23,12 +25,12 @@ export async function POST(request: Request) {
     // 1. Send the listing summary if provided
     if (summary && geoId) {
       const mainWithId = summary.startsWith(geoId) ? summary : `${geoId}\n${summary}`;
-      sentMessageIds = await sendTelegramNotification(mainWithId, selectedGroups, photoLink);
+      sentMessageIds = await sendTelegramNotification(mainWithId, selectedGroups, photoLink, null, session?.user?.email);
     }
 
     // 2. Send the custom message if provided
     if (message) {
-      await sendTelegramNotification(message, selectedGroups, null, sentMessageIds);
+      await sendTelegramNotification(message, selectedGroups, null, sentMessageIds, session?.user?.email);
     }
 
     return NextResponse.json({ success: true });
