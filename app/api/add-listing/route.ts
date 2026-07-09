@@ -413,7 +413,7 @@ export async function POST(request: Request) {
       const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
 
       // 1. Send default notification
-      const defaultMsg = `🆕 New Listing: ${newGeoId}\n\n${summary || ""}`;
+      const defaultMsg = [newGeoId, summary].filter(Boolean).join("\n");
       const sentMessageIds = await sendTelegramNotification(defaultMsg, groups, photo_link, null, session?.user?.email);
 
       // 2. Send custom message if provided
