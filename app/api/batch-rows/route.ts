@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getRowRange, getSheetTabNameByGid } from "@/lib/google-sheets";
+import { getRowRange, getSheetTabNameByGid, getSheets } from "@/lib/google-sheets";
 import { auth } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +43,13 @@ export async function GET(request: NextRequest) {
     let tabName: string | null = null;
     if (spreadsheetId && sheetGid !== undefined) {
       tabName = await getSheetTabNameByGid(spreadsheetId, sheetGid);
+    }
+
+    // URLs without a gid do not identify a specific tab. Use the first tab
+    // rather than assuming it is named "Sheet1" (MASTER LUXE uses "Masterlist").
+    if (spreadsheetId && !tabName) {
+      const metadata = await getSheets().spreadsheets.get({ spreadsheetId });
+      tabName = metadata.data.sheets?.[0]?.properties?.title ?? null;
     }
 
     const rows = await getRowRange(startRow, endRow, spreadsheetId, tabName ?? undefined);

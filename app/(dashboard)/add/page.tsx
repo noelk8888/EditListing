@@ -308,7 +308,7 @@ export default function AddListingPage() {
   type BatchRow = { rowNumber: number; colA: string; colB: string; colC: string; colD: string; colE: string; colF: string; colG: string; colH: string; colI: string; colJ: string; colK: string; colL: string; colM: string; colN: string; colO: string; colP: string; colQ: string; colR: string; colAC: string };
   const [batchMode, setBatchMode] = useState(false);      // setup panel open
   // SOURCE GSheet — read-only source for Batch Review listings
-  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit");
+  const [batchSheetUrl, setBatchSheetUrl] = useState("https://docs.google.com/spreadsheets/d/1T-LUc3cKn0ojq1p3VvgpFs4NzB8Z6ZKV4iJaoEhfwKM/edit?gid=1361278820#gid=1361278820");
   const [batchStartRow, setBatchStartRow] = useState("2");
   const [batchEndRow, setBatchEndRow] = useState("50");
   const batchGeoSeries = "G";
