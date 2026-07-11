@@ -5,8 +5,8 @@ import { auth } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 
 /**
- * GET /api/last-row?spreadsheetId=...&gid=...
- * Returns the last row number that has data in column A.
+ * GET /api/last-row?masterSheetId=...&luxeSheetId=...&gid=...
+ * Returns the last used row in column A for the source and destination tabs.
  */
 async function getLastRowWithData(spreadsheetId: string, tabName: string): Promise<number> {
   const sheets = getSheets();
@@ -48,25 +48,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Resolve tab name from gid (same gid for both sheets)
-    let tabName = "Sheet1";
+    // A gid identifies a tab within one spreadsheet. The same numeric gid can
+    // refer to tabs with different names in the source and destination files
+    // (for example, Masterlist in MASTER LUXE and Sheet1 in LUXE DBASE).
+    let masterTabName = "Sheet1";
+    let luxeTabName = "Sheet1";
     if (gid) {
       const gidNum = parseInt(gid, 10);
       if (!isNaN(gidNum)) {
-        const resolved = await getSheetTabNameByGid(masterSheetId, gidNum);
-        if (resolved) tabName = resolved;
+        const [resolvedMasterTab, resolvedLuxeTab] = await Promise.all([
+          getSheetTabNameByGid(masterSheetId, gidNum),
+          getSheetTabNameByGid(luxeSheetId, gidNum),
+        ]);
+        if (resolvedMasterTab) masterTabName = resolvedMasterTab;
+        if (resolvedLuxeTab) luxeTabName = resolvedLuxeTab;
       }
     }
 
     const [masterLastRow, luxeLastRow] = await Promise.all([
-      getLastRowWithData(masterSheetId, tabName),
-      getLastRowWithData(luxeSheetId, tabName),
+      getLastRowWithData(masterSheetId, masterTabName),
+      getLastRowWithData(luxeSheetId, luxeTabName),
     ]);
 
     return NextResponse.json({
       masterLastRow,
       luxeLastRow,
-      tabName,
+      masterTabName,
+      luxeTabName,
       suggestedStartRow: masterLastRow > luxeLastRow ? luxeLastRow + 1 : null,
     });
   } catch (error) {

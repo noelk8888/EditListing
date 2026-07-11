@@ -2109,7 +2109,10 @@ export default function AddListingPage() {
       const luxeSheetId = "12Z8X3RmYRBMiihsxf-J0f650Ifj2irxRQsYC64Cgbw0";
       const gid = "1361278820";
       const res = await fetch(`/api/last-row?masterSheetId=${masterSheetId}&luxeSheetId=${luxeSheetId}&gid=${gid}`);
-      if (!res.ok) return;
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || "Unable to determine the next batch row");
+      }
       const data = await res.json();
       if (data.suggestedStartRow) {
         setBatchStartRow(String(data.suggestedStartRow));
@@ -2120,6 +2123,7 @@ export default function AddListingPage() {
       }
     } catch (err) {
       console.error("checkLastRows error:", err);
+      setError(err instanceof Error ? err.message : "Unable to determine the next batch row");
     }
   }, []);
 
