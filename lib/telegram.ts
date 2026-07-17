@@ -245,6 +245,10 @@ function hideGeoId(message: string): string {
     .replace(/^\n+/, "");
 }
 
+function shouldShowGeoId(groupName: string): boolean {
+  return groupName.trim().toUpperCase() === "TEST";
+}
+
 function getMajorGroup(groupName: string): number {
   const gName = groupName.trim();
   if (gName === "UPDATE LISTING" || gName === "TEST") {
@@ -381,10 +385,10 @@ export async function sendTelegramNotification(
   for (const chatId of chatIds) {
     // Determine the text to send for this specific chat
     let textToSend: string | null = null;
+    const groupName = chatIdToGroup[chatId] || "";
     if (typeof message === "string") {
-      textToSend = hideGeoId(message);
+      textToSend = shouldShowGeoId(groupName) ? message : hideGeoId(message);
     } else if (message && typeof message === "object") {
-      const groupName = chatIdToGroup[chatId] || "";
       const majorGroup = getMajorGroup(groupName);
       textToSend = formatTelegramMessageObj(message, majorGroup, groupName);
     }
