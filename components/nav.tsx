@@ -106,22 +106,22 @@ export function Nav({ user, permissions }: NavProps) {
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         {/* Row 1: Logo & Title Centered & 50% Bigger */}
-        <div className="container flex py-5 items-center justify-center">
-          <Link href="/" className="flex items-center space-x-4">
+        <div className="container flex items-center justify-center px-4 py-3 sm:py-5">
+          <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-4">
             <div className="flex items-center justify-center overflow-hidden">
-              <img src="/luxe-branding.png" alt="Luxe Logo" className="h-16 w-16 object-contain" />
+              <img src="/luxe-branding.png" alt="Luxe Logo" className="h-10 w-10 object-contain sm:h-16 sm:w-16" />
             </div>
-            <span className="font-extrabold text-2xl tracking-tight text-foreground">
+            <span className="min-w-0 text-center text-base font-extrabold leading-tight tracking-tight text-foreground sm:text-2xl">
               Luxe Realty and Development Corporation
             </span>
-            <span className="text-xs text-muted-foreground font-mono self-end mb-1.5">{APP_VERSION}</span>
+            <span className="hidden self-end mb-1.5 font-mono text-xs text-muted-foreground sm:inline">{APP_VERSION}</span>
           </Link>
         </div>
 
         {/* Row 2: Sub-navigation & Backup as Pills (Left) + Theme Toggle & User Info (Right) */}
         <div className="border-t bg-muted/20 py-2.5">
-          <div className="container flex flex-wrap items-center justify-between gap-4">
-            <nav className="flex flex-wrap items-center gap-2.5 text-sm font-medium">
+          <div className="container flex flex-col gap-3 px-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
+            <nav className="flex w-full gap-2 overflow-x-auto pb-1 text-sm font-medium sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0 hide-scrollbar">
               {links.map((link) => {
                 const Icon = link.icon;
                 const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
@@ -130,7 +130,7 @@ export function Nav({ user, permissions }: NavProps) {
                     key={link.href}
                     href={link.href}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all shadow-sm",
+                      "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-all shadow-sm",
                       isActive
                         ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-blue-500/20"
                         : "bg-background text-muted-foreground border-muted-foreground/20 hover:bg-muted hover:text-foreground"
@@ -147,7 +147,7 @@ export function Nav({ user, permissions }: NavProps) {
                 <button
                   onClick={() => setIsBackupOpen(true)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all shadow-sm",
+                    "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-all shadow-sm",
                     isBackupUrgent()
                       ? "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900/50"
                       : "bg-background text-muted-foreground border-muted-foreground/20 hover:bg-muted hover:text-foreground"
@@ -167,31 +167,31 @@ export function Nav({ user, permissions }: NavProps) {
               )}
             </nav>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start sm:space-x-4">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 title="Toggle dark mode"
-                className="h-8 w-8 px-0 rounded-full"
+                className="h-10 w-10 rounded-full px-0 sm:h-8 sm:w-8"
               >
                 {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </Button>
               {user && (
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                   <div className="flex items-center gap-2">
                     {badge && (
                       <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${badge.className}`}>
                         {badge.label}
                       </span>
                     )}
-                    <span className="text-sm text-muted-foreground">{user.email}</span>
+                    <span className="max-w-[12rem] truncate text-xs text-muted-foreground sm:max-w-none sm:text-sm">{user.email}</span>
                   </div>
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => signOut({ callbackUrl: "/" })}
-                    className="h-8 text-xs px-3 rounded-full border border-border bg-background hover:bg-accent hover:text-foreground"
+                    className="h-10 rounded-full border border-border bg-background px-3 text-xs hover:bg-accent hover:text-foreground sm:h-8"
                   >
                     <LogOut className="h-3.5 w-3.5 mr-1.5" />
                     Sign Out
@@ -209,7 +209,7 @@ export function Nav({ user, permissions }: NavProps) {
       {/* SUPERADMIN-only sticky footer */}
       {isSuperAdmin && (
         <footer className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="container flex h-11 items-center justify-center gap-6 overflow-x-auto whitespace-nowrap px-4 hide-scrollbar">
+          <div className="container flex h-12 items-center justify-start gap-5 overflow-x-auto whitespace-nowrap px-4 sm:h-11 sm:justify-center sm:gap-6 hide-scrollbar">
             {superAdminFooterLinks.map((link) => {
               const Icon = link.icon;
               if (link.onClick) {
@@ -217,7 +217,7 @@ export function Nav({ user, permissions }: NavProps) {
                   <button
                     key={link.label}
                     onClick={link.onClick}
-                    className="flex items-center gap-2 text-sm font-medium transition-colors text-foreground/60 hover:text-foreground/80"
+                    className="flex shrink-0 items-center gap-2 text-sm font-medium transition-colors text-foreground/60 hover:text-foreground/80"
                   >
                     <Icon className="h-4 w-4" />
                     {link.label}
@@ -229,7 +229,7 @@ export function Nav({ user, permissions }: NavProps) {
                   key={link.href}
                   href={link.href!}
                   className={cn(
-                    "flex items-center gap-2 text-sm font-medium transition-colors hover:text-foreground/80",
+                    "flex shrink-0 items-center gap-2 text-sm font-medium transition-colors hover:text-foreground/80",
                     pathname === link.href || pathname.startsWith(link.href + "/")
                       ? "text-foreground"
                       : "text-foreground/60"

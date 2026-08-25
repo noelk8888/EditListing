@@ -145,8 +145,47 @@ export function ListingTable({
         Showing {filteredListings.length} of {listings.length} listings
       </p>
 
-      {/* Table */}
-      <div className="rounded-md border">
+      {/* Mobile result cards */}
+      <div className="space-y-3 md:hidden">
+        {filteredListings.length === 0 ? (
+          <div className="rounded-md border px-4 py-8 text-center text-muted-foreground">No listings found</div>
+        ) : (
+          filteredListings.map((listing) => (
+            <article key={listing.id} className="rounded-lg border bg-card p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="font-semibold">
+                    {[listing.city, listing.barangay].filter(Boolean).join(", ") || "—"}
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {[listing.area, listing.building].filter(Boolean).join(" • ") || "No area or building specified"}
+                  </p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                  listing.status === "AVAILABLE" ? "bg-green-100 text-green-800" :
+                  listing.status === "SOLD" ? "bg-red-100 text-red-800" :
+                  listing.status === "LEASED OUT" ? "bg-blue-100 text-blue-800" :
+                  listing.status === "ON HOLD" ? "bg-yellow-100 text-yellow-800" :
+                  listing.status === "UNDER NEGO" ? "bg-purple-100 text-purple-800" : "bg-gray-100 text-gray-800"
+                }`}>{listing.status || "Unknown"}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 border-y py-3 text-sm">
+                <div><span className="block text-xs text-muted-foreground">Type</span>{listing.type || "—"}</div>
+                <div><span className="block text-xs text-muted-foreground">Area</span>{listing.lotArea ? `Lot: ${listing.lotArea} sqm` : listing.floorArea ? `Floor: ${listing.floorArea} sqm` : "—"}</div>
+                <div className="col-span-2"><span className="block text-xs text-muted-foreground">Price</span>{canViewPricing ? (listing.salePrice ? `Sale: ${formatPrice(listing.salePrice)}` : listing.leasePrice ? `Lease: ${formatPrice(listing.leasePrice)}/mo` : "—") : "Hidden"}</div>
+              </div>
+              <div className="mt-3 flex justify-end gap-2">
+                {canViewPhotos && listing.photos && <Button variant="outline" size="sm" asChild><a href={listing.photos} target="_blank" rel="noopener noreferrer"><ExternalLink className="mr-1.5 h-4 w-4" />Photos</a></Button>}
+                {canEdit && <Button variant="outline" size="sm" asChild><Link href={`/edit/${listing.id}`}><Edit className="mr-1.5 h-4 w-4" />Edit</Link></Button>}
+                {canDelete && <Button variant="outline" size="sm" onClick={() => setDeleteId(listing.id)} className="text-destructive hover:text-destructive"><Trash2 className="mr-1.5 h-4 w-4" />Delete</Button>}
+              </div>
+            </article>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden rounded-md border md:block">
         <Table>
           <TableHeader>
             <TableRow>

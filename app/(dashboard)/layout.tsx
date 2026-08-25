@@ -27,7 +27,7 @@ export default async function DashboardLayout({
     <div className="relative flex min-h-screen flex-col">
       <Nav user={session.user} permissions={permissions} />
       <main className={`flex-1 ${isSuperAdmin ? "pb-16" : ""}`}>
-        <div className="container py-6">{children}</div>
+        <div className="container px-4 py-4 sm:px-6 sm:py-6">{children}</div>
       </main>
     </div>
   );

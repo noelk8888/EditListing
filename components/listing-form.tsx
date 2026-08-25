@@ -566,16 +566,17 @@ export function ListingForm({ listing: initialListing, mode }: ListingFormProps)
       </Card>
 
       {/* Submit Button */}
-      <div className="flex justify-end gap-2">
+      <div className="sticky bottom-0 z-10 -mx-4 flex justify-end gap-2 border-t bg-background/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0">
         <Button
           type="button"
           variant="outline"
           onClick={() => router.back()}
           disabled={loading}
+          className="flex-1 sm:flex-none"
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
+        <Button type="submit" disabled={loading} className="flex-1 sm:flex-none">
           {loading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
