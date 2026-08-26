@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send, Copy, Scale, SearchCheck, UserCheck } from "lucide-react";
+import { Plus, LogOut, Users, ShieldCheck, Sun, Moon, Database, Send, Copy, Scale, SearchCheck, UserCheck, Zap, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { APP_VERSION } from "@/lib/version";
 import { BackupModal } from "@/components/BackupModal";
@@ -29,6 +29,9 @@ const ROLE_BADGE: Record<string, { label: string; className: string }> = {
 
 export function Nav({ user, permissions }: NavProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isLite = searchParams.get("mode") === "lite";
   const role = user?.role || "";
   const { theme, setTheme } = useTheme();
   const isAdmin = role === "SUPERADMIN" || role === "ADMIN";
@@ -37,6 +40,15 @@ export function Nav({ user, permissions }: NavProps) {
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isDuplicatesOpen, setIsDuplicatesOpen] = useState(false);
   const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
+
+  useEffect(() => {
+    const requestedMode = searchParams.get("mode");
+    const mobileRegularOverride = sessionStorage.getItem("luxe-mobile-mode") === "regular";
+
+    if (window.matchMedia("(max-width: 767px)").matches && !requestedMode && !mobileRegularOverride) {
+      router.replace("/add?mode=lite");
+    }
+  }, [router, searchParams]);
 
   useEffect(() => {
     if (canBackup) {
@@ -68,6 +80,7 @@ export function Nav({ user, permissions }: NavProps) {
   };
 
   const links = [
+    { href: "/add?mode=lite", label: "LITE", icon: Zap },
     { href: "/add", label: "Add Listing", icon: Plus },
     ...(isAdmin
       ? [
@@ -102,6 +115,13 @@ export function Nav({ user, permissions }: NavProps) {
 
   const badge = ROLE_BADGE[role];
 
+  const visibleLinks = isLite
+    ? [
+        { href: "/?mode=regular", label: "REGULAR", icon: LayoutDashboard },
+        { href: "/add?mode=lite", label: "ADD LISTING", icon: Plus },
+      ]
+    : links;
+
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -122,13 +142,24 @@ export function Nav({ user, permissions }: NavProps) {
         <div className="border-t bg-muted/20 py-2.5">
           <div className="container flex flex-col gap-3 px-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-4">
             <nav className="flex w-full gap-2 overflow-x-auto pb-1 text-sm font-medium sm:w-auto sm:flex-wrap sm:overflow-visible sm:pb-0 hide-scrollbar">
-              {links.map((link) => {
+              {visibleLinks.map((link) => {
                 const Icon = link.icon;
-                const isActive = pathname === link.href || pathname.startsWith(link.href + "/");
+                const linkPath = link.href.split("?")[0];
+                const isLiteLink = link.href.includes("mode=lite");
+                const isActive = isLite
+                  ? isLiteLink && pathname === linkPath
+                  : !isLiteLink && (pathname === linkPath || pathname.startsWith(linkPath + "/"));
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
+                    onClick={() => {
+                      if (link.href.includes("mode=regular")) {
+                        sessionStorage.setItem("luxe-mobile-mode", "regular");
+                      } else if (link.href.includes("mode=lite")) {
+                        sessionStorage.removeItem("luxe-mobile-mode");
+                      }
+                    }}
                     className={cn(
                       "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-2 text-xs font-semibold transition-all shadow-sm",
                       isActive
@@ -143,7 +174,7 @@ export function Nav({ user, permissions }: NavProps) {
               })}
 
               {/* Backup Modal Trigger */}
-              {canBackup && (
+              {!isLite && canBackup && (
                 <button
                   onClick={() => setIsBackupOpen(true)}
                   className={cn(
@@ -167,7 +198,7 @@ export function Nav({ user, permissions }: NavProps) {
               )}
             </nav>
 
-            <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start sm:space-x-4">
+            {!isLite && <div className="flex w-full items-center justify-between sm:w-auto sm:justify-start sm:space-x-4">
               <Button
                 variant="ghost"
                 size="sm"
@@ -198,7 +229,7 @@ export function Nav({ user, permissions }: NavProps) {
                   </Button>
                 </div>
               )}
-            </div>
+            </div>}
           </div>
         </div>
 
@@ -207,7 +238,7 @@ export function Nav({ user, permissions }: NavProps) {
       </header>
 
       {/* SUPERADMIN-only sticky footer */}
-      {isSuperAdmin && (
+      {isSuperAdmin && !isLite && (
         <footer className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex h-12 items-center justify-start gap-5 overflow-x-auto whitespace-nowrap px-4 sm:h-11 sm:justify-center sm:gap-6 hide-scrollbar">
             {superAdminFooterLinks.map((link) => {

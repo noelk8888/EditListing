@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2, Play, Pause } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SupabaseListing, fetchListingOwnerships, SupabaseTelegramGroup, fetchTelegramGroups } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
 import { LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
@@ -195,9 +195,13 @@ function ListingOwnershipField({ value, options, onChange }: ListingOwnershipFie
 
 export default function AddListingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isLite = searchParams.get("mode") === "lite";
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("paste");
   const [rawText, setRawText] = useState("");
+  const [manualPasteOpen, setManualPasteOpen] = useState(false);
+  const [manualPasteText, setManualPasteText] = useState("");
   const [photosLink, setPhotosLink] = useState("");
   const [previewLines, setPreviewLines] = useState("");
   const [statusReplacement, setStatusReplacement] = useState<string>("");
@@ -597,10 +601,24 @@ export default function AddListingPage() {
 
   const handlePaste = async () => {
     try {
+      if (!navigator.clipboard?.readText) {
+        throw new Error("Clipboard API unavailable");
+      }
       const clipboardText = await navigator.clipboard.readText();
+      if (!clipboardText.trim()) {
+        setManualPasteText("");
+        setManualPasteOpen(true);
+        setError(null);
+        return;
+      }
       setRawText(clipboardText);
-    } catch (err) {
-      setError("Failed to read from clipboard");
+      setError(null);
+    } catch {
+      // Some mobile and embedded browsers block programmatic clipboard reads.
+      // Open an in-page field so the browser's native Paste command still works.
+      setManualPasteText("");
+      setManualPasteOpen(true);
+      setError(null);
     }
   };
 
@@ -767,7 +785,7 @@ export default function AddListingPage() {
       setLastExtractedText(textToExtract);
       
       // Ensure TODAY is active for Admins/Editors after extraction
-      if (!permissions.sheet2 && (userRole === "ADMIN" || userRole === "EDITOR")) {
+      if (!isLite && !permissions.sheet2 && (userRole === "ADMIN" || userRole === "EDITOR")) {
         setTodayToggle(true);
         setDateUpdated(getTodayDate());
       }
@@ -2282,7 +2300,7 @@ export default function AddListingPage() {
   return (
     <div className="space-y-6">
       {/* Batch Progress Banner */}
-      {batchActive && (
+      {!isLite && batchActive && (
         <div className="sticky top-0 z-50 bg-slate-900 text-white px-3 py-2 rounded-md shadow-lg">
           <div className="flex items-center justify-between gap-3">
             {/* Left cluster */}
@@ -2358,7 +2376,7 @@ export default function AddListingPage() {
       <div>
         <div className="flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Add New Listing {APP_VERSION}</h1>
-          {!batchActive && permissions.batch_review !== false && (
+          {!isLite && !batchActive && permissions.batch_review !== false && (
             <button
               onClick={() => {
                 setBatchMode(v => {
@@ -2382,7 +2400,7 @@ export default function AddListingPage() {
       </div>
 
       {/* Batch Setup Panel */}
-      {batchMode && !batchActive && (
+      {!isLite && batchMode && !batchActive && (
         <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-semibold tracking-wide">BATCH REVIEW MODE</span>
@@ -2679,10 +2697,11 @@ Photos: https://photos.app.goo.gl/nZcQUNg6kDPFEooS9
 Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.0472576`}
                     value={rawText}
                     onChange={(e) => setRawText(e.target.value)}
+                    onPaste={() => setError(null)}
                     autoResize
                     className="resize-none font-mono text-sm placeholder:text-gray-300"
                   />
-                  <Button
+                  {!isLite && <Button
                     variant="ghost"
                     size="sm"
                     className="absolute top-2 right-2"
@@ -2691,8 +2710,53 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   >
                     <ClipboardPaste className="h-4 w-4 mr-1" />
                     Paste
-                  </Button>
+                  </Button>}
                 </div>
+                {!isLite && manualPasteOpen && (
+                  <div className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
+                    <div>
+                      <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">Paste listing</p>
+                      <p className="text-xs text-blue-700 dark:text-blue-300">
+                        Tap and hold inside the box, then choose Paste.
+                      </p>
+                    </div>
+                    <Textarea
+                      value={manualPasteText}
+                      onChange={(e) => setManualPasteText(e.target.value)}
+                      onPaste={() => setError(null)}
+                      placeholder="Paste the listing text here"
+                      rows={6}
+                      className="bg-background font-mono text-sm"
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setManualPasteOpen(false);
+                          setManualPasteText("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={!manualPasteText.trim()}
+                        onClick={() => {
+                          setRawText(manualPasteText);
+                          setManualPasteOpen(false);
+                          setManualPasteText("");
+                          setError(null);
+                        }}
+                      >
+                        Use Pasted Text
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
@@ -2762,7 +2826,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
       {step === "check" && (
         <div className="space-y-6">
             {/* SuperAdmin Target Sheet Picker - only for NEW listings */}
-            {permissions.sheet2 === true && !batchActive && !searchResult && (
+            {!isLite && permissions.sheet2 === true && !batchActive && !searchResult && (
               <div className="p-4 bg-blue-50 border border-blue-100 rounded-lg space-y-3">
                 <Label className="text-blue-900 font-semibold flex items-center gap-2">
                   <Plus className="h-4 w-4" />
@@ -2832,7 +2896,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
               </div>
             )}
             
-            <div className="grid grid-cols-2 gap-4 items-start">
+            <div className="grid grid-cols-1 gap-4 items-start lg:grid-cols-2">
             {/* LEFT: Search / Listing Preview */}
             <Card>
               <CardHeader>
@@ -3134,8 +3198,35 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </div>
                   </CardContent>
                 </Card>
+                {isLite && (
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-2">
+                        <Label className="w-16 shrink-0 text-xs text-muted-foreground">Updated</Label>
+                        <MobileDatePicker
+                          value={dateUpdated}
+                          max={getTodayDate()}
+                          onChange={(value) => {
+                            setDateUpdated(value);
+                            setTodayToggle(value === getTodayDate());
+                          }}
+                          className="h-10 flex-1 text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant={todayToggle ? "default" : "outline"}
+                          size="sm"
+                          onClick={handleTodayToggle}
+                          className="h-10 shrink-0 px-3 text-xs"
+                        >
+                          TODAY
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
                 <div className="flex items-center gap-3 flex-wrap justify-end">
-                  {permissions.telegram_send !== false && (
+                  {!isLite && permissions.telegram_send !== false && (
                     <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium mr-1">
                       <input
                         type="checkbox"
@@ -3147,19 +3238,33 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <span className="leading-tight text-center">TELEGRAM<br/>POST</span>
                     </label>
                   )}
-                  <Button
-                    onClick={() => handleUpdateExisting()}
-                    disabled={updating}
-                    className="bg-green-600 hover:bg-green-700 text-white h-auto py-2"
-                  >
-                    {updating ? (
-                      <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="leading-tight text-center">UPDATING<br/>EXISTING</span></span>
-                    ) : (
-                      <span className="flex items-center gap-2"><Save className="h-4 w-4" /><span className="leading-tight text-center">UPDATE<br/>EXISTING</span></span>
-                    )}
-                  </Button>
+                  {isLite ? (permissions.ai_extract !== false ? (
+                    <Button
+                      onClick={handleExtractAndUpdate}
+                      disabled={loading || updating || pendingExtractUpdate}
+                      className="h-auto bg-green-600 py-2 text-white hover:bg-green-700"
+                    >
+                      {loading || updating || pendingExtractUpdate ? (
+                        <span className="flex items-center gap-2 whitespace-nowrap"><Loader2 className="h-4 w-4 animate-spin" />EXTRACTING &amp; UPDATING</span>
+                      ) : (
+                        <span className="flex items-center gap-2 whitespace-nowrap"><Sparkles className="h-4 w-4" />EXTRACT &amp; UPDATE</span>
+                      )}
+                    </Button>
+                  ) : null) : (
+                    <Button
+                      onClick={() => handleUpdateExisting()}
+                      disabled={updating}
+                      className="bg-green-600 hover:bg-green-700 text-white h-auto py-2"
+                    >
+                      {updating ? (
+                        <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="leading-tight text-center">UPDATING<br/>EXISTING</span></span>
+                      ) : (
+                        <span className="flex items-center gap-2"><Save className="h-4 w-4" /><span className="leading-tight text-center">UPDATE<br/>EXISTING</span></span>
+                      )}
+                    </Button>
+                  )}
                   
-                  {permissions.sheet2 === true && sourceTab === "Sheet2" && (
+                  {!isLite && permissions.sheet2 === true && sourceTab === "Sheet2" && (
                     <Button
                       variant="outline"
                       className="border-red-600 text-red-600 hover:bg-red-50 shadow-lg border-2 ring-2 ring-red-500 ring-offset-2 transition-all"
@@ -3179,7 +3284,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       Promote to Sheet1
                     </Button>
                   )}
-                  {permissions.ai_extract !== false && (
+                  {!isLite && permissions.ai_extract !== false && (
                     <Button onClick={handleExtractData} disabled={loading} variant="default" className="h-auto py-2">
                       {loading ? (
                         <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /><span className="leading-tight text-center">EXTRACTING<br/>DATA</span></span>
@@ -3188,7 +3293,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       )}
                     </Button>
                   )}
-                  {batchActive && permissions.ai_extract !== false && searchResult && (
+                  {!isLite && batchActive && permissions.ai_extract !== false && searchResult && (
                     <Button
                       onClick={handleExtractAndUpdate}
                       disabled={loading || updating}
@@ -3201,7 +3306,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       )}
                     </Button>
                   )}
-                  {batchActive && batchIndex > 0 && (
+                  {!isLite && batchActive && batchIndex > 0 && (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -3213,7 +3318,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       Back
                     </Button>
                   )}
-                  {batchActive && (
+                  {!isLite && batchActive && (
                     <Button
                       variant="outline"
                       onClick={() => {
@@ -3227,7 +3332,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   )}
-                  <Button
+                  {!isLite && <Button
                     onClick={async () => {
                       setForceNewListingMode(true);
                       setSearchResult(null);
@@ -3237,14 +3342,14 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     className="bg-red-600 hover:bg-red-700 text-white font-bold tracking-wide h-auto py-2"
                   >
                     <span className="leading-tight text-center">ADD NEW<br/>LISTING</span>
-                  </Button>
+                  </Button>}
                 </div>
               </div>
             )}
           </div>{/* end grid */}
 
                           {/* Backup: conflict resolution (SUPERADMIN only) */}
-                {permissions.sheet2 === true && backupStatus === "conflict" && !conflictResolved && backupData && (
+                {!isLite && permissions.sheet2 === true && backupStatus === "conflict" && !conflictResolved && backupData && (
                   <Card className="border-orange-200 bg-orange-50/50">
                     <CardHeader
                       className="pb-2 cursor-pointer select-none"
@@ -3340,7 +3445,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 )}
 
                 {/* Backup: conflict resolved confirmation */}
-                {backupStatus === "conflict" && conflictResolved && (
+                {!isLite && backupStatus === "conflict" && conflictResolved && (
                   <div className="flex items-center gap-2 rounded-md border border-green-400 bg-green-50 px-3 py-2 text-sm text-green-800">
                     <span>✅</span>
                     <span>Conflict resolved — Extract / Update will write to both Working GSheet and 2nd Backup.</span>
@@ -3348,7 +3453,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 )}
 
                 {/* Full-width: form fields for existing listing */}
-          {searchResult && (
+          {searchResult && !isLite && (
             <Card>
               <CardContent className="space-y-3 pt-4">
                 {/* Compact Form Grid - Horizontal Layout */}
@@ -3738,7 +3843,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
           )}
 
           {/* Additional Info Section - Only show if NO search result */}
-          {!searchResult && (
+          {!searchResult && !isLite && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">New Listing Info</CardTitle>
@@ -4033,7 +4138,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
             </div>
           )}
 
-          <div className="flex justify-between">
+          {!isLite && <div className="flex justify-between">
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => goToStep("paste")}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
@@ -4149,7 +4254,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                 </Button>
               )}
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
