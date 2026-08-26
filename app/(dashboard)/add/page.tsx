@@ -606,6 +606,10 @@ export default function AddListingPage() {
       }
       const clipboardText = await navigator.clipboard.readText();
       if (!clipboardText.trim()) {
+        if (isLite) {
+          setError("The clipboard does not contain any text");
+          return;
+        }
         setManualPasteText("");
         setManualPasteOpen(true);
         setError(null);
@@ -616,6 +620,10 @@ export default function AddListingPage() {
     } catch {
       // Some mobile and embedded browsers block programmatic clipboard reads.
       // Open an in-page field so the browser's native Paste command still works.
+      if (isLite) {
+        setError("Clipboard access was blocked. Allow clipboard access for this site, then tap Paste again.");
+        return;
+      }
       setManualPasteText("");
       setManualPasteOpen(true);
       setError(null);
@@ -1857,9 +1865,9 @@ export default function AddListingPage() {
           col_q: comments,
 
           photo_link: photosLink,
-          send_telegram: telegramPostEnabled,
+          send_telegram: isLite ? false : telegramPostEnabled,
           telegram_post_message: telegramMsg || undefined,
-          telegram_groups: telegramGroups,
+          telegram_groups: isLite ? [] : telegramGroups,
           write_to_backup: backupStatus === "match" || (backupStatus === "conflict" && conflictResolved),
           // Primary target tab (Sheet1 or Sheet2)
           targetTab: (batchActive && batchForceSheet1) ? "Sheet1" : (overrideTargetTab || editTargetTab),
@@ -2701,7 +2709,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     autoResize
                     className="resize-none font-mono text-sm placeholder:text-gray-300"
                   />
-                  {!isLite && <Button
+                  <Button
                     variant="ghost"
                     size="sm"
                     className="absolute top-2 right-2"
@@ -2710,7 +2718,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   >
                     <ClipboardPaste className="h-4 w-4 mr-1" />
                     Paste
-                  </Button>}
+                  </Button>
                 </div>
                 {!isLite && manualPasteOpen && (
                   <div className="mt-3 space-y-3 rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
