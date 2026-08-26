@@ -12,11 +12,15 @@ export async function POST(req: Request) {
     console.log("Telegram Webhook received:", JSON.stringify(body, null, 2));
 
     const message = body.message;
-    if (!message || !message.text) return NextResponse.json({ ok: true });
+    if (!message) return NextResponse.json({ ok: true });
 
     const chatId = message.chat.id.toString();
     const chatTitle = message.chat.title;
-    const text = message.text.trim();
+    const text = message.text?.trim();
+
+    await forwardPendingListing(message, chatId);
+
+    if (!text) return NextResponse.json({ ok: true });
 
     // Only respond to /id command
     if (text === "/id" || text === "/id@LuxeEditBot") {
@@ -96,6 +100,37 @@ export async function POST(req: Request) {
     console.error("Telegram Webhook Error:", err);
     return NextResponse.json({ ok: true }); // Always return 200 to Telegram
   }
+}
+
+async function forwardPendingListing(message: any, chatId: string) {
+  const sourceChatId = process.env.TELEGRAM_FORWARD_SOURCE_CHAT_ID;
+  const destinationChatId = process.env.TELEGRAM_FORWARD_DESTINATION_CHAT_ID;
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const excludedUsername = (process.env.TELEGRAM_FORWARD_EXCLUDED_USERNAME || "LuxeRealtyListingUpdateBot").toLowerCase();
+  const senderUsername = message.from?.username?.toLowerCase();
+
+  // The feature is inactive until both group IDs are configured. This prevents
+  // other Telegram groups connected to the bot from being forwarded by mistake.
+  if (!sourceChatId || !destinationChatId || !token) return;
+  if (chatId !== sourceChatId || senderUsername === excludedUsername) return;
+
+  const response = await fetch(`https://api.telegram.org/bot${token}/forwardMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: destinationChatId,
+      from_chat_id: sourceChatId,
+      message_id: message.message_id,
+      disable_notification: true,
+    }),
+  });
+
+  const result = await response.json();
+  if (!response.ok || !result.ok) {
+    throw new Error(`Telegram forwardMessage error: ${result.description || response.statusText}`);
+  }
+
+  console.log(`Forwarded message ${message.message_id} from ${sourceChatId} to ${destinationChatId}.`);
 }
 
 async function reply(chatId: string, text: string) {
