@@ -207,6 +207,8 @@ export default function AddListingPage() {
   const [previewLines, setPreviewLines] = useState("");
   const [statusReplacement, setStatusReplacement] = useState<string>("");
   const litePendingListingRef = useRef<string | null>(null);
+  const liteAutoUpdateProcessedRef = useRef<string | null>(null);
+  const [liteAutoUpdateArmed, setLiteAutoUpdateArmed] = useState(false);
 
   // Property type checkboxes
   const [residential, setResidential] = useState(false);
@@ -924,6 +926,8 @@ export default function AddListingPage() {
       clearEditFields();
     }
     if (targetStep === "paste") {
+      setLiteAutoUpdateArmed(false);
+      litePendingListingRef.current = null;
       clearEditFields();
       setUseExistingMain(false);
       setUseRowNumberMode(false);
@@ -949,6 +953,7 @@ export default function AddListingPage() {
         if (cancelled || !item?.key || !item?.value?.listing_text?.trim()) return;
 
         litePendingListingRef.current = item.key;
+        setLiteAutoUpdateArmed(true);
         const detectedStatus = item.value.detected_status || "";
         const preparedText = prepareRawTextForCheck(item.value.listing_text, detectedStatus);
         setRawText(preparedText);
@@ -2000,6 +2005,53 @@ export default function AddListingPage() {
     setPendingExtractUpdate(true);
     handleExtractData(undefined, true);
   };
+
+  // Telegram-loaded pairs may complete the existing-listing update without a
+  // second click. This is deliberately limited to an existing match; a new or
+  // restricted listing still remains for manual review.
+  useEffect(() => {
+    const pendingKey = litePendingListingRef.current;
+    if (
+      !isLite ||
+      !liteAutoUpdateArmed ||
+      !pendingKey ||
+      liteAutoUpdateProcessedRef.current === pendingKey ||
+      step !== "check" ||
+      searching ||
+      !searchPerformed ||
+      !searchResult ||
+      loading ||
+      updating ||
+      pendingExtractUpdate
+    ) {
+      return;
+    }
+
+    const today = getTodayDate();
+    if (dateUpdated !== today) {
+      setDateUpdated(today);
+      setTodayToggle(true);
+      return;
+    }
+
+    liteAutoUpdateProcessedRef.current = pendingKey;
+    setLiteAutoUpdateArmed(false);
+    handleExtractAndUpdate();
+    // handleExtractAndUpdate intentionally starts the app's established
+    // Extract & Update flow after the date state above has been applied.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isLite,
+    liteAutoUpdateArmed,
+    step,
+    searching,
+    searchPerformed,
+    searchResult,
+    loading,
+    updating,
+    pendingExtractUpdate,
+    dateUpdated,
+  ]);
 
   const handleDeleteListing = async () => {
     if (!searchResult) return;
