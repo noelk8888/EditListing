@@ -206,6 +206,7 @@ export default function AddListingPage() {
   const [photosLink, setPhotosLink] = useState("");
   const [previewLines, setPreviewLines] = useState("");
   const [statusReplacement, setStatusReplacement] = useState<string>("");
+  const litePendingListingRef = useRef<string | null>(null);
 
   // Property type checkboxes
   const [residential, setResidential] = useState(false);
@@ -651,6 +652,14 @@ export default function AddListingPage() {
       : `*${status} - ${todayFormatted}*\n${text}`;
   };
 
+  const prepareRawTextForCheck = (text: string, status: string) => {
+    const lines = text.split("\n");
+    const updateRegex = /^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})\s+update/i;
+    const updateIndex = lines.findIndex((line) => updateRegex.test(line.trim()));
+    const withoutTrailingUpdate = updateIndex === -1 ? text : lines.slice(0, updateIndex).join("\n").trim();
+    return applyStatusReplacement(withoutTrailingUpdate, status);
+  };
+
   const handleExtractData = async (overrideText?: unknown, extractAndUpdate = false) => {
     // When USE THIS LISTING is active, extract from the editable MAIN textarea (editSummary).
     // Otherwise extract from the newly pasted text (rawText).
@@ -924,6 +933,50 @@ export default function AddListingPage() {
     setStep(targetStep);
     setError(null);
   };
+
+  // Test automation: when LITE mode is open with an empty form, bring in the
+  // first message of the next completed Telegram pair, apply the second
+  // message's recognised update status, and stop at Check & Info.
+  useEffect(() => {
+    if (!isLite || step !== "paste" || rawText.trim() || litePendingListingRef.current) return;
+
+    let cancelled = false;
+    const loadTelegramPair = async () => {
+      try {
+        const response = await fetch("/api/lite-pending-listing", { cache: "no-store" });
+        if (!response.ok) return;
+        const { item } = await response.json();
+        if (cancelled || !item?.key || !item?.value?.listing_text?.trim()) return;
+
+        litePendingListingRef.current = item.key;
+        const detectedStatus = item.value.detected_status || "";
+        const preparedText = prepareRawTextForCheck(item.value.listing_text, detectedStatus);
+        setRawText(preparedText);
+        setStatusReplacement(detectedStatus);
+        goToStep("check", preparedText);
+        await fetch("/api/lite-pending-listing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: item.key }),
+        });
+        toast({
+          title: "Telegram listing loaded",
+          description: detectedStatus ? `Status set to ${detectedStatus}.` : "No update status was detected.",
+        });
+      } catch {
+        // Leave the pending item available for the next poll if the browser
+        // temporarily loses its connection.
+        litePendingListingRef.current = null;
+      }
+    };
+
+    void loadTelegramPair();
+    const pollId = window.setInterval(() => { void loadTelegramPair(); }, 5_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(pollId);
+    };
+  }, [isLite, step, rawText, toast]);
 
   const assignNextGeoId = useCallback(async (isSheet2: boolean) => {
     const targetSeries = isSheet2 ? "B" : "G";
@@ -2811,36 +2864,8 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
               <Button 
                 disabled={!canProceedFromPaste}
                 onClick={() => {
-                  let finalRawText = rawText;
-                  
-                  // Strip out any trailing date "update" section and everything below it
-                  const lines = finalRawText.split('\n');
-                  const updateRegex = /^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})\s+update/i;
-                  const updateIndex = lines.findIndex(line => updateRegex.test(line.trim()));
-                  if (updateIndex !== -1) {
-                    finalRawText = lines.slice(0, updateIndex).join('\n').trim();
-                    setRawText(finalRawText);
-                  }
-
-                  if (statusReplacement) {
-                    const todayFormatted = new Intl.DateTimeFormat('en-US', {
-                      timeZone: 'Asia/Manila',
-                      month: 'long',
-                      year: 'numeric'
-                    }).format(new Date()).toUpperCase();
-                    
-                    // Match FOR SALE, FOR LEASE, etc. OR any existing status like ON HOLD, AVAILABLE wrapped in asterisks on the first line
-                    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|DELISTED)\b.*$/im;
-                    
-                    if (regex.test(finalRawText)) {
-                      finalRawText = finalRawText.replace(regex, `*${statusReplacement} - ${todayFormatted}*`);
-                      setRawText(finalRawText);
-                    } else {
-                      // If it doesn't match the regex but we have a status, prepend it to the text
-                      finalRawText = `*${statusReplacement} - ${todayFormatted}*\n${finalRawText}`;
-                      setRawText(finalRawText);
-                    }
-                  }
+                  const finalRawText = prepareRawTextForCheck(rawText, statusReplacement);
+                  setRawText(finalRawText);
                   goToStep("check", finalRawText);
                 }} 
               >

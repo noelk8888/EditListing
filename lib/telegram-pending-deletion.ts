@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { send } from "@vercel/queue";
 
 const FORWARD_RECORD_PREFIX = "telegram-forward";
+const LITE_PENDING_PREFIX = "telegram-lite-pending";
 const DELETE_TOPIC = "pending-listing-delete";
 const DELETE_DELAY_SECONDS = 15 * 60;
 const PAIRING_WINDOW_MS = 5 * 60 * 1000;
@@ -13,6 +14,7 @@ type ForwardRecord = {
   destination_message_id: number;
   forwarded_at: string;
   sender_id?: number;
+  raw_text: string;
   kind: "listing" | "update";
   partner_message_id?: number;
   deletion_status?: "scheduled" | "cancelled" | "deleted";
@@ -21,6 +23,19 @@ type ForwardRecord = {
 };
 
 type SettingRow = { key: string; value: ForwardRecord };
+
+type LitePendingListing = {
+  listing_text: string;
+  detected_status: "SOLD" | "LEASED OUT" | "OFF THE MARKET" | "ON HOLD" | "UNDER NEGO" | "DELISTED" | null;
+  source_chat_id: string;
+  source_listing_message_id: number;
+  source_update_message_id: number;
+  destination_chat_id: string;
+  destination_listing_message_id: number;
+  destination_update_message_id: number;
+  created_at: string;
+  state: "ready" | "loaded";
+};
 
 function getSupabase() {
   return createClient(
@@ -33,9 +48,24 @@ function recordKey(chatId: string, messageId: number) {
   return `${FORWARD_RECORD_PREFIX}:${chatId}:${messageId}`;
 }
 
+function litePendingKey(chatId: string, messageId: number) {
+  return `${LITE_PENDING_PREFIX}:${chatId}:${messageId}`;
+}
+
 function isUpdateNotice(message: any) {
   const text = (message.text || message.caption || "").toUpperCase();
   return /\b(?:LISTING\s+)?UPDATE\b/.test(text);
+}
+
+function getUpdateStatus(message: any): LitePendingListing["detected_status"] {
+  const text = (message.text || message.caption || "").toUpperCase();
+  if (/\bLEASED\s+OUT\b/.test(text)) return "LEASED OUT";
+  if (/\bOFF\s+(?:THE\s+)?MARKET\b/.test(text)) return "OFF THE MARKET";
+  if (/\bON\s+HOLD\b/.test(text)) return "ON HOLD";
+  if (/\bUNDER\s+NEGO\b/.test(text)) return "UNDER NEGO";
+  if (/\bDELISTED\b/.test(text)) return "DELISTED";
+  if (/\bSOLD\b/.test(text)) return "SOLD";
+  return null;
 }
 
 async function saveRecord(record: ForwardRecord) {
@@ -45,6 +75,18 @@ async function saveRecord(record: ForwardRecord) {
   );
 
   if (error) throw new Error(`Could not save Telegram forward record: ${error.message}`);
+}
+
+async function saveLitePendingListing(listing: LitePendingListing) {
+  const { error } = await getSupabase().from("app_settings").upsert(
+    {
+      key: litePendingKey(listing.destination_chat_id, listing.destination_listing_message_id),
+      value: listing,
+    },
+    { onConflict: "key" }
+  );
+
+  if (error) throw new Error(`Could not save LITE pending listing: ${error.message}`);
 }
 
 async function loadRecord(chatId: string, messageId: number) {
@@ -72,6 +114,7 @@ export async function recordForwardedListing(
     destination_message_id: destinationMessageId,
     forwarded_at: now.toISOString(),
     sender_id: sourceMessage.from?.id,
+    raw_text: sourceMessage.text || sourceMessage.caption || "",
     kind: isUpdateNotice(sourceMessage) ? "update" : "listing",
   };
 
@@ -101,6 +144,19 @@ export async function recordForwardedListing(
       record.partner_message_id = partner.destination_message_id;
       partner.partner_message_id = record.destination_message_id;
       await saveRecord(partner);
+
+      await saveLitePendingListing({
+        listing_text: partner.raw_text,
+        detected_status: getUpdateStatus(sourceMessage),
+        source_chat_id: sourceChatId,
+        source_listing_message_id: partner.source_message_id,
+        source_update_message_id: sourceMessage.message_id,
+        destination_chat_id: destinationChatId,
+        destination_listing_message_id: partner.destination_message_id,
+        destination_update_message_id: destinationMessageId,
+        created_at: now.toISOString(),
+        state: "ready",
+      });
     }
   }
 
