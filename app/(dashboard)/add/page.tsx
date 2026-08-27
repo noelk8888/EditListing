@@ -2403,7 +2403,9 @@ export default function AddListingPage() {
 
       <div>
         <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold tracking-tight">Add New Listing {APP_VERSION}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {isLite ? "Add New Listing LITE MODE" : `Add New Listing ${APP_VERSION}`}
+          </h1>
           {!isLite && !batchActive && permissions.batch_review !== false && (
             <button
               onClick={() => {
