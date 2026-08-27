@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { handlePendingListingReaction, recordForwardedListing } from "@/lib/telegram-pending-deletion";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -11,6 +12,11 @@ export async function POST(req: Request) {
     const body = await req.json();
     console.log("Telegram Webhook received:", JSON.stringify(body, null, 2));
 
+    if (body.message_reaction) {
+      await handlePendingListingReaction(body.message_reaction);
+      return NextResponse.json({ ok: true });
+    }
+
     const message = body.message;
     if (!message) return NextResponse.json({ ok: true });
 
@@ -18,7 +24,10 @@ export async function POST(req: Request) {
     const chatTitle = message.chat.title;
     const text = message.text?.trim();
 
-    await forwardPendingListing(message, chatId);
+    const forward = await forwardPendingListing(message, chatId);
+    if (forward) {
+      await recordForwardedListing(message, chatId, forward.destinationChatId, forward.destinationMessageId);
+    }
 
     if (!text) return NextResponse.json({ ok: true });
 
@@ -108,11 +117,12 @@ async function forwardPendingListing(message: any, chatId: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const excludedUsername = (process.env.TELEGRAM_FORWARD_EXCLUDED_USERNAME || "LuxeRealtyListingUpdateBot").toLowerCase();
   const senderUsername = message.from?.username?.toLowerCase();
+  const forwardOriginUsername = message.forward_origin?.sender_user?.username?.toLowerCase();
 
   // The feature is inactive until both group IDs are configured. This prevents
   // other Telegram groups connected to the bot from being forwarded by mistake.
-  if (!sourceChatId || !destinationChatId || !token) return;
-  if (chatId !== sourceChatId || senderUsername === excludedUsername) return;
+  if (!sourceChatId || !destinationChatId || !token) return null;
+  if (chatId !== sourceChatId || senderUsername === excludedUsername || forwardOriginUsername === excludedUsername) return null;
 
   const response = await fetch(`https://api.telegram.org/bot${token}/forwardMessage`, {
     method: "POST",
@@ -130,7 +140,13 @@ async function forwardPendingListing(message: any, chatId: string) {
     throw new Error(`Telegram forwardMessage error: ${result.description || response.statusText}`);
   }
 
+  const destinationMessageId = result.result?.message_id;
+  if (!destinationMessageId) {
+    throw new Error("Telegram forwardMessage returned no destination message ID");
+  }
+
   console.log(`Forwarded message ${message.message_id} from ${sourceChatId} to ${destinationChatId}.`);
+  return { destinationChatId, destinationMessageId };
 }
 
 async function reply(chatId: string, text: string) {

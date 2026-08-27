@@ -1,5 +1,16 @@
 {
   "regions": ["sin1"],
+  "functions": {
+    "app/api/queues/delete-pending-listing/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "pending-listing-delete",
+          "retryAfterSeconds": 60
+        }
+      ]
+    }
+  },
   "crons": [
     {
       "path": "/api/admin/backup",
