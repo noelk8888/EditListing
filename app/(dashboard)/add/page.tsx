@@ -369,6 +369,13 @@ export default function AddListingPage() {
     if (isLite) setTelegramPostEnabled(false);
   }, [isLite]);
 
+  useEffect(() => {
+    if (isLite && step === "check" && searchResult) {
+      setDateUpdated(getTodayDate());
+      setTodayToggle(true);
+    }
+  }, [isLite, step, searchResult]);
+
   // === CUSTOM AUTO-CLOSE ALERT STATE ===
   const [customAlert, setCustomAlert] = useState<{
     message: string;
