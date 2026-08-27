@@ -77,6 +77,7 @@ export async function POST(request: Request) {
       monthly_dues,
       geo_id,
       send_telegram,
+      lite_mode,
       telegram_post_message,
       telegram_groups,
       col_q,
@@ -98,6 +99,16 @@ export async function POST(request: Request) {
       bz_col,
     } = body;
 
+    let isLiteRequest = lite_mode === true;
+    const referer = request.headers.get("referer");
+    if (referer) {
+      try {
+        isLiteRequest = isLiteRequest || new URL(referer).searchParams.get("mode") === "lite";
+      } catch {
+        // Ignore malformed referrers; the explicit request flag still applies.
+      }
+    }
+
     const sanitizedAway = (() => {
       if (!how_many_away) return "";
       const s = String(how_many_away).trim();
@@ -109,7 +120,8 @@ export async function POST(request: Request) {
     })();
 
     console.log("=== ADDING NEW LISTING ===");
-    console.log("send_telegram:", send_telegram);
+    console.log("send_telegram:", send_telegram && !isLiteRequest);
+    console.log("lite_mode:", isLiteRequest);
     console.log("telegram_groups:", telegram_groups);
 
     const userEmail = session?.user?.email;
@@ -409,7 +421,7 @@ export async function POST(request: Request) {
     console.log(`✅ Supabase ${finalGeoId ? "upserted" : "inserted"} for GEO ID:`, newGeoId);
 
     // Send Telegram notifications if requested
-    if (send_telegram) {
+    if (send_telegram && !isLiteRequest) {
       const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
 
       // 1. Send default notification

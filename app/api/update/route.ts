@@ -119,6 +119,7 @@ export async function POST(request: Request) {
       sponsor_end,
       photo_link,
       send_telegram,
+      lite_mode,
       telegram_post_message,
       telegram_groups,
       batch_source_sheet_id,
@@ -142,6 +143,16 @@ export async function POST(request: Request) {
       targetTab: incomingTargetTab,
       exactRowNumber,
     } = body;
+
+    let isLiteRequest = lite_mode === true;
+    const referer = request.headers.get("referer");
+    if (referer) {
+      try {
+        isLiteRequest = isLiteRequest || new URL(referer).searchParams.get("mode") === "lite";
+      } catch {
+        // Ignore malformed referrers; the explicit request flag still applies.
+      }
+    }
 
     const sanitizedAway = (() => {
       if (!how_many_away) return "";
@@ -269,7 +280,8 @@ export async function POST(request: Request) {
 
     console.log("=== UPDATING LISTING ===");
     console.log("ID:", id);
-    console.log("send_telegram:", send_telegram);
+    console.log("send_telegram:", send_telegram && !isLiteRequest);
+    console.log("lite_mode:", isLiteRequest);
     console.log("telegram_groups:", telegram_groups);
 
     const cleanSupabaseFields = {
@@ -679,7 +691,7 @@ export async function POST(request: Request) {
     }
 
     // Send Telegram notifications only when checkbox is checked
-    if (send_telegram) {
+    if (send_telegram && !isLiteRequest) {
       const groups: string[] | undefined = Array.isArray(telegram_groups) ? telegram_groups : undefined;
 
       const sentMessageIds = await sendTelegramNotification(mainWithId, groups, photo_link);

@@ -197,6 +197,7 @@ export default function AddListingPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isLite = searchParams.get("mode") === "lite";
+  const returnPath = isLite ? "/add?mode=lite" : "/";
   const { toast } = useToast();
   const [step, setStep] = useState<Step>("paste");
   const [rawText, setRawText] = useState("");
@@ -359,6 +360,10 @@ export default function AddListingPage() {
   const [telegramLine3, setTelegramLine3] = useState(""); // broker
   const [telegramLine4, setTelegramLine4] = useState(""); // ownership
   const [telegramGroups, setTelegramGroups] = useState<string[]>(["RESIDENTIAL", "UPDATE LISTING", "TEST"]);
+
+  useEffect(() => {
+    if (isLite) setTelegramPostEnabled(false);
+  }, [isLite]);
 
   // === CUSTOM AUTO-CLOSE ALERT STATE ===
   const [customAlert, setCustomAlert] = useState<{
@@ -1251,7 +1256,7 @@ export default function AddListingPage() {
       setSuggestedGeoId("");
       setGeoIdConfirmed(false);
       setLastAssignedGeoId("");
-      router.push("/");
+      router.push(returnPath);
       return;
     }
 
@@ -1866,6 +1871,7 @@ export default function AddListingPage() {
 
           photo_link: photosLink,
           send_telegram: isLite ? false : telegramPostEnabled,
+          lite_mode: isLite,
           telegram_post_message: telegramMsg || undefined,
           telegram_groups: isLite ? [] : telegramGroups,
           write_to_backup: backupStatus === "match" || (backupStatus === "conflict" && conflictResolved),
@@ -1904,7 +1910,7 @@ export default function AddListingPage() {
           ? `✅ Listing updated successfully. GEO ID changed from ${searchResult.id} to ${editGeoId}.`
           : `✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`;
         showAlert(successMsg, () => {
-          router.push("/");
+          router.push(returnPath);
         });
       }
     } catch (err) {
@@ -1955,7 +1961,7 @@ export default function AddListingPage() {
 
   // Directly perform the save without confirmation OR trigger modal
   const handleSaveNew = () => {
-    if (telegramPostEnabled) {
+    if (!isLite && telegramPostEnabled) {
       const useFullMonth = ["noelkiu@gmail.com", "iamnoel888@gmail.com"].includes(userEmail);
       const monthFormat: "long" | "short" = useFullMonth ? "long" : "short";
       const today = new Date(getPHLDate()).toLocaleDateString("en-US", { month: monthFormat, day: "numeric", year: "numeric" });
@@ -2067,9 +2073,10 @@ export default function AddListingPage() {
           } : {
             batch_source_tab_name: finalTargetTab,
           }),
-          send_telegram: telegramPostEnabled,
+          send_telegram: isLite ? false : telegramPostEnabled,
+          lite_mode: isLite,
           telegram_post_message: telegramMsg || undefined,
-          telegram_groups: telegramGroups,
+          telegram_groups: isLite ? [] : telegramGroups,
         }),
       });
 
@@ -2118,7 +2125,7 @@ export default function AddListingPage() {
             ? `New listing created: ${data.geoId}\n\n⚠️ Backup GSheet failed: ${data.backupError}`
             : `New listing created: ${data.geoId}`;
         showAlert(msg, () => {
-          router.push("/");
+          router.push(returnPath);
         });
       }
     } catch (err) {
@@ -2261,7 +2268,7 @@ export default function AddListingPage() {
     setError(null);
 
     // Go to main page
-    router.push("/");
+    router.push(returnPath);
   };
 
   // Line-by-line diff: renders targetText (DB) with red for lines not found in sourceText (raw paste)
