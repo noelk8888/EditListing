@@ -331,6 +331,7 @@ export default function AddListingPage() {
   const [flashOn, setFlashOn] = useState(false);
   const [flashDismissed, setFlashDismissed] = useState(false);
   const [pendingExtractUpdate, setPendingExtractUpdate] = useState(false);
+  const extractUpdateSucceededRef = useRef(false);
   const batchCurrentRowRef = useRef<BatchRow | null>(null); // GSheet data for current row
 
   // === ROW# MODE STATE ===
@@ -650,7 +651,7 @@ export default function AddListingPage() {
       : `*${status} - ${todayFormatted}*\n${text}`;
   };
 
-  const handleExtractData = async (overrideText?: unknown) => {
+  const handleExtractData = async (overrideText?: unknown, extractAndUpdate = false) => {
     // When USE THIS LISTING is active, extract from the editable MAIN textarea (editSummary).
     // Otherwise extract from the newly pasted text (rawText).
     const textToExtract = typeof overrideText === "string"
@@ -794,7 +795,11 @@ export default function AddListingPage() {
         }
       }
 
-      setStep("review");
+      if (extractAndUpdate) {
+        extractUpdateSucceededRef.current = true;
+      } else {
+        setStep("review");
+      }
       setLastExtractedText(textToExtract);
       
       // Ensure TODAY is active for Admins/Editors after extraction
@@ -1910,7 +1915,11 @@ export default function AddListingPage() {
           ? `✅ Listing updated successfully. GEO ID changed from ${searchResult.id} to ${editGeoId}.`
           : `✅ Listing ${searchResult.id} updated successfully in GSheet and Supabase.`;
         showAlert(successMsg, () => {
-          router.push(returnPath);
+          if (isLite) {
+            window.location.replace(returnPath);
+          } else {
+            router.push(returnPath);
+          }
         });
       }
     } catch (err) {
@@ -1924,15 +1933,19 @@ export default function AddListingPage() {
   useEffect(() => {
     if (pendingExtractUpdate && !loading) {
       setPendingExtractUpdate(false);
-      confirmUpdate();
+      if (extractUpdateSucceededRef.current) {
+        extractUpdateSucceededRef.current = false;
+        confirmUpdate();
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, pendingExtractUpdate]);
 
   const handleExtractAndUpdate = () => {
     if (!searchResult) return;
+    extractUpdateSucceededRef.current = false;
     setPendingExtractUpdate(true);
-    handleExtractData();
+    handleExtractData(undefined, true);
   };
 
   const handleDeleteListing = async () => {
@@ -4291,7 +4304,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                   <CardDescription>Review and edit the extracted data before saving</CardDescription>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  {permissions.telegram_send !== false && (
+                  {!isLite && permissions.telegram_send !== false && (
                     <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium">
                       <input
                         type="checkbox"
@@ -4734,7 +4747,7 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
               Back to Check & Info
             </Button>
             <div className="flex items-center gap-3 flex-wrap justify-end">
-              {permissions.telegram_send !== false && (
+              {!isLite && permissions.telegram_send !== false && (
                 <label className="flex items-center gap-1.5 cursor-pointer select-none text-sm font-medium">
                   <input
                     type="checkbox"
