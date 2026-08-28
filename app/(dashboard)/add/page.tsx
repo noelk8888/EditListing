@@ -207,6 +207,8 @@ export default function AddListingPage() {
   const [previewLines, setPreviewLines] = useState("");
   const [statusReplacement, setStatusReplacement] = useState<string>("");
   const litePendingListingRef = useRef<string | null>(null);
+  const liteAutoUpdateProcessedRef = useRef<string | null>(null);
+  const [liteAutoUpdateArmed, setLiteAutoUpdateArmed] = useState(false);
 
   // Property type checkboxes
   const [residential, setResidential] = useState(false);
@@ -226,6 +228,48 @@ export default function AddListingPage() {
   const [originalDateUpdated, setOriginalDateUpdated] = useState("");
   const [available, setAvailable] = useState("");
   const [todayToggle, setTodayToggle] = useState(false);
+
+  const deferLitePair = async () => {
+    const key = litePendingListingRef.current;
+    if (!isLite || !key) return;
+    const response = await fetch("/api/lite-pending-listing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, action: "defer" }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Could not defer this Pending Listings pair");
+    }
+    litePendingListingRef.current = null;
+    setLiteAutoUpdateArmed(false);
+  };
+
+  const completeLitePair = async () => {
+    const key = litePendingListingRef.current;
+    if (!isLite || !key) return;
+    const response = await fetch("/api/lite-pending-listing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, action: "complete" }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Listing was updated, but the Pending Listings pair could not be completed");
+    }
+    litePendingListingRef.current = null;
+    setLiteAutoUpdateArmed(false);
+  };
+
+  const openRegularForNewLiteListing = async () => {
+    setError(null);
+    try {
+      await deferLitePair();
+      window.location.href = "/add";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not open the Regular version");
+    }
+  };
 
   // MORE INFO fields (Supabase only)
   const [mapLink, setMapLink] = useState("");
@@ -367,6 +411,13 @@ export default function AddListingPage() {
     if (isLite) setTelegramPostEnabled(false);
   }, [isLite]);
 
+  useEffect(() => {
+    if (isLite && step === "check" && searchResult) {
+      setDateUpdated(getTodayDate());
+      setTodayToggle(true);
+    }
+  }, [isLite, step, searchResult]);
+
   // === CUSTOM AUTO-CLOSE ALERT STATE ===
   const [customAlert, setCustomAlert] = useState<{
     message: string;
@@ -458,7 +509,7 @@ export default function AddListingPage() {
         if (d.permissions?.sheet2) {
           setTargetTab("Sheet2");
         }
-        if (d.role === "ADMIN" || d.role === "EDITOR" || d.role === "SUPERADMIN") {
+        if (!isLite && (d.role === "ADMIN" || d.role === "EDITOR" || d.role === "SUPERADMIN")) {
           setTelegramPostEnabled(true);
         }
         if (d.role === "ADMIN" || d.role === "EDITOR") {
@@ -474,6 +525,12 @@ export default function AddListingPage() {
       .then(d => setAllTelegramGroups(d.groups || []))
       .catch(err => console.error("Failed to load Telegram groups:", err));
   }, []);
+
+  useEffect(() => {
+    if (permissionsLoaded && isLite && userRole !== "SUPERADMIN") {
+      router.replace("/add");
+    }
+  }, [isLite, permissionsLoaded, router, userRole]);
 
   const autoSelectGroups = useCallback((building: string, area: string, barangay: string, city: string, summary: string, saleOrLease: string, isCommercial: boolean, isIndustrial: boolean, ownerBroker: string) => {
     if (allTelegramGroups.length === 0) return;
@@ -924,6 +981,12 @@ export default function AddListingPage() {
       clearEditFields();
     }
     if (targetStep === "paste") {
+      // A LITE item without an existing match remains visible in PENDING
+      // LISTINGS for manual handling, then releases the automated queue.
+      if (isLite && step === "check" && searchPerformed && !searchResult && litePendingListingRef.current) {
+        void deferLitePair().catch((err) => setError(err instanceof Error ? err.message : "Could not defer Pending Listings pair"));
+        setRawText("");
+      }
       clearEditFields();
       setUseExistingMain(false);
       setUseRowNumberMode(false);
@@ -948,17 +1011,26 @@ export default function AddListingPage() {
         const { item } = await response.json();
         if (cancelled || !item?.key || !item?.value?.listing_text?.trim()) return;
 
-        litePendingListingRef.current = item.key;
-        const detectedStatus = item.value.detected_status || "";
-        const preparedText = prepareRawTextForCheck(item.value.listing_text, detectedStatus);
+        const claimResponse = await fetch("/api/lite-pending-listing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: item.key, action: "claim" }),
+        });
+        if (claimResponse.status === 409) return;
+        if (!claimResponse.ok) {
+          const data = await claimResponse.json().catch(() => ({}));
+          throw new Error(data.error || "Could not lock this Pending Listings pair");
+        }
+        const { item: claimedItem } = await claimResponse.json();
+        if (cancelled || !claimedItem?.key || !claimedItem?.value?.listing_text?.trim()) return;
+
+        litePendingListingRef.current = claimedItem.key;
+        setLiteAutoUpdateArmed(true);
+        const detectedStatus = claimedItem.value.detected_status || "";
+        const preparedText = prepareRawTextForCheck(claimedItem.value.listing_text, detectedStatus);
         setRawText(preparedText);
         setStatusReplacement(detectedStatus);
         goToStep("check", preparedText);
-        await fetch("/api/lite-pending-listing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: item.key }),
-        });
         toast({
           title: "Telegram listing loaded",
           description: detectedStatus ? `Status set to ${detectedStatus}.` : "No update status was detected.",
@@ -967,6 +1039,9 @@ export default function AddListingPage() {
         // Leave the pending item available for the next poll if the browser
         // temporarily loses its connection.
         litePendingListingRef.current = null;
+        setLiteAutoUpdateArmed(false);
+        setRawText("");
+        setStatusReplacement("");
       }
     };
 
@@ -1479,8 +1554,9 @@ export default function AddListingPage() {
       }
       setDateReceived(searchResult.date_received || normalizeGSheetDate(gsheet?.colM || '') || '');
       const originalDate = searchResult.date_updated || normalizeGSheetDate(gsheet?.colN || '') || getPHLDate();
-      setDateUpdated(originalDate);
+      setDateUpdated(isLite ? getTodayDate() : originalDate);
       setOriginalDateUpdated(originalDate);
+      if (isLite) setTodayToggle(true);
       setAvailable(searchResult.available || "");
 
       // MORE INFO fields
@@ -1510,7 +1586,7 @@ export default function AddListingPage() {
       setPhotosLink(searchResult.photo_link || "");
       setEditTargetTab((sourceTab || "Sheet1") as "Sheet1" | "Sheet2");
     }
-  }, [searchResult, sourceTab]);
+  }, [isLite, searchResult, sourceTab]);
 
   // Fetch 2nd backup row and detect conflict whenever a listing is loaded (SUPERADMIN only)
   useEffect(() => {
@@ -1906,7 +1982,7 @@ export default function AddListingPage() {
           listing_ownership: cleanListingOwnership(listingOwnership),
           sale_or_lease: saleOrLease,
           date_received: dateReceived,
-          date_updated: dateUpdated,
+          date_updated: isLite ? getTodayDate() : dateUpdated,
           available: available,
           // MORE INFO fields
           map_link: mapLink,
@@ -1955,6 +2031,12 @@ export default function AddListingPage() {
         console.warn("Update warning:", result.warning);
       }
 
+      // A successful LITE update is the only point where the bot confirms the
+      // Telegram pair. Both 👍 reactions are added together by the server.
+      if (isLite && litePendingListingRef.current) {
+        await completeLitePair();
+      }
+
       // Success
       if (batchActive) {
         if (result.writebackError) {
@@ -1996,10 +2078,61 @@ export default function AddListingPage() {
 
   const handleExtractAndUpdate = () => {
     if (!searchResult) return;
+    if (isLite) {
+      setDateUpdated(getTodayDate());
+      setTodayToggle(true);
+    }
     extractUpdateSucceededRef.current = false;
     setPendingExtractUpdate(true);
     handleExtractData(undefined, true);
   };
+
+  // Telegram-loaded pairs may complete the existing-listing update without a
+  // second click. This is deliberately limited to an existing match; a new or
+  // restricted listing still remains for manual review.
+  useEffect(() => {
+    const pendingKey = litePendingListingRef.current;
+    if (
+      !isLite ||
+      !liteAutoUpdateArmed ||
+      !pendingKey ||
+      liteAutoUpdateProcessedRef.current === pendingKey ||
+      step !== "check" ||
+      searching ||
+      !searchPerformed ||
+      !searchResult ||
+      loading ||
+      updating ||
+      pendingExtractUpdate
+    ) {
+      return;
+    }
+
+    const today = getTodayDate();
+    if (dateUpdated !== today) {
+      setDateUpdated(today);
+      setTodayToggle(true);
+      return;
+    }
+
+    liteAutoUpdateProcessedRef.current = pendingKey;
+    setLiteAutoUpdateArmed(false);
+    handleExtractAndUpdate();
+    // handleExtractAndUpdate intentionally starts the app's established
+    // Extract & Update flow after the date state above has been applied.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isLite,
+    liteAutoUpdateArmed,
+    step,
+    searching,
+    searchPerformed,
+    searchResult,
+    loading,
+    updating,
+    pendingExtractUpdate,
+    dateUpdated,
+  ]);
 
   const handleDeleteListing = async () => {
     if (!searchResult) return;
@@ -2368,6 +2501,10 @@ export default function AddListingPage() {
       );
     });
   };
+
+  if (isLite && (!permissionsLoaded || userRole !== "SUPERADMIN")) {
+    return null;
+  }
 
   if (permissionsLoaded && permissions.add_listing === false) {
     return (
@@ -3060,7 +3197,29 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
 
             {/* RIGHT: New listing notice */}
             {!searchResult && searchPerformed && !searching && (
-              <div className="flex flex-col items-center justify-center rounded-xl border-2 border-green-400 bg-green-50 px-8 py-16 text-center shadow-sm gap-6">
+              <div className={`flex flex-col items-center justify-center rounded-xl border-2 px-8 py-16 text-center shadow-sm gap-6 ${isLite ? "border-amber-400 bg-amber-50" : "border-green-400 bg-green-50"}`}>
+                {isLite ? (
+                  <>
+                    <AlertCircle className="h-16 w-16 text-amber-600" />
+                    <div>
+                      <p className="text-3xl font-bold text-amber-800 leading-snug">New listing detected</p>
+                      <p className="mt-3 text-lg font-semibold text-amber-700">
+                        Use the Regular version to process and save a new listing.
+                      </p>
+                      <p className="mt-2 text-sm text-amber-700">
+                        This pair will remain in PENDING LISTINGS without 👍 and will be deferred for manual processing.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => void openRegularForNewLiteListing()}
+                      className="bg-amber-700 hover:bg-amber-800 text-white"
+                    >
+                      Open Regular Version
+                    </Button>
+                  </>
+                ) : (
+                  <>
                 <CheckCircle2 className="h-16 w-16 text-green-500" />
                 <div>
                   <p className="text-3xl font-bold text-green-700 leading-snug">
@@ -3143,6 +3302,8 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                     </Button>
                   )}
                 </div>
+                  </>
+                )}
               </div>
             )}
 

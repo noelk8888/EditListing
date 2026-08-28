@@ -153,6 +153,7 @@ export async function POST(request: Request) {
         // Ignore malformed referrers; the explicit request flag still applies.
       }
     }
+    const effectiveDateUpdated = isLiteRequest ? getPHLDate() : date_updated;
 
     const sanitizedAway = (() => {
       if (!how_many_away) return "";
@@ -214,7 +215,7 @@ export async function POST(request: Request) {
     });
 
     if (updatedBy && current) {
-      if (diff(date_updated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
+      if (diff(effectiveDateUpdated, current["DATE UPDATED"])) { noteCols.add(13); noteCols.add(54); } // N, BC
       if (changeTypes.includes("STATUS")) { noteCols.add(14); noteCols.add(42); } // O, AQ
       if (changeTypes.includes("LOCATION")) { noteCols.add(56); } // BE
       if (diff(lat, current?.["LAT"])) noteCols.add(57); // BF
@@ -227,9 +228,9 @@ export async function POST(request: Request) {
       updatedBy && noteCols.size > 0 ? { updatedBy, cols: noteCols } : undefined;
 
     // BC value: "Mmm dd, yyyy | Type | Group" (e.g. "Mar 28, 2026 | STATUS/PRICE | Luxe")
-    const bcDateUpdated = date_updated
+    const bcDateUpdated = effectiveDateUpdated
       ? (() => {
-          const formattedDate = formatDisplayDate(date_updated);
+          const formattedDate = formatDisplayDate(effectiveDateUpdated);
           const author = userGroup || "System";
           const types = changeTypes.join('/');
           return `${formattedDate} | ${types} | ${author}`;
@@ -309,7 +310,7 @@ export async function POST(request: Request) {
         "AWAY": sanitizedAway || null,
         "LISTING OWNERSHIP": listing_ownership || null,
         "DATE RECV": date_received || null,
-        "DATE UPDATED": date_updated || null,
+        "DATE UPDATED": effectiveDateUpdated || null,
         "FB LINK": fb_link || null,
         "MAP LINK": derivedMapLink || null,
         "Sale Price/Sqm": sale_price_per_sqm || null,
@@ -375,7 +376,7 @@ export async function POST(request: Request) {
         "AWAY": sanitizedAway || null,
         "LISTING OWNERSHIP": listing_ownership || null,
         "DATE RECV": date_received || null,
-        "DATE UPDATED": date_updated || null,
+        "DATE UPDATED": effectiveDateUpdated || null,
         "FB LINK": fb_link || null,
         "MAP LINK": derivedMapLink || null,
         "LAT": lat || null,
@@ -449,7 +450,7 @@ export async function POST(request: Request) {
         ownerBroker: owner_broker || "",
         away: sanitizedAway,
         dateReceived: formatDisplayDate(date_received || ""),
-        dateResorted: formatDisplayDate(date_updated || ""),
+        dateResorted: formatDisplayDate(effectiveDateUpdated || ""),
         available: status || "",
         listingOwnership: listing_ownership || "",
         colQ: col_q || "",
@@ -492,7 +493,7 @@ export async function POST(request: Request) {
         away: sanitizedAway,
         monthlyDues: monthly_dues || "",
         dateRecv: formatDisplayDate(date_received || ""),
-        dateUpdated: formatDisplayDate(date_updated || ""),
+        dateUpdated: formatDisplayDate(effectiveDateUpdated || ""),
         bcDateUpdated: bcDateUpdated || undefined,
         listingOwnership: listing_ownership || "",
         latLong: latLongCombined,

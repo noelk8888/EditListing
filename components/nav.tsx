@@ -31,11 +31,11 @@ export function Nav({ user, permissions }: NavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isLite = searchParams.get("mode") === "lite";
   const role = user?.role || "";
   const { theme, setTheme } = useTheme();
   const isAdmin = role === "SUPERADMIN" || role === "ADMIN";
   const isSuperAdmin = role === "SUPERADMIN";
+  const isLite = isSuperAdmin && searchParams.get("mode") === "lite";
   const canBackup = isAdmin || role === "EDITOR";
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isDuplicatesOpen, setIsDuplicatesOpen] = useState(false);
@@ -45,10 +45,10 @@ export function Nav({ user, permissions }: NavProps) {
     const requestedMode = searchParams.get("mode");
     const mobileRegularOverride = sessionStorage.getItem("luxe-mobile-mode") === "regular";
 
-    if (window.matchMedia("(max-width: 767px)").matches && !requestedMode && !mobileRegularOverride) {
+    if (isSuperAdmin && window.matchMedia("(max-width: 767px)").matches && !requestedMode && !mobileRegularOverride) {
       router.replace("/add?mode=lite");
     }
-  }, [router, searchParams]);
+  }, [isSuperAdmin, router, searchParams]);
 
   useEffect(() => {
     if (canBackup) {
@@ -80,7 +80,9 @@ export function Nav({ user, permissions }: NavProps) {
   };
 
   const links = [
-    { href: "/add?mode=lite", label: "LITE", icon: Zap },
+    ...(isSuperAdmin
+      ? [{ href: "/add?mode=lite", label: "LITE", icon: Zap }]
+      : []),
     { href: "/add", label: "Add Listing", icon: Plus },
     ...(isAdmin
       ? [

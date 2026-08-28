@@ -5,7 +5,6 @@ const FORWARD_RECORD_PREFIX = "telegram-forward";
 const LITE_PENDING_PREFIX = "telegram-lite-pending";
 const DELETE_TOPIC = "pending-listing-delete";
 const DELETE_DELAY_SECONDS = 15 * 60;
-const PAIRING_WINDOW_MS = 5 * 60 * 1000;
 
 type ForwardRecord = {
   source_chat_id: string;
@@ -15,7 +14,7 @@ type ForwardRecord = {
   forwarded_at: string;
   sender_id?: number;
   raw_text: string;
-  kind: "listing" | "update";
+  kind: "listing" | "update" | "other";
   partner_message_id?: number;
   deletion_status?: "scheduled" | "cancelled" | "deleted";
   deletion_requested_by?: number;
@@ -54,7 +53,14 @@ function litePendingKey(chatId: string, messageId: number) {
 
 function isUpdateNotice(message: any) {
   const text = (message.text || message.caption || "").toUpperCase();
-  return /\b(?:LISTING\s+)?UPDATE\b/.test(text);
+  return /\b(?:LISTING\s+)?UPDATE\b/.test(text) ||
+    /\bUPDATED\s+FORMAT\b/.test(text) ||
+    getUpdateStatus(message) !== null;
+}
+
+function isListingNotice(message: any) {
+  const text = (message.text || message.caption || "").toUpperCase();
+  return /\bFOR\s+(?:SALE(?:\s*\/\s*LEASE)?|LEASE)\b/.test(text);
 }
 
 function getUpdateStatus(message: any): LitePendingListing["detected_status"] {
@@ -115,12 +121,13 @@ export async function recordForwardedListing(
     forwarded_at: now.toISOString(),
     sender_id: sourceMessage.from?.id,
     raw_text: sourceMessage.text || sourceMessage.caption || "",
-    kind: isUpdateNotice(sourceMessage) ? "update" : "listing",
+    kind: isListingNotice(sourceMessage) ? "listing" : isUpdateNotice(sourceMessage) ? "update" : "other",
   };
 
-  // An update message is paired with the most recent unpaired listing from the
-  // same source/sender. This reflects the two-message listing format used in
-  // LISTING UPDATES while avoiding unrelated messages in PENDING LISTINGS.
+  // A LITE pair is only the immediately preceding valid listing followed by a
+  // valid update from the same author. Any other intervening post breaks the
+  // candidate, so unrelated messages stay visible in PENDING LISTINGS but do
+  // not enter the automated queue.
   if (record.kind === "update") {
     const { data, error } = await getSupabase()
       .from("app_settings")
@@ -129,18 +136,21 @@ export async function recordForwardedListing(
 
     if (error) throw new Error(`Could not find Telegram listing pair: ${error.message}`);
 
-    const partner = ((data || []) as SettingRow[])
+    const previousRecord = ((data || []) as SettingRow[])
       .map((row) => row.value)
       .filter((candidate) =>
         candidate.source_chat_id === sourceChatId &&
-        candidate.kind === "listing" &&
-        !candidate.partner_message_id &&
-        candidate.sender_id === record.sender_id &&
-        now.getTime() - new Date(candidate.forwarded_at).getTime() <= PAIRING_WINDOW_MS
+        candidate.source_message_id < record.source_message_id
       )
-      .sort((a, b) => new Date(b.forwarded_at).getTime() - new Date(a.forwarded_at).getTime())[0];
+      .sort((a, b) => b.source_message_id - a.source_message_id)[0];
 
-    if (partner) {
+    if (
+      previousRecord?.kind === "listing" &&
+      !previousRecord.partner_message_id &&
+      typeof record.sender_id === "number" &&
+      previousRecord.sender_id === record.sender_id
+    ) {
+      const partner = previousRecord;
       record.partner_message_id = partner.destination_message_id;
       partner.partner_message_id = record.destination_message_id;
       await saveRecord(partner);
