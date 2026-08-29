@@ -16,8 +16,20 @@ import { SupabaseListing, fetchListingOwnerships, SupabaseTelegramGroup, fetchTe
 import { APP_VERSION } from "@/lib/version";
 import { LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 import { useToast } from "@/components/ui/use-toast";
+import { ensureSingleLeadingGeoId, isGeoIdLine } from "@/lib/listing-geo-id";
+import { resolveSaleOrLease } from "@/lib/listing-sale-or-lease";
 
 type Step = "paste" | "check" | "review";
+
+type TelegramBatchRow = {
+  rowNumber: number;
+  message1: string;
+  message2: string;
+  status: "" | "PROCESSING" | "UPDATED" | "FOR MANUAL CHECKING";
+  pairId: string;
+  queuedAt: string;
+  processingStartedAt: string;
+};
 
 const STATUS_MAP: Record<string, string> = {
   "available": "AVAILABLE",
@@ -34,6 +46,24 @@ const STATUS_MAP: Record<string, string> = {
 };
 const normalizeStatus = (raw: string): string =>
   STATUS_MAP[raw.toLowerCase().trim()] ?? raw.toUpperCase();
+
+const getTelegramUpdateStatus = (text: string): string => {
+  const upper = text.toUpperCase();
+  if (/\bLEASED\s+OUT\b/.test(upper)) return "LEASED OUT";
+  if (/\bOFF\s+(?:THE\s+)?MARKET\b/.test(upper)) return "OFF THE MARKET";
+  if (/\bON\s+HOLD\b/.test(upper)) return "ON HOLD";
+  if (/\bUNDER\s+NEGO(?:TIATION)?\b/.test(upper)) return "UNDER NEGO";
+  if (/\bDELISTED\b/.test(upper)) return "DELISTED";
+  if (/\bSOLD\b/.test(upper)) return "SOLD";
+  return "";
+};
+
+const isTelegramUpdateMessage = (text: string): boolean => {
+  const upper = text.toUpperCase();
+  return /\b(?:LISTING\s+)?UPDATE\b/.test(upper) ||
+    /\bUPDATED\s+FORMAT\b/.test(upper) ||
+    Boolean(getTelegramUpdateStatus(upper));
+};
 
 const BLANK_LISTING_OWNERSHIP_VALUE = " ";
 const MANUAL_LISTING_OWNERSHIP_VALUE = "__manual_listing_ownership__";
@@ -206,9 +236,15 @@ export default function AddListingPage() {
   const [photosLink, setPhotosLink] = useState("");
   const [previewLines, setPreviewLines] = useState("");
   const [statusReplacement, setStatusReplacement] = useState<string>("");
-  const litePendingListingRef = useRef<string | null>(null);
-  const liteAutoUpdateProcessedRef = useRef<string | null>(null);
-  const [liteAutoUpdateArmed, setLiteAutoUpdateArmed] = useState(false);
+  const [tgCaptureEnabled, setTgCaptureEnabled] = useState(false);
+  const [tgPendingCount, setTgPendingCount] = useState(0);
+  const [tgBatchLoading, setTgBatchLoading] = useState(false);
+  const [tgBatchActive, setTgBatchActive] = useState(false);
+  const [tgBatchRows, setTgBatchRows] = useState<TelegramBatchRow[]>([]);
+  const [tgBatchLockToken, setTgBatchLockToken] = useState<string | null>(null);
+  const [tgBatchCurrentPairId, setTgBatchCurrentPairId] = useState<string | null>(null);
+  const tgBatchFinishingRef = useRef(false);
+  const tgBatchHandledRef = useRef<string | null>(null);
 
   // Property type checkboxes
   const [residential, setResidential] = useState(false);
@@ -229,46 +265,8 @@ export default function AddListingPage() {
   const [available, setAvailable] = useState("");
   const [todayToggle, setTodayToggle] = useState(false);
 
-  const deferLitePair = async () => {
-    const key = litePendingListingRef.current;
-    if (!isLite || !key) return;
-    const response = await fetch("/api/lite-pending-listing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, action: "defer" }),
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || "Could not defer this Pending Listings pair");
-    }
-    litePendingListingRef.current = null;
-    setLiteAutoUpdateArmed(false);
-  };
-
-  const completeLitePair = async () => {
-    const key = litePendingListingRef.current;
-    if (!isLite || !key) return;
-    const response = await fetch("/api/lite-pending-listing", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key, action: "complete" }),
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data.error || "Listing was updated, but the Pending Listings pair could not be completed");
-    }
-    litePendingListingRef.current = null;
-    setLiteAutoUpdateArmed(false);
-  };
-
-  const openRegularForNewLiteListing = async () => {
-    setError(null);
-    try {
-      await deferLitePair();
-      window.location.href = "/add";
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not open the Regular version");
-    }
+  const openRegularForNewLiteListing = () => {
+    window.location.href = "/add";
   };
 
   // MORE INFO fields (Supabase only)
@@ -410,6 +408,54 @@ export default function AddListingPage() {
   useEffect(() => {
     if (isLite) setTelegramPostEnabled(false);
   }, [isLite]);
+
+  const refreshTelegramBatchState = useCallback(async () => {
+    if (!isLite) return;
+    const response = await fetch("/api/telegram-batch", { cache: "no-store" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not read Telegram batch state");
+    setTgCaptureEnabled(data.capture?.enabled === true);
+    setTgPendingCount(Number(data.pendingCount || 0));
+  }, [isLite]);
+
+  useEffect(() => {
+    if (!isLite || tgBatchActive) return;
+    void refreshTelegramBatchState().catch(() => undefined);
+    const pollId = window.setInterval(() => {
+      void refreshTelegramBatchState().catch(() => undefined);
+    }, 15_000);
+    return () => window.clearInterval(pollId);
+  }, [isLite, tgBatchActive, refreshTelegramBatchState]);
+
+  const postTelegramBatchAction = useCallback(async (body: Record<string, unknown>) => {
+    const response = await fetch("/api/telegram-batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Telegram batch operation failed");
+    return data;
+  }, []);
+
+  const toggleTelegramBatchCapture = async () => {
+    setTgBatchLoading(true);
+    setError(null);
+    try {
+      const data = await postTelegramBatchAction({ action: tgCaptureEnabled ? "stop_capture" : "start_capture" });
+      setTgCaptureEnabled(data.capture?.enabled === true);
+      toast({
+        title: data.capture?.enabled ? "TG Batch Post started" : "TG Batch Post stopped",
+        description: data.capture?.enabled
+          ? "New valid Pending Listings pairs will be copied to the batch queue."
+          : "New pairs will remain untouched in PENDING LISTINGS until batch capture is started again.",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not change TG Batch Post state");
+    } finally {
+      setTgBatchLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isLite && step === "check" && searchResult) {
@@ -735,13 +781,60 @@ export default function AddListingPage() {
       const response = await fetch("/api/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: textToExtract }),
+        body: JSON.stringify({
+          text: textToExtract,
+          ...(searchResult ? {
+            optimization: {
+              mode: "existing-listing",
+              existingSummary: searchResult.summary || "",
+              explicitStatus: statusReplacement || "",
+            },
+          } : {}),
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to parse listing");
+      }
+
+      if (data._optimization?.aiUsed === false) {
+        // The server only returns this path when every changed line is either
+        // metadata or an explicitly supported, unambiguous field. Apply only
+        // the returned patch so absent fields never erase existing data.
+        if (!useExistingMain && step !== "review") {
+          setEditSummary(searchResult?.id
+            ? ensureSingleLeadingGeoId(textToExtract, searchResult.id)
+            : textToExtract);
+        }
+        if (typeof data.status === "string" && data.status) setEditStatus(normalizeStatus(data.status));
+        const deterministicSaleOrLease = resolveSaleOrLease({
+          savedValue: data.saleOrLease,
+          text: textToExtract,
+          status: data.status || statusReplacement,
+          salePrice: editPrice,
+          leasePrice: editLeasePrice,
+        });
+        if (deterministicSaleOrLease) setSaleOrLease(deterministicSaleOrLease);
+        if (typeof data.bedrooms === "string") setBedrooms(data.bedrooms);
+        if (typeof data.toilets === "string") setToilet(data.toilets);
+        if (typeof data.garage === "string") setGarage(data.garage);
+        if (typeof data.photos === "string") setPhotosLink(data.photos);
+        if (typeof data.fbLink === "string") setSocmedLink(data.fbLink);
+        if (data.directOrCobroker === "Direct to Owner" || data.directOrCobroker === "With Cobroker") {
+          setDirectOrCobroker(data.directOrCobroker);
+        }
+        if (typeof data.ownerBroker === "string") setOwnerBroker(data.ownerBroker);
+        if (typeof data.howManyAway === "string") {
+          setHowManyAway(data.howManyAway);
+          setDirectOrCobroker("With Cobroker");
+        }
+
+        setLastExtractedText(textToExtract);
+        if (extractAndUpdate) extractUpdateSucceededRef.current = true;
+        else setStep("review");
+        return;
       }
 
       // Populate edit fields from parsed data.
@@ -752,7 +845,11 @@ export default function AddListingPage() {
         else if (!current) setter(""); // only blank if it was already blank
       };
 
-      if (!useExistingMain && step !== "review") setEditSummary(textToExtract);
+      if (!useExistingMain && step !== "review") {
+        setEditSummary(searchResult?.id
+          ? ensureSingleLeadingGeoId(textToExtract, searchResult.id)
+          : textToExtract);
+      }
       overrideIfFound(data.region, setEditRegion, editRegion);
       if (data.region?.trim().toUpperCase() === "NCR") setEditProvince("Metro Manila");
       else overrideIfFound(data.province, setEditProvince, editProvince);
@@ -834,10 +931,13 @@ export default function AddListingPage() {
 
       // Detect Sale/Lease from the extracted text (always overrides — uses textToExtract for USE THIS LISTING support)
       setSaleOrLease(prev => {
-        if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(textToExtract)) return "Sale/Lease";
-        if (/\*?FOR\s+LEASE\*?/i.test(textToExtract)) return "Lease";
-        if (/\*?FOR\s+SALE\*?/i.test(textToExtract)) return "Sale";
-        return prev;
+        return resolveSaleOrLease({
+          savedValue: prev,
+          text: textToExtract,
+          status: data.status || statusReplacement,
+          salePrice: data.salePrice || editPrice,
+          leasePrice: data.leasePrice || editLeasePrice,
+        }) || prev;
       });
 
       // Apply GSheet fallbacks for Columns J-N if in batch mode and AI didn't find them
@@ -874,7 +974,12 @@ export default function AddListingPage() {
         setDateUpdated(getTodayDate());
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to parse listing");
+      const message = err instanceof Error ? err.message : "Failed to parse listing";
+      setError(message);
+      if (tgBatchActive && tgBatchCurrentPairId) {
+        tgBatchHandledRef.current = null;
+        await markCurrentTelegramBatchManual(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -896,14 +1001,8 @@ export default function AddListingPage() {
       setListingId("");
     }
 
-    // Extract Sale/Lease from raw text (look for *FOR SALE*, *FOR LEASE*, etc.)
-    if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(text)) {
-      setSaleOrLease("Sale/Lease");
-    } else if (/\*?FOR\s+LEASE\*?/i.test(text)) {
-      setSaleOrLease("Lease");
-    } else if (/\*?FOR\s+SALE\*?/i.test(text)) {
-      setSaleOrLease("Sale");
-    }
+    const detectedSaleOrLease = resolveSaleOrLease({ text });
+    if (detectedSaleOrLease) setSaleOrLease(detectedSaleOrLease);
 
     // Get first 10 non-empty lines for search (prioritizes 5th, 4th, 3rd lines)
     const lines = text.split('\n').filter(line => line.trim()).slice(0, 10);
@@ -981,12 +1080,6 @@ export default function AddListingPage() {
       clearEditFields();
     }
     if (targetStep === "paste") {
-      // A LITE item without an existing match remains visible in PENDING
-      // LISTINGS for manual handling, then releases the automated queue.
-      if (isLite && step === "check" && searchPerformed && !searchResult && litePendingListingRef.current) {
-        void deferLitePair().catch((err) => setError(err instanceof Error ? err.message : "Could not defer Pending Listings pair"));
-        setRawText("");
-      }
       clearEditFields();
       setUseExistingMain(false);
       setUseRowNumberMode(false);
@@ -996,62 +1089,6 @@ export default function AddListingPage() {
     setStep(targetStep);
     setError(null);
   };
-
-  // Test automation: when LITE mode is open with an empty form, bring in the
-  // first message of the next completed Telegram pair, apply the second
-  // message's recognised update status, and stop at Check & Info.
-  useEffect(() => {
-    if (!isLite || step !== "paste" || rawText.trim() || litePendingListingRef.current) return;
-
-    let cancelled = false;
-    const loadTelegramPair = async () => {
-      try {
-        const response = await fetch("/api/lite-pending-listing", { cache: "no-store" });
-        if (!response.ok) return;
-        const { item } = await response.json();
-        if (cancelled || !item?.key || !item?.value?.listing_text?.trim()) return;
-
-        const claimResponse = await fetch("/api/lite-pending-listing", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: item.key, action: "claim" }),
-        });
-        if (claimResponse.status === 409) return;
-        if (!claimResponse.ok) {
-          const data = await claimResponse.json().catch(() => ({}));
-          throw new Error(data.error || "Could not lock this Pending Listings pair");
-        }
-        const { item: claimedItem } = await claimResponse.json();
-        if (cancelled || !claimedItem?.key || !claimedItem?.value?.listing_text?.trim()) return;
-
-        litePendingListingRef.current = claimedItem.key;
-        setLiteAutoUpdateArmed(true);
-        const detectedStatus = claimedItem.value.detected_status || "";
-        const preparedText = prepareRawTextForCheck(claimedItem.value.listing_text, detectedStatus);
-        setRawText(preparedText);
-        setStatusReplacement(detectedStatus);
-        goToStep("check", preparedText);
-        toast({
-          title: "Telegram listing loaded",
-          description: detectedStatus ? `Status set to ${detectedStatus}.` : "No update status was detected.",
-        });
-      } catch {
-        // Leave the pending item available for the next poll if the browser
-        // temporarily loses its connection.
-        litePendingListingRef.current = null;
-        setLiteAutoUpdateArmed(false);
-        setRawText("");
-        setStatusReplacement("");
-      }
-    };
-
-    void loadTelegramPair();
-    const pollId = window.setInterval(() => { void loadTelegramPair(); }, 5_000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(pollId);
-    };
-  }, [isLite, step, rawText, toast]);
 
   const assignNextGeoId = useCallback(async (isSheet2: boolean) => {
     const targetSeries = isSheet2 ? "B" : "G";
@@ -1287,10 +1324,11 @@ export default function AddListingPage() {
       }
     } catch (err) {
       setSearchError("Failed to search. Please try again.");
+      if (tgBatchActive) setSearchPerformed(true);
     } finally {
       setSearching(false);
     }
-  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab, permissions, batchActive, batchForceSheet1, assignNextGeoId]);
+  }, [photosLink, listingId, previewLines, lastAssignedGeoId, targetTab, permissions, batchActive, batchForceSheet1, tgBatchActive, assignNextGeoId]);
 
   // Keep Map Link in sync with lat/long coordinates
   useEffect(() => {
@@ -1305,6 +1343,80 @@ export default function AddListingPage() {
       handleSearch();
     }
   }, [step, searchPerformed, photosLink, listingId, previewLines, handleSearch]);
+
+  const resetTelegramBatchUi = () => {
+    setTgBatchActive(false);
+    setTgBatchRows([]);
+    setTgBatchLockToken(null);
+    setTgBatchCurrentPairId(null);
+    tgBatchHandledRef.current = null;
+    tgBatchFinishingRef.current = false;
+    setBatchIndex(0);
+    setRawText("");
+    setStatusReplacement("");
+    setStep("paste");
+    setError(null);
+    setSearchResult(null);
+    setSearchPerformed(false);
+    setListingId("");
+    setPhotosLink("");
+    setPreviewLines("");
+  };
+
+  const startTelegramBatchUpdate = async () => {
+    setTgBatchLoading(true);
+    setError(null);
+    try {
+      const data = await postTelegramBatchAction({ action: "start_run" });
+      setTgBatchRows(data.rows || []);
+      setTgBatchLockToken(data.lockToken);
+      setBatchIndex(0);
+      setTgBatchCurrentPairId(null);
+      tgBatchHandledRef.current = null;
+      setTgBatchActive(true);
+      setStep("paste");
+      setRawText("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start Batch Update Lite Mode");
+    } finally {
+      setTgBatchLoading(false);
+    }
+  };
+
+  const markCurrentTelegramBatchManual = useCallback(async (reason?: string) => {
+    const pairId = tgBatchCurrentPairId;
+    if (!pairId || !tgBatchLockToken || tgBatchHandledRef.current === pairId) return;
+    tgBatchHandledRef.current = pairId;
+    try {
+      await postTelegramBatchAction({ action: "mark_manual", pairId, lockToken: tgBatchLockToken });
+      if (reason) console.warn(`TG batch row ${pairId} needs manual checking: ${reason}`);
+      setTgBatchCurrentPairId(null);
+      setBatchIndex((current) => current + 1);
+    } catch (err) {
+      tgBatchHandledRef.current = null;
+      setError(err instanceof Error ? err.message : "Could not mark the queue row for manual checking");
+    }
+  }, [postTelegramBatchAction, tgBatchCurrentPairId, tgBatchLockToken]);
+
+  const exitTelegramBatchUpdate = async () => {
+    const lockToken = tgBatchLockToken;
+    setTgBatchLoading(true);
+    try {
+      if (lockToken) {
+        await postTelegramBatchAction({
+          action: "exit_run",
+          lockToken,
+          pairId: tgBatchCurrentPairId || undefined,
+        });
+      }
+      resetTelegramBatchUi();
+      await refreshTelegramBatchState();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not exit Batch Update safely");
+    } finally {
+      setTgBatchLoading(false);
+    }
+  };
 
   // BATCH Effect A: load next row when batchIndex changes
   useEffect(() => {
@@ -1438,9 +1550,69 @@ export default function AddListingPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [batchActive, batchIndex, batchRows]);
 
+  // Telegram Batch Update Lite: claim one immutable queue pair at a time,
+  // then feed it through the existing LITE search/extract/update protocol.
+  useEffect(() => {
+    if (!tgBatchActive) return;
+
+    if (batchIndex >= tgBatchRows.length) {
+      if (tgBatchFinishingRef.current || !tgBatchLockToken) return;
+      tgBatchFinishingRef.current = true;
+      void postTelegramBatchAction({ action: "finish_run", lockToken: tgBatchLockToken })
+        .then((data) => {
+          const deleted = Number(data.deleted || 0);
+          resetTelegramBatchUi();
+          showAlert(`TG Batch Update complete. ${deleted} updated queue row${deleted === 1 ? " was" : "s were"} removed.`);
+          void refreshTelegramBatchState().catch(() => undefined);
+        })
+        .catch((err) => {
+          tgBatchFinishingRef.current = false;
+          setError(err instanceof Error ? err.message : "Could not finish Telegram Batch Update");
+        });
+      return;
+    }
+
+    const row = tgBatchRows[batchIndex];
+    if (!row || tgBatchCurrentPairId === row.pairId) return;
+    let cancelled = false;
+
+    void postTelegramBatchAction({ action: "claim_row", pairId: row.pairId, lockToken: tgBatchLockToken })
+      .then(() => {
+        if (cancelled) return;
+        tgBatchHandledRef.current = null;
+        setTgBatchCurrentPairId(row.pairId);
+        const detectedStatus = getTelegramUpdateStatus(row.message2);
+        if (!isTelegramUpdateMessage(row.message2)) {
+          void postTelegramBatchAction({ action: "mark_manual", pairId: row.pairId, lockToken: tgBatchLockToken })
+            .then(() => {
+              if (cancelled) return;
+              tgBatchHandledRef.current = row.pairId;
+              setTgBatchCurrentPairId(null);
+              setBatchIndex((current) => current + 1);
+            })
+            .catch((err) => setError(err instanceof Error ? err.message : "Could not mark an invalid Telegram pair"));
+          return;
+        }
+
+        const preparedText = prepareRawTextForCheck(row.message1, detectedStatus);
+        setStatusReplacement(detectedStatus);
+        setRawText(preparedText);
+        goToStep("check", preparedText);
+        setDateUpdated(getTodayDate());
+        setTodayToggle(true);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not claim Telegram queue row");
+      });
+
+    return () => { cancelled = true; };
+    // goToStep intentionally uses the current form reset behavior.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tgBatchActive, tgBatchRows, batchIndex, tgBatchLockToken, tgBatchCurrentPairId, postTelegramBatchAction, refreshTelegramBatchState]);
+
   // MATCH ROW CHECK FOR MANUAL SEARCHES
   useEffect(() => {
-    if (searchResult?.id && !(batchActive || batchMode)) {
+    if (searchResult?.id && !(batchActive || batchMode || tgBatchActive)) {
       setManualMatchRow(null);
       fetch(`/api/check-batch-row?geoId=${encodeURIComponent(searchResult.id)}&spreadsheetUrl=${encodeURIComponent(batchSheetUrl)}`)
         .then(res => res.json())
@@ -1451,14 +1623,15 @@ export default function AddListingPage() {
     } else {
       setManualMatchRow(null);
     }
-  }, [searchResult?.id, batchMode, batchActive, batchSheetUrl]);
+  }, [searchResult?.id, batchMode, batchActive, tgBatchActive, batchSheetUrl]);
 
   // AUTO EXTRACT MAP LINK IF FOUND DURING PARSE
   useEffect(() => {
     if (searchResult) {
       // Populate editable listing fields
-      setEditSummary(searchResult.summary || "");
-      setOriginalEditSummary(searchResult.summary || ""); // snapshot for toggle-off revert
+      const mainWithGeoId = ensureSingleLeadingGeoId(searchResult.summary || "", searchResult.id || "");
+      setEditSummary(mainWithGeoId);
+      setOriginalEditSummary(mainWithGeoId); // snapshot for toggle-off revert
       if (!useRowNumberMode) {
         setUseExistingMain(false);
       }
@@ -1468,8 +1641,15 @@ export default function AddListingPage() {
       setEditCity(searchResult.city || "");
       setEditLotArea(searchResult.lot_area ? searchResult.lot_area.toString() : "");
       setEditFloorArea(searchResult.floor_area ? searchResult.floor_area.toString() : "");
+      const resolvedSaleOrLease = resolveSaleOrLease({
+        savedValue: searchResult.sale_or_lease,
+        text: searchResult.summary,
+        status: searchResult.status,
+        salePrice: searchResult.price,
+        leasePrice: searchResult.lease_price,
+      });
       // Route price to correct field based on sale_or_lease
-      if (searchResult.sale_or_lease === "Lease") {
+      if (resolvedSaleOrLease === "Lease") {
         setEditPrice("");
         setEditLeasePrice(
           searchResult.lease_price ? searchResult.lease_price.toString() :
@@ -1500,15 +1680,7 @@ export default function AddListingPage() {
       setAgricultural(!!searchResult.agricultural && searchResult.agricultural.length > 0);
 
       // Sale or Lease
-      if (searchResult.sale_or_lease) {
-        const val = searchResult.sale_or_lease.toLowerCase();
-        if (val.includes('sale') && val.includes('lease')) setSaleOrLease('Sale/Lease');
-        else if (val.includes('lease')) setSaleOrLease('Lease');
-        else if (val.includes('sale')) setSaleOrLease('Sale');
-        else setSaleOrLease('');
-      } else {
-        setSaleOrLease('');
-      }
+      setSaleOrLease(resolvedSaleOrLease || '');
 
       // Populate additional info fields
       setWithIncome(searchResult.with_income || "");
@@ -1648,6 +1820,11 @@ export default function AddListingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchPerformed, searchResult]);
 
+  useEffect(() => {
+    if (!tgBatchActive || !tgBatchCurrentPairId || searching || !searchPerformed || searchResult) return;
+    void markCurrentTelegramBatchManual("No existing listing match was found");
+  }, [tgBatchActive, tgBatchCurrentPairId, searching, searchPerformed, searchResult, markCurrentTelegramBatchManual]);
+
   const canProceedFromPaste = useRowNumberMode ? rowNumberFetched : rawText.trim().length > 0;
 
   // Helper: compare if a value is significantly different from Supabase (used in UI highlighting)
@@ -1757,7 +1934,7 @@ export default function AddListingPage() {
     } else {
       // If no matching status line, inject it right after the GEO ID
       const lines = currentSummary.split('\n');
-      if (lines.length > 0 && /^[A-Z]\d{5}$/.test(lines[0].trim())) {
+      if (lines.length > 0 && isGeoIdLine(lines[0])) {
         lines.splice(1, 0, `*${newStatus} - ${todayFormatted}*`);
         currentSummary = lines.join('\n');
       } else {
@@ -2031,14 +2208,14 @@ export default function AddListingPage() {
         console.warn("Update warning:", result.warning);
       }
 
-      // A successful LITE update is the only point where the bot confirms the
-      // Telegram pair. Both 👍 reactions are added together by the server.
-      if (isLite && litePendingListingRef.current) {
-        await completeLitePair();
-      }
-
       // Success
-      if (batchActive) {
+      if (tgBatchActive && tgBatchCurrentPairId) {
+        const completedPairId = tgBatchCurrentPairId;
+        await postTelegramBatchAction({ action: "mark_updated", pairId: completedPairId, lockToken: tgBatchLockToken });
+        setTgBatchCurrentPairId(null);
+        setError(null);
+        setBatchIndex((current) => current + 1);
+      } else if (batchActive) {
         if (result.writebackError) {
           setError(`⚠️ Listing updated, but Shadow GSheet writeback failed: ${result.writebackError}`);
         } else {
@@ -2058,7 +2235,22 @@ export default function AddListingPage() {
         });
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update listing");
+      const message = err instanceof Error ? err.message : "Failed to update listing";
+      if (tgBatchActive && tgBatchCurrentPairId) {
+        const failedPairId = tgBatchCurrentPairId;
+        tgBatchHandledRef.current = null;
+        try {
+          await postTelegramBatchAction({ action: "mark_manual", pairId: failedPairId, lockToken: tgBatchLockToken });
+          tgBatchHandledRef.current = failedPairId;
+          setTgBatchCurrentPairId(null);
+          setBatchIndex((current) => current + 1);
+          setError(`Queue row moved to FOR MANUAL CHECKING: ${message}`);
+        } catch (statusError) {
+          setError(statusError instanceof Error ? statusError.message : message);
+        }
+      } else {
+        setError(message);
+      }
     } finally {
       setUpdating(false);
     }
@@ -2087,16 +2279,13 @@ export default function AddListingPage() {
     handleExtractData(undefined, true);
   };
 
-  // Telegram-loaded pairs may complete the existing-listing update without a
-  // second click. This is deliberately limited to an existing match; a new or
-  // restricted listing still remains for manual review.
   useEffect(() => {
-    const pendingKey = litePendingListingRef.current;
+    const pairId = tgBatchCurrentPairId;
     if (
       !isLite ||
-      !liteAutoUpdateArmed ||
-      !pendingKey ||
-      liteAutoUpdateProcessedRef.current === pendingKey ||
+      !tgBatchActive ||
+      !pairId ||
+      tgBatchHandledRef.current === pairId ||
       step !== "check" ||
       searching ||
       !searchPerformed ||
@@ -2115,15 +2304,13 @@ export default function AddListingPage() {
       return;
     }
 
-    liteAutoUpdateProcessedRef.current = pendingKey;
-    setLiteAutoUpdateArmed(false);
+    tgBatchHandledRef.current = pairId;
     handleExtractAndUpdate();
-    // handleExtractAndUpdate intentionally starts the app's established
-    // Extract & Update flow after the date state above has been applied.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     isLite,
-    liteAutoUpdateArmed,
+    tgBatchActive,
+    tgBatchCurrentPairId,
     step,
     searching,
     searchPerformed,
@@ -2517,6 +2704,48 @@ export default function AddListingPage() {
 
   return (
     <div className="space-y-6">
+      {isLite && tgBatchActive && (
+        <div className="sticky top-0 z-50 rounded-md bg-amber-950 px-3 py-2 text-white shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="shrink-0 text-[14px] font-bold tracking-widest text-amber-200">TG BATCH UPDATE</span>
+              <div className="h-1.5 w-28 shrink-0 overflow-hidden rounded-full bg-amber-900">
+                <div
+                  className="h-full bg-amber-400 transition-all duration-500"
+                  style={{ width: `${tgBatchRows.length ? Math.round((batchIndex / tgBatchRows.length) * 100) : 0}%` }}
+                />
+              </div>
+              <span className="shrink-0 font-mono text-sm text-amber-100">
+                {Math.min(batchIndex + 1, tgBatchRows.length)} / {tgBatchRows.length}
+              </span>
+              {tgBatchRows[batchIndex] && (
+                <span className="truncate text-sm text-amber-100">Queue row #{tgBatchRows[batchIndex].rowNumber}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {tgBatchCurrentPairId && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7"
+                  onClick={() => void markCurrentTelegramBatchManual("Marked manually by the operator")}
+                >
+                  Manual Check
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-amber-100 hover:bg-amber-900 hover:text-white"
+                disabled={tgBatchLoading}
+                onClick={() => void exitTelegramBatchUpdate()}
+              >
+                <X className="mr-1 h-3.5 w-3.5" /> Exit Batch
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Batch Progress Banner */}
       {!isLite && batchActive && (
         <div className="sticky top-0 z-50 bg-slate-900 text-white px-3 py-2 rounded-md shadow-lg">
@@ -2618,6 +2847,39 @@ export default function AddListingPage() {
           {step === "review" && "Review and edit the extracted data before saving"}
         </p>
       </div>
+
+      {isLite && !tgBatchActive && (
+        <Card className="border-amber-300 bg-amber-50/70">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Batch Update Lite Mode</CardTitle>
+            <CardDescription>
+              Capture new Telegram listing pairs into the queue, then update all pending rows using the LITE protocol.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={() => void toggleTelegramBatchCapture()}
+              disabled={tgBatchLoading}
+              className={tgCaptureEnabled ? "bg-red-700 hover:bg-red-800" : "bg-amber-600 hover:bg-amber-700"}
+            >
+              {tgBatchLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              {tgCaptureEnabled ? "STOP TG BATCH POST" : "START TG BATCH POST"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => void startTelegramBatchUpdate()}
+              disabled={tgBatchLoading || tgPendingCount === 0}
+            >
+              {tgBatchLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
+              START BATCH UPDATE
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              <span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${tgCaptureEnabled ? "bg-green-500" : "bg-slate-400"}`} />
+              {tgCaptureEnabled ? "Capturing new pairs" : "Capture stopped"} · {tgPendingCount} pending
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Batch Setup Panel */}
       {!isLite && batchMode && !batchActive && (
@@ -3207,12 +3469,12 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                         Use the Regular version to process and save a new listing.
                       </p>
                       <p className="mt-2 text-sm text-amber-700">
-                        This pair will remain in PENDING LISTINGS without 👍 and will be deferred for manual processing.
+                        Batch rows that do not match are marked FOR MANUAL CHECKING and remain in the queue sheet.
                       </p>
                     </div>
                     <Button
                       type="button"
-                      onClick={() => void openRegularForNewLiteListing()}
+                      onClick={openRegularForNewLiteListing}
                       className="bg-amber-700 hover:bg-amber-800 text-white"
                     >
                       Open Regular Version

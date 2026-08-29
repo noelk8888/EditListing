@@ -1,9 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { send } from "@vercel/queue";
+import { appendTelegramBatchPair, getTelegramBatchCapture } from "@/lib/telegram-batch-queue";
 
 const FORWARD_RECORD_PREFIX = "telegram-forward";
-const LITE_PENDING_PREFIX = "telegram-lite-pending";
 const DELETE_TOPIC = "pending-listing-delete";
+const BATCH_COPY_TOPIC = "telegram-batch-copy";
 const DELETE_DELAY_SECONDS = 15 * 60;
 
 type ForwardRecord = {
@@ -19,22 +20,14 @@ type ForwardRecord = {
   deletion_status?: "scheduled" | "cancelled" | "deleted";
   deletion_requested_by?: number;
   deletion_requested_at?: string;
+  workflow?: "batch-lite";
+  batch_pair_id?: string;
+  batch_queue_status?: "pending" | "queued";
 };
 
 type SettingRow = { key: string; value: ForwardRecord };
 
-type LitePendingListing = {
-  listing_text: string;
-  detected_status: "SOLD" | "LEASED OUT" | "OFF THE MARKET" | "ON HOLD" | "UNDER NEGO" | "DELISTED" | null;
-  source_chat_id: string;
-  source_listing_message_id: number;
-  source_update_message_id: number;
-  destination_chat_id: string;
-  destination_listing_message_id: number;
-  destination_update_message_id: number;
-  created_at: string;
-  state: "ready" | "loaded";
-};
+type UpdateStatus = "SOLD" | "LEASED OUT" | "OFF THE MARKET" | "ON HOLD" | "UNDER NEGO" | "DELISTED" | null;
 
 function getSupabase() {
   return createClient(
@@ -45,10 +38,6 @@ function getSupabase() {
 
 function recordKey(chatId: string, messageId: number) {
   return `${FORWARD_RECORD_PREFIX}:${chatId}:${messageId}`;
-}
-
-function litePendingKey(chatId: string, messageId: number) {
-  return `${LITE_PENDING_PREFIX}:${chatId}:${messageId}`;
 }
 
 function isUpdateNotice(message: any) {
@@ -63,7 +52,7 @@ function isListingNotice(message: any) {
   return /\bFOR\s+(?:SALE(?:\s*\/\s*LEASE)?|LEASE)\b/.test(text);
 }
 
-function getUpdateStatus(message: any): LitePendingListing["detected_status"] {
+function getUpdateStatus(message: any): UpdateStatus {
   const text = (message.text || message.caption || "").toUpperCase();
   if (/\bLEASED\s+OUT\b/.test(text)) return "LEASED OUT";
   if (/\bOFF\s+(?:THE\s+)?MARKET\b/.test(text)) return "OFF THE MARKET";
@@ -83,16 +72,12 @@ async function saveRecord(record: ForwardRecord) {
   if (error) throw new Error(`Could not save Telegram forward record: ${error.message}`);
 }
 
-async function saveLitePendingListing(listing: LitePendingListing) {
-  const { error } = await getSupabase().from("app_settings").upsert(
-    {
-      key: litePendingKey(listing.destination_chat_id, listing.destination_listing_message_id),
-      value: listing,
-    },
-    { onConflict: "key" }
-  );
-
-  if (error) throw new Error(`Could not save LITE pending listing: ${error.message}`);
+async function deleteRecord(chatId: string, messageId: number) {
+  const { error } = await getSupabase()
+    .from("app_settings")
+    .delete()
+    .eq("key", recordKey(chatId, messageId));
+  if (error) throw new Error(`Could not delete Telegram forward record: ${error.message}`);
 }
 
 async function loadRecord(chatId: string, messageId: number) {
@@ -124,7 +109,7 @@ export async function recordForwardedListing(
     kind: isListingNotice(sourceMessage) ? "listing" : isUpdateNotice(sourceMessage) ? "update" : "other",
   };
 
-  // A LITE pair is only the immediately preceding valid listing followed by a
+  // A batch pair is only the immediately preceding valid listing followed by a
   // valid update from the same author. Any other intervening post breaks the
   // candidate, so unrelated messages stay visible in PENDING LISTINGS but do
   // not enter the automated queue.
@@ -153,25 +138,105 @@ export async function recordForwardedListing(
       const partner = previousRecord;
       record.partner_message_id = partner.destination_message_id;
       partner.partner_message_id = record.destination_message_id;
-      await saveRecord(partner);
+      const capture = await getTelegramBatchCapture();
 
-      await saveLitePendingListing({
-        listing_text: partner.raw_text,
-        detected_status: getUpdateStatus(sourceMessage),
-        source_chat_id: sourceChatId,
-        source_listing_message_id: partner.source_message_id,
-        source_update_message_id: sourceMessage.message_id,
-        destination_chat_id: destinationChatId,
-        destination_listing_message_id: partner.destination_message_id,
-        destination_update_message_id: destinationMessageId,
-        created_at: now.toISOString(),
-        state: "ready",
-      });
+      if (capture.enabled) {
+        const pairId = `${sourceChatId}:${partner.source_message_id}:${sourceMessage.message_id}`;
+        partner.workflow = "batch-lite";
+        partner.batch_pair_id = pairId;
+        partner.batch_queue_status = "pending";
+        record.workflow = "batch-lite";
+        record.batch_pair_id = pairId;
+        record.batch_queue_status = "pending";
+        await Promise.all([saveRecord(partner), saveRecord(record)]);
+        const payload = { chatId: destinationChatId, listingMessageId: partner.destination_message_id };
+        try {
+          // The webhook performs the normal path immediately. The durable
+          // queue is the fallback when Sheets, Telegram, or Vercel has a
+          // temporary failure.
+          await processTelegramBatchPair(payload);
+        } catch (error) {
+          console.warn(`Immediate Telegram batch copy failed for ${pairId}; queued for retry.`, error);
+          await send(
+            BATCH_COPY_TOPIC,
+            payload,
+            {
+              retentionSeconds: 24 * 60 * 60,
+              idempotencyKey: `telegram-batch-copy:${pairId}`,
+            }
+          );
+        }
+        // Both records were saved before processing. Do not save the stale
+        // local update record again here because the processor may already
+        // have advanced it to queued/scheduled.
+        console.log(`Recorded forwarded listing ${destinationMessageId} paired with ${partner.destination_message_id}.`);
+        return;
+      } else {
+        // Capture is paused. Keep the pair linked for manual handling in
+        // PENDING LISTINGS, but do not queue, react, delete, or auto-process it.
+        await saveRecord(partner);
+      }
     }
   }
 
   await saveRecord(record);
   console.log(`Recorded forwarded listing ${destinationMessageId}${record.partner_message_id ? ` paired with ${record.partner_message_id}` : ""}.`);
+}
+
+async function setThumbsUp(chatId: string, messageId: number) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not configured");
+  const response = await fetch(`https://api.telegram.org/bot${token}/setMessageReaction`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      message_id: messageId,
+      reaction: [{ type: "emoji", emoji: "👍" }],
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok || !result.ok) {
+    throw new Error(`Telegram setMessageReaction error: ${result.description || response.statusText}`);
+  }
+}
+
+export async function processTelegramBatchPair(payload: { chatId: string; listingMessageId: number }) {
+  const listing = await loadRecord(payload.chatId, payload.listingMessageId);
+  if (!listing || listing.workflow !== "batch-lite" || !listing.partner_message_id || !listing.batch_pair_id) return;
+  const update = await loadRecord(payload.chatId, listing.partner_message_id);
+  if (!update || update.workflow !== "batch-lite") throw new Error("Telegram batch partner record is missing");
+
+  await appendTelegramBatchPair({
+    message1: listing.raw_text,
+    message2: update.raw_text,
+    pairId: listing.batch_pair_id,
+    queuedAt: listing.forwarded_at,
+  });
+
+  await Promise.all([
+    setThumbsUp(payload.chatId, listing.destination_message_id),
+    setThumbsUp(payload.chatId, update.destination_message_id),
+  ]);
+
+  const requestedAt = listing.deletion_requested_at || new Date().toISOString();
+  for (const record of [listing, update]) {
+    record.batch_queue_status = "queued";
+    record.deletion_status = "scheduled";
+    record.deletion_requested_at = requestedAt;
+  }
+  await Promise.all([saveRecord(listing), saveRecord(update)]);
+
+  await send(
+    DELETE_TOPIC,
+    { chatId: payload.chatId, messageId: listing.destination_message_id },
+    {
+      delaySeconds: DELETE_DELAY_SECONDS,
+      retentionSeconds: 60 * 60,
+      idempotencyKey: `pending-listing-delete:batch:${listing.batch_pair_id}`,
+    }
+  );
+  console.log(`Queued Telegram batch pair ${listing.batch_pair_id} and scheduled Pending Listings deletion.`);
 }
 
 async function isChatOwner(chatId: string, userId: number) {
@@ -277,6 +342,9 @@ export async function deleteScheduledPendingListing(payload: { chatId: string; m
       saved.deletion_status = "deleted";
       await saveRecord(saved);
     }
+  }
+  if (record.workflow === "batch-lite") {
+    await Promise.all(messageIds.map((messageId) => deleteRecord(payload.chatId, messageId)));
   }
   console.log(`Deleted PENDING LISTINGS message pair: ${messageIds.join(", ")}.`);
 }

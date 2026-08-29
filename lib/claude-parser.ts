@@ -31,7 +31,7 @@ IMPORTANT RULES:
 12. If FOR SALE is mentioned, it's a sale listing. If FOR LEASE/RENT is mentioned, it's a lease listing.
 13. Set withIncome to true if the listing mentions rental income, monthly income, income-generating, "with income", "earning", or any existing tenant/lease arrangement producing income for the buyer.
 14. IMPORTANT: "Rental Income" and "Lease Price" are DIFFERENT things:
-    - leasePrice = the price someone pays TO LEASE/RENT this property (only set for FOR LEASE listings)
+    - leasePrice = the price someone pays TO LEASE/RENT this property. Extract an explicit "Lease Rate" or "Lease Price" even when the status is LEASED OUT.
     - Rental income (e.g. "Rental Income: P300,000/month") is income the OWNER earns from existing tenants — this sets withIncome=true but does NOT set leasePrice. Leave leasePrice empty for FOR SALE listings even if rental income is mentioned.
 15. Determine directOrCobroker:
     - "Direct to Owner" if the listing says "direct", "direct to owner", "direct to seller", "direct listing", or the poster IS the owner/seller
@@ -110,6 +110,13 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
       const result = await model.generateContent(EXTRACTION_PROMPT + text);
+      const usage = result.response.usageMetadata;
+      if (usage) {
+        console.info(
+          `[Gemini usage] prompt=${usage.promptTokenCount ?? "unknown"} ` +
+          `output=${usage.candidatesTokenCount ?? "unknown"} total=${usage.totalTokenCount ?? "unknown"}`
+        );
+      }
       const responseText = result.response.text();
 
     // Extract JSON from response

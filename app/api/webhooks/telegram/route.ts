@@ -9,8 +9,12 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
+    const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    if (webhookSecret && req.headers.get("x-telegram-bot-api-secret-token") !== webhookSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const body = await req.json();
-    console.log("Telegram Webhook received:", JSON.stringify(body, null, 2));
+    console.log(`Telegram webhook received update ${body.update_id ?? "unknown"}.`);
 
     if (body.message_reaction) {
       await handlePendingListingReaction(body.message_reaction);

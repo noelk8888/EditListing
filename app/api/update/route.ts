@@ -1,9 +1,11 @@
 import { getPHLDate } from "@/lib/utils";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab, appendDisplayRowToSheet, SHEET_NAME } from "@/lib/google-sheets";
+import { updateDisplayColumns, updateSyncColumns, updateDisplayColumnsInSheet, writeBatchSourceGeoId, GSheetDisplayData, GSheetSyncData, NoteConfig, addNewGSheetRow, findRowByGeoIdInSheet, deleteRowFromSheet, findGeoIdSourceTab, appendDisplayRowToSheet, getRowByGeoId, SHEET_NAME } from "@/lib/google-sheets";
 import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
+import { ensureSingleLeadingGeoId, stripLeadingGeoIds } from "@/lib/listing-geo-id";
+import { resolveSaleOrLease } from "@/lib/listing-sale-or-lease";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -17,41 +19,6 @@ function formatDisplayDate(dateStr: string): string {
   if (isNaN(d.getTime())) return dateStr;    // return as-is if unparseable
   const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
-}
-
-/**
- * Clean listing content by stripping leading ID lines (both current and target IDs).
- * Also strips any legacy B-series IDs from the start if we're promoting from Sheet2.
- */
-function cleanListingContent(text: string, currentId: string, finalId: string): string {
-  let lines = (text || "").split('\n');
-  
-  // 1. Remove ANY leading line that matches currentId OR finalId (case-insensitive)
-  while (lines.length > 0) {
-    const firstLine = lines[0].trim().toUpperCase();
-    if (firstLine === currentId.toUpperCase() || firstLine === finalId.toUpperCase()) {
-      lines.shift();
-    } else {
-      break;
-    }
-  }
-
-  // 2. Scan for "B series" legacy IDs that might be stuck on the new first/second line
-  // If promoting B -> G, and we find a B ID on the new first line, remove it too.
-  if (finalId.startsWith('G') && currentId.startsWith('B')) {
-    while (lines.length > 0) {
-       const firstLine = lines[0].trim().toUpperCase();
-       // Check if it's a B-series ID pattern (B followed by 4-6 digits)
-       if (/^B\d{4,6}$/.test(firstLine)) {
-         console.log(`[Promotion Clean] Stripping legacy B-series ID: ${firstLine}`);
-         lines.shift();
-       } else {
-         break;
-       }
-    }
-  }
-
-  return lines.join('\n').trim();
 }
 
 export async function POST(request: Request) {
@@ -176,6 +143,23 @@ export async function POST(request: Request) {
       .eq('"GEO ID"', id)
       .maybeSingle();
 
+    // Column H is independent and is not stored in Supabase. If a client ever
+    // submits it blank, preserve the current Sheet value before using the
+    // status/text/prices as deterministic recovery signals.
+    const currentSheetSaleOrLease = sale_or_lease
+      ? ""
+      : (await getRowByGeoId(id).catch((error) => {
+          console.warn(`[Sale/Lease Guard] Could not read existing column H for ${id}:`, error);
+          return null;
+        }))?.saleOrLease || "";
+    const effectiveSaleOrLease = resolveSaleOrLease({
+      savedValue: sale_or_lease || currentSheetSaleOrLease,
+      text: summary,
+      status,
+      salePrice: price,
+      leasePrice: lease_price,
+    }) || "";
+
     const diff = (a: unknown, b: unknown) =>
       String(a ?? "").trim() !== String(b ?? "").trim();
 
@@ -274,10 +258,10 @@ export async function POST(request: Request) {
     }
 
     // Build BLASTED FORMAT (A) - Clean content without IDs
-    const blastedFormat = cleanListingContent(summary || "", id, finalId);
+    const blastedFormat = stripLeadingGeoIds(summary || "");
 
     // Build COL AA (MAIN with GEO ID as first line)
-    const mainWithId = finalId + "\n" + blastedFormat;
+    const mainWithId = ensureSingleLeadingGeoId(summary || "", finalId);
 
     console.log("=== UPDATING LISTING ===");
     console.log("ID:", id);
@@ -422,7 +406,7 @@ export async function POST(request: Request) {
 
       // Determine price for column G based on sale_or_lease
       let priceValue = "";
-      if (sale_or_lease === "Lease" && lease_price) {
+      if (effectiveSaleOrLease === "Lease" && lease_price) {
         priceValue = lease_price.toString();
       } else if (price) {
         priceValue = price.toString();
@@ -444,7 +428,7 @@ export async function POST(request: Request) {
         lotArea: stripCommas(lot_area),
         floorArea: stripCommas(floor_area),
         price: stripCommas(priceValue),
-        saleOrLease: sale_or_lease || "",
+        saleOrLease: effectiveSaleOrLease,
         withIncome: with_income || "",
         directCobroker: direct_or_broker || "",
         ownerBroker: owner_broker || "",

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getRowByGeoId, getRowByRowNumber, findRowByColAText, generateNextGeoId, findGeoIdSourceTab, GSheetFullRow } from "@/lib/google-sheets";
 import { auth } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/permissions";
+import { resolveSaleOrLease } from "@/lib/listing-sale-or-lease";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -140,16 +141,13 @@ function normalizeGSheetDate(dateStr: string | null | undefined): string | null 
 }
 
 function supabaseToResult(row: SupabaseResult, isDuplicateTagging?: boolean) {
-  // Extract Sale/Lease from MAIN text (look for *FOR SALE*, *FOR LEASE*, etc.)
   const mainText = row["MAIN"] || "";
-  let saleOrLease: string | null = null;
-  if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(mainText)) {
-    saleOrLease = "Sale/Lease";
-  } else if (/\*?FOR\s+LEASE\*?/i.test(mainText)) {
-    saleOrLease = "Lease";
-  } else if (/\*?FOR\s+SALE\*?/i.test(mainText)) {
-    saleOrLease = "Sale";
-  }
+  const saleOrLease = resolveSaleOrLease({
+    text: mainText,
+    status: row["STATUS"],
+    salePrice: row["Extracted Sale Price"],
+    leasePrice: row["Extracted Lease Price"],
+  });
 
   let summary = row["MAIN"] || null;
   if (isDuplicateTagging && summary) {
@@ -246,13 +244,17 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow, isDuplicateT
     }
   }
 
-  // Extract Sale/Lease from content
-  let saleOrLease: string | null = null;
-  if (/\*?FOR\s+(SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)\*?/i.test(content)) saleOrLease = "Sale/Lease";
-  else if (/\*?FOR\s+LEASE\*?/i.test(content)) saleOrLease = "Lease";
-  else if (/\*?FOR\s+SALE\*?/i.test(content)) saleOrLease = "Sale";
-
   const toNum = (v: string) => parseFloat(v.replace(/,/g, "")) || null;
+  const displayPrice = toNum(gsheetRow.price);
+  const savedSalePrice = toNum(gsheetRow.supabaseSalePrice);
+  const savedLeasePrice = toNum(gsheetRow.supabaseLeasePrice);
+  const saleOrLease = resolveSaleOrLease({
+    savedValue: gsheetRow.saleOrLease,
+    text: content,
+    status: gsheetRow.available || gsheetRow.supabaseStatus,
+    salePrice: savedSalePrice,
+    leasePrice: savedLeasePrice,
+  });
 
   return {
     id: geoId,
@@ -268,8 +270,8 @@ function gsheetRowToResult(geoId: string, gsheetRow: GSheetFullRow, isDuplicateT
     floor_area: toNum(gsheetRow.floorArea || gsheetRow.supabaseFloorArea),
     status: gsheetRow.available || gsheetRow.supabaseStatus || null,
     type_description: gsheetRow.supabaseType || gsheetRow.type || null,
-    price: toNum(gsheetRow.price || gsheetRow.supabaseSalePrice),
-    lease_price: toNum(gsheetRow.supabaseLeasePrice),
+    price: savedSalePrice || (saleOrLease !== "Lease" ? displayPrice : null),
+    lease_price: savedLeasePrice || (saleOrLease === "Lease" ? displayPrice : null),
     residential: gsheetRow.supabaseResidential || null,
     commercial: gsheetRow.supabaseCommercial || null,
     industrial: gsheetRow.supabaseIndustrial || null,
@@ -359,6 +361,14 @@ async function applyGSheetFallback(result: ReturnType<typeof supabaseToResult>, 
       listing_ownership: fallback(result.listing_ownership, gsheetRow.listingOwnership || gsheetRow.supabaseListingOwnership),
       // With income: Supabase WITH INCOME ↔ GSheet I (withIncome) or AX
       with_income: fallback(result.with_income, gsheetRow.withIncome || gsheetRow.supabaseWithIncome),
+      // Sale/Lease: preserve Col H first, then infer LEASED OUT / unambiguous price fields.
+      sale_or_lease: resolveSaleOrLease({
+        savedValue: gsheetRow.saleOrLease || result.sale_or_lease,
+        text: String(result.summary || gsheetRow.main || gsheetRow.blastedFormat || ""),
+        status: result.status || gsheetRow.available || gsheetRow.supabaseStatus,
+        salePrice: result.price || gsheetRow.supabaseSalePrice,
+        leasePrice: result.lease_price || gsheetRow.supabaseLeasePrice,
+      }),
       // Status: Supabase STATUS ↔ GSheet O (available) or AQ
       status: fallback(result.status, gsheetRow.available || gsheetRow.supabaseStatus),
       // City: Supabase CITY ↔ GSheet D (city) or AG
@@ -395,6 +405,17 @@ function applySpecificGSheetFallback(
         ? `${gsheetRow.geoId || result.id}\n${gsheetRow.blastedFormat}` 
         : (gsheetRow.main || result.summary));
 
+  const displayPrice = toNum(gsheetRow.price);
+  const savedSalePrice = toNum(gsheetRow.supabaseSalePrice);
+  const savedLeasePrice = toNum(gsheetRow.supabaseLeasePrice);
+  const saleOrLease = resolveSaleOrLease({
+    savedValue: gsheetRow.saleOrLease || result.sale_or_lease,
+    text: String(gsheetSummary || ""),
+    status: gsheetRow.available || gsheetRow.supabaseStatus || result.status,
+    salePrice: savedSalePrice || result.price,
+    leasePrice: savedLeasePrice || result.lease_price,
+  });
+
   return {
     ...result,
     summary: gsheetSummary,
@@ -403,7 +424,9 @@ function applySpecificGSheetFallback(
     barangay: gsheetRow.area || gsheetRow.supabaseBarangay || result.barangay,
     lot_area: gsheetRow.lotArea ? toNum(gsheetRow.lotArea) : (gsheetRow.supabaseLotArea ? toNum(gsheetRow.supabaseLotArea) : result.lot_area),
     floor_area: gsheetRow.floorArea ? toNum(gsheetRow.floorArea) : (gsheetRow.supabaseFloorArea ? toNum(gsheetRow.supabaseFloorArea) : result.floor_area),
-    price: gsheetRow.price ? toNum(gsheetRow.price) : (gsheetRow.supabaseSalePrice ? toNum(gsheetRow.supabaseSalePrice) : result.price),
+    price: savedSalePrice || result.price || (saleOrLease !== "Lease" ? displayPrice : null),
+    lease_price: savedLeasePrice || result.lease_price || (saleOrLease === "Lease" ? displayPrice : null),
+    sale_or_lease: saleOrLease,
     status: gsheetRow.available || gsheetRow.supabaseStatus || result.status,
     date_received: normalizeGSheetDate(gsheetRow.dateReceived) || result.date_received,
     date_updated: normalizeGSheetDate(gsheetRow.dateResorted || gsheetRow.supabaseDateUpdated) || result.date_updated,

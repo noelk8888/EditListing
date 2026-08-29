@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseListingText, geocodeAddress, extractCoordsFromMapLink } from "@/lib/claude-parser";
+import { optimizeExistingListingParse } from "@/lib/existing-listing-optimizer";
 import { auth } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
@@ -9,13 +10,38 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { text } = await request.json();
+    const { text, optimization } = await request.json();
 
     if (!text || typeof text !== "string") {
       return NextResponse.json(
         { error: "Text is required" },
         { status: 400 }
       );
+    }
+
+    if (optimization?.mode === "existing-listing") {
+      const decision = optimizeExistingListingParse({
+        text,
+        existingSummary: typeof optimization.existingSummary === "string" ? optimization.existingSummary : "",
+        explicitStatus: typeof optimization.explicitStatus === "string" ? optimization.explicitStatus : "",
+      });
+
+      if (decision.mode === "deterministic") {
+        console.info(
+          `[Listing optimizer] ${decision.reason}; Gemini skipped; fields: ${decision.changedFields.join(", ") || "none"}`
+        );
+        return NextResponse.json({
+          ...decision.patch,
+          rawListing: text,
+          _optimization: {
+            mode: decision.reason,
+            aiUsed: false,
+            changedFields: decision.changedFields,
+          },
+        });
+      }
+
+      console.info(`[Listing optimizer] AI fallback: ${decision.reason}`);
     }
 
     const parsed = await parseListingText(text);
@@ -55,7 +81,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json(parsed);
+    return NextResponse.json({
+      ...parsed,
+      _optimization: {
+        mode: optimization?.mode === "existing-listing" ? "ai-fallback" : "standard-ai",
+        aiUsed: true,
+      },
+    });
   } catch (error) {
     console.error("Parse error:", error);
     return NextResponse.json(

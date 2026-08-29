@@ -9,12 +9,25 @@
           "retryAfterSeconds": 60
         }
       ]
+    },
+    "app/api/queues/process-telegram-batch/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "telegram-batch-copy",
+          "retryAfterSeconds": 30
+        }
+      ]
     }
   },
   "crons": [
     {
       "path": "/api/admin/backup",
       "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-telegram-records",
+      "schedule": "0 17 * * *"
     }
   ]
 }
