@@ -688,6 +688,7 @@ export async function POST(request: Request) {
     const supabaseUpdated = data && data.length > 0;
     return NextResponse.json({
       success: true,
+      geoId: finalId,
       supabaseUpdated,
       changeTypes,
       locationChanged,

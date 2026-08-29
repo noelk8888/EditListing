@@ -70,7 +70,7 @@ export async function POST(request: Request) {
       if (!body.pairId || !body.lockToken) return NextResponse.json({ error: "pairId and lockToken are required" }, { status: 400 });
       await refreshTelegramBatchRun(String(body.lockToken));
       const status = action === "mark_updated" ? "UPDATED" : action === "mark_manual" ? "FOR MANUAL CHECKING" : "";
-      await setTelegramBatchRowStatus(String(body.pairId), status);
+      await setTelegramBatchRowStatus(String(body.pairId), status, action === "mark_updated" ? String(body.geoId || "") : undefined);
       return NextResponse.json({ ok: true });
     }
 

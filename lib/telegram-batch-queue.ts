@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { getSheetTabNameByGid, getSheets } from "@/lib/google-sheets";
+import { isGeoIdLine, normalizeGeoId } from "@/lib/listing-geo-id";
 
 const CAPTURE_SETTING_KEY = "telegram-batch-capture";
 const RUN_LOCK_KEY = "telegram-batch-run-lock";
@@ -16,6 +17,7 @@ export type TelegramBatchRow = {
   status: TelegramBatchStatus;
   pairId: string;
   queuedAt: string;
+  geoId: string;
   processingStartedAt: string;
 };
 
@@ -63,29 +65,45 @@ async function ensureHeaders() {
   const queue = await getQueueSheet();
   const response = await queue.sheets.spreadsheets.values.get({
     spreadsheetId: queue.spreadsheetId,
-    range: `${queue.tabName}!A1:F1`,
+    range: `${queue.tabName}!A1:G1`,
   });
   const current = response.data.values?.[0] || [];
-  const expected = ["MESSAGE 1", "MESSAGE 2", "STATUS", "PAIR ID", "QUEUED AT", "PROCESSING STARTED AT"];
-  const next = expected.map((header, index) => String(current[index] || header));
+  const expected = ["MESSAGE 1", "MESSAGE 2", "STATUS", "PAIR ID", "QUEUED AT", "GEO ID", "PROCESSING STARTED AT"];
+  const next = expected;
   const headersChanged = next.some((value, index) => value !== String(current[index] || ""));
   if (headersChanged) {
     await queue.sheets.spreadsheets.values.update({
       spreadsheetId: queue.spreadsheetId,
-      range: `${queue.tabName}!A1:F1`,
+      range: `${queue.tabName}!A1:G1`,
       valueInputOption: "RAW",
       requestBody: { values: [next] },
     });
     await queue.sheets.spreadsheets.batchUpdate({
       spreadsheetId: queue.spreadsheetId,
       requestBody: {
-        requests: [{
-          updateDimensionProperties: {
-            range: { sheetId: queue.gid, dimension: "COLUMNS", startIndex: 3, endIndex: 6 },
-            properties: { hiddenByUser: true },
-            fields: "hiddenByUser",
+        requests: [
+          {
+            updateDimensionProperties: {
+              range: { sheetId: queue.gid, dimension: "COLUMNS", startIndex: 3, endIndex: 5 },
+              properties: { hiddenByUser: true },
+              fields: "hiddenByUser",
+            },
           },
-        }],
+          {
+            updateDimensionProperties: {
+              range: { sheetId: queue.gid, dimension: "COLUMNS", startIndex: 5, endIndex: 6 },
+              properties: { hiddenByUser: false },
+              fields: "hiddenByUser",
+            },
+          },
+          {
+            updateDimensionProperties: {
+              range: { sheetId: queue.gid, dimension: "COLUMNS", startIndex: 6, endIndex: 7 },
+              properties: { hiddenByUser: true },
+              fields: "hiddenByUser",
+            },
+          },
+        ],
       },
     });
   }
@@ -133,11 +151,11 @@ export async function appendTelegramBatchPair(input: {
 
   const response = await queue.sheets.spreadsheets.values.append({
     spreadsheetId: queue.spreadsheetId,
-    range: `${queue.tabName}!A:F`,
+    range: `${queue.tabName}!A:G`,
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
-      values: [[input.message1, input.message2, "", input.pairId, input.queuedAt, ""]],
+      values: [[input.message1, input.message2, "", input.pairId, input.queuedAt, "", ""]],
     },
   });
   const updatedRange = response.data.updates?.updatedRange || "";
@@ -149,7 +167,7 @@ export async function listTelegramBatchRows() {
   const queue = await ensureHeaders();
   const response = await queue.sheets.spreadsheets.values.get({
     spreadsheetId: queue.spreadsheetId,
-    range: `${queue.tabName}!A2:F`,
+    range: `${queue.tabName}!A2:G`,
   });
   const allRows: TelegramBatchRow[] = (response.data.values || []).map((row, index) => ({
     rowNumber: index + 2,
@@ -158,7 +176,8 @@ export async function listTelegramBatchRows() {
     status: String(row?.[2] || "").trim().toUpperCase() as TelegramBatchStatus,
     pairId: String(row?.[3] || ""),
     queuedAt: String(row?.[4] || ""),
-    processingStartedAt: String(row?.[5] || ""),
+    geoId: String(row?.[5] || ""),
+    processingStartedAt: String(row?.[6] || ""),
   }));
 
   return allRows.filter((row) =>
@@ -173,7 +192,7 @@ async function findQueueRow(pairId: string) {
   const queue = await getQueueSheet();
   const response = await queue.sheets.spreadsheets.values.get({
     spreadsheetId: queue.spreadsheetId,
-    range: `${queue.tabName}!C2:F`,
+    range: `${queue.tabName}!C2:G`,
   });
   const index = (response.data.values || []).findIndex((row) => String(row?.[1] || "") === pairId);
   return { ...queue, rowNumber: index < 0 ? null : index + 2, row: index < 0 ? null : response.data.values?.[index] || [] };
@@ -183,7 +202,7 @@ export async function claimTelegramBatchRow(pairId: string) {
   const found = await findQueueRow(pairId);
   if (!found.rowNumber || !found.row) throw new Error("Queue row was not found");
   const status = String(found.row[0] || "").trim().toUpperCase();
-  const processingStartedAt = String(found.row[3] || "");
+  const processingStartedAt = String(found.row[4] || "");
   if (status && !(status === "PROCESSING" && processingExpired(processingStartedAt))) {
     throw new Error(`Queue row is already ${status}`);
   }
@@ -194,18 +213,26 @@ export async function claimTelegramBatchRow(pairId: string) {
       valueInputOption: "RAW",
       data: [
         { range: `${found.tabName}!C${found.rowNumber}`, values: [["PROCESSING"]] },
-        { range: `${found.tabName}!F${found.rowNumber}`, values: [[now]] },
+        { range: `${found.tabName}!G${found.rowNumber}`, values: [[now]] },
       ],
     },
   });
   return { rowNumber: found.rowNumber, processingStartedAt: now };
 }
 
-export async function setTelegramBatchRowStatus(pairId: string, status: "UPDATED" | "FOR MANUAL CHECKING" | "") {
+export async function setTelegramBatchRowStatus(
+  pairId: string,
+  status: "UPDATED" | "FOR MANUAL CHECKING" | "",
+  geoId?: string
+) {
   const found = await findQueueRow(pairId);
   if (!found.rowNumber) throw new Error("Queue row was not found");
 
   const isUpdated = status === "UPDATED";
+  const normalizedGeoId = normalizeGeoId(geoId || "");
+  if (isUpdated && !isGeoIdLine(normalizedGeoId)) {
+    throw new Error("A valid GEO ID is required before marking a queue row UPDATED");
+  }
   await found.sheets.spreadsheets.batchUpdate({
     spreadsheetId: found.spreadsheetId,
     requestBody: {
@@ -246,6 +273,19 @@ export async function setTelegramBatchRowStatus(pairId: string, status: "UPDATED
               endRowIndex: found.rowNumber,
               startColumnIndex: 5,
               endColumnIndex: 6,
+            },
+            rows: [{ values: [{ userEnteredValue: { stringValue: isUpdated ? normalizedGeoId : "" } }] }],
+            fields: "userEnteredValue",
+          },
+        },
+        {
+          updateCells: {
+            range: {
+              sheetId: found.gid,
+              startRowIndex: found.rowNumber - 1,
+              endRowIndex: found.rowNumber,
+              startColumnIndex: 6,
+              endColumnIndex: 7,
             },
             rows: [{ values: [{ userEnteredValue: { stringValue: "" } }] }],
             fields: "userEnteredValue",

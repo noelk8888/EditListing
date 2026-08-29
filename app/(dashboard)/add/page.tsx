@@ -28,6 +28,7 @@ type TelegramBatchRow = {
   status: "" | "PROCESSING" | "UPDATED" | "FOR MANUAL CHECKING";
   pairId: string;
   queuedAt: string;
+  geoId: string;
   processingStartedAt: string;
 };
 
@@ -2210,7 +2211,12 @@ export default function AddListingPage() {
       // Success
       if (tgBatchActive && tgBatchCurrentPairId) {
         const completedPairId = tgBatchCurrentPairId;
-        await postTelegramBatchAction({ action: "mark_updated", pairId: completedPairId, lockToken: tgBatchLockToken });
+        await postTelegramBatchAction({
+          action: "mark_updated",
+          pairId: completedPairId,
+          lockToken: tgBatchLockToken,
+          geoId: result.geoId,
+        });
         setTgBatchCurrentPairId(null);
         setError(null);
         setBatchIndex((current) => current + 1);
