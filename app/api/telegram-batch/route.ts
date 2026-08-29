@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import {
   claimTelegramBatchRow,
   claimTelegramBatchRun,
-  deleteUpdatedTelegramBatchRows,
   getTelegramBatchCapture,
   listTelegramBatchRows,
   refreshTelegramBatchRun,
@@ -78,9 +77,8 @@ export async function POST(request: Request) {
     if (action === "finish_run") {
       if (!body.lockToken) return NextResponse.json({ error: "lockToken is required" }, { status: 400 });
       await refreshTelegramBatchRun(String(body.lockToken));
-      const cleanup = await deleteUpdatedTelegramBatchRows();
       await releaseTelegramBatchRun(String(body.lockToken));
-      return NextResponse.json({ ok: true, ...cleanup });
+      return NextResponse.json({ ok: true, updatedRowsRetained: true });
     }
 
     if (action === "exit_run") {

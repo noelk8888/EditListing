@@ -204,42 +204,56 @@ export async function claimTelegramBatchRow(pairId: string) {
 export async function setTelegramBatchRowStatus(pairId: string, status: "UPDATED" | "FOR MANUAL CHECKING" | "") {
   const found = await findQueueRow(pairId);
   if (!found.rowNumber) throw new Error("Queue row was not found");
-  await found.sheets.spreadsheets.values.batchUpdate({
+
+  const isUpdated = status === "UPDATED";
+  await found.sheets.spreadsheets.batchUpdate({
     spreadsheetId: found.spreadsheetId,
     requestBody: {
-      valueInputOption: "RAW",
-      data: [
-        { range: `${found.tabName}!C${found.rowNumber}`, values: [[status]] },
-        { range: `${found.tabName}!F${found.rowNumber}`, values: [[""]] },
+      requests: [
+        {
+          updateCells: {
+            range: {
+              sheetId: found.gid,
+              startRowIndex: found.rowNumber - 1,
+              endRowIndex: found.rowNumber,
+              startColumnIndex: 2,
+              endColumnIndex: 3,
+            },
+            rows: [{
+              values: [{
+                userEnteredValue: { stringValue: status },
+                userEnteredFormat: {
+                  backgroundColor: isUpdated
+                    ? { red: 0.8, green: 0, blue: 0 }
+                    : { red: 1, green: 1, blue: 1 },
+                  textFormat: {
+                    foregroundColor: isUpdated
+                      ? { red: 1, green: 1, blue: 1 }
+                      : { red: 0, green: 0, blue: 0 },
+                    bold: isUpdated,
+                  },
+                },
+              }],
+            }],
+            fields: "userEnteredValue,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,userEnteredFormat.textFormat.bold",
+          },
+        },
+        {
+          updateCells: {
+            range: {
+              sheetId: found.gid,
+              startRowIndex: found.rowNumber - 1,
+              endRowIndex: found.rowNumber,
+              startColumnIndex: 5,
+              endColumnIndex: 6,
+            },
+            rows: [{ values: [{ userEnteredValue: { stringValue: "" } }] }],
+            fields: "userEnteredValue",
+          },
+        },
       ],
     },
   });
-}
-
-export async function deleteUpdatedTelegramBatchRows() {
-  const queue = await getQueueSheet();
-  const [values, metadata] = await Promise.all([
-    queue.sheets.spreadsheets.values.get({ spreadsheetId: queue.spreadsheetId, range: `${queue.tabName}!C2:C` }),
-    queue.sheets.spreadsheets.get({ spreadsheetId: queue.spreadsheetId }),
-  ]);
-  const sheetId = metadata.data.sheets?.find((sheet) => sheet.properties?.title === queue.tabName)?.properties?.sheetId;
-  if (sheetId === undefined) throw new Error(`Queue tab "${queue.tabName}" was not found`);
-  const rows = (values.data.values || [])
-    .map((row, index) => ({ rowNumber: index + 2, status: String(row?.[0] || "").trim().toUpperCase() }))
-    .filter((row) => row.status === "UPDATED")
-    .sort((a, b) => b.rowNumber - a.rowNumber);
-  if (!rows.length) return { deleted: 0 };
-  await queue.sheets.spreadsheets.batchUpdate({
-    spreadsheetId: queue.spreadsheetId,
-    requestBody: {
-      requests: rows.map((row) => ({
-        deleteDimension: {
-          range: { sheetId, dimension: "ROWS", startIndex: row.rowNumber - 1, endIndex: row.rowNumber },
-        },
-      })),
-    },
-  });
-  return { deleted: rows.length };
 }
 
 function lockExpired(lock: Partial<RunLock>) {

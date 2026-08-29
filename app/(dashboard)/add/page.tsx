@@ -1559,10 +1559,9 @@ export default function AddListingPage() {
       if (tgBatchFinishingRef.current || !tgBatchLockToken) return;
       tgBatchFinishingRef.current = true;
       void postTelegramBatchAction({ action: "finish_run", lockToken: tgBatchLockToken })
-        .then((data) => {
-          const deleted = Number(data.deleted || 0);
+        .then(() => {
           resetTelegramBatchUi();
-          showAlert(`TG Batch Update complete. ${deleted} updated queue row${deleted === 1 ? " was" : "s were"} removed.`);
+          showAlert("TG Batch Update complete. UPDATED rows remain in Batch Lite for manual deletion.");
           void refreshTelegramBatchState().catch(() => undefined);
         })
         .catch((err) => {
