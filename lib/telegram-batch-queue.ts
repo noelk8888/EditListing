@@ -160,7 +160,43 @@ export async function appendTelegramBatchPair(input: {
   });
   const updatedRange = response.data.updates?.updatedRange || "";
   const rowMatch = updatedRange.match(/!(?:[A-Z]+)(\d+):/);
-  return { rowNumber: rowMatch ? Number(rowMatch[1]) : null, appended: true };
+  const rowNumber = rowMatch ? Number(rowMatch[1]) : null;
+
+  // INSERT_ROWS can inherit formatting from the row above. Explicitly reset
+  // the new status cell so a pending row never looks like an UPDATED row.
+  if (rowNumber) {
+    await queue.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: queue.spreadsheetId,
+      requestBody: {
+        requests: [{
+          updateCells: {
+            range: {
+              sheetId: queue.gid,
+              startRowIndex: rowNumber - 1,
+              endRowIndex: rowNumber,
+              startColumnIndex: 2,
+              endColumnIndex: 3,
+            },
+            rows: [{
+              values: [{
+                userEnteredValue: { stringValue: "" },
+                userEnteredFormat: {
+                  backgroundColor: { red: 1, green: 1, blue: 1 },
+                  textFormat: {
+                    foregroundColor: { red: 0, green: 0, blue: 0 },
+                    bold: false,
+                  },
+                },
+              }],
+            }],
+            fields: "userEnteredValue,userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.foregroundColor,userEnteredFormat.textFormat.bold",
+          },
+        }],
+      },
+    });
+  }
+
+  return { rowNumber, appended: true };
 }
 
 export async function listTelegramBatchRows() {
