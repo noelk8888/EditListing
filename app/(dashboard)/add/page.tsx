@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2, Play, Pause } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronDown, ChevronRight, ClipboardPaste, Search, Loader2, Sparkles, AlertCircle, CheckCircle2, Copy, Save, Home, Plus, X, Send, Trash2, Play, Pause, FileSpreadsheet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SupabaseListing, fetchListingOwnerships, SupabaseTelegramGroup, fetchTelegramGroups } from "@/lib/supabase";
 import { APP_VERSION } from "@/lib/version";
@@ -2842,6 +2842,16 @@ export default function AddListingPage() {
             >
               {tgBatchLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}
               START BATCH UPDATE
+            </Button>
+            <Button variant="outline" asChild>
+              <a
+                href="https://docs.google.com/spreadsheets/d/12Z8X3RmYRBMiihsxf-J0f650Ifj2irxRQsYC64Cgbw0/edit?pli=1&gid=873778190#gid=873778190"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                GSHEET
+              </a>
             </Button>
             <div className="text-sm text-muted-foreground">
               <span className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${tgCaptureEnabled ? "bg-green-500" : "bg-slate-400"}`} />
