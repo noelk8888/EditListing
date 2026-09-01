@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseListingText, geocodeAddress, extractCoordsFromMapLink } from "@/lib/claude-parser";
 import { optimizeExistingListingParse } from "@/lib/existing-listing-optimizer";
 import { auth } from "@/lib/auth";
+import { isTrustedInternalRequest } from "@/lib/internal-request-auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session) {
+    const trustedInternal = isTrustedInternalRequest(request);
+    const session = trustedInternal ? null : await auth();
+    if (!trustedInternal && !session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

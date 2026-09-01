@@ -18,6 +18,15 @@
           "retryAfterSeconds": 30
         }
       ]
+    },
+    "app/api/queues/run-telegram-batch-update/route.ts": {
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "telegram-batch-update-row",
+          "retryAfterSeconds": 60
+        }
+      ]
     }
   },
   "crons": [
@@ -28,6 +37,10 @@
     {
       "path": "/api/cron/cleanup-telegram-records",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/run-telegram-batch-update",
+      "schedule": "59 15 * * *"
     }
   ]
 }

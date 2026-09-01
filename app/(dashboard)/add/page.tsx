@@ -18,6 +18,12 @@ import { LISTING_OWNERSHIP_OPTIONS } from "@/types/listing";
 import { useToast } from "@/components/ui/use-toast";
 import { ensureSingleLeadingGeoId, isGeoIdLine } from "@/lib/listing-geo-id";
 import { resolveSaleOrLease } from "@/lib/listing-sale-or-lease";
+import {
+  applyTelegramStatus as applyStatusReplacement,
+  getTelegramUpdateStatus,
+  isTelegramUpdateMessage,
+  prepareTelegramListingForUpdate as prepareRawTextForCheck,
+} from "@/lib/telegram-batch-message";
 
 type Step = "paste" | "check" | "review";
 
@@ -47,24 +53,6 @@ const STATUS_MAP: Record<string, string> = {
 };
 const normalizeStatus = (raw: string): string =>
   STATUS_MAP[raw.toLowerCase().trim()] ?? raw.toUpperCase();
-
-const getTelegramUpdateStatus = (text: string): string => {
-  const upper = text.toUpperCase();
-  if (/\bLEASED\s+OUT\b/.test(upper)) return "LEASED OUT";
-  if (/\bOFF\s+(?:THE\s+)?MARKET\b/.test(upper)) return "OFF THE MARKET";
-  if (/\bON\s+HOLD\b/.test(upper)) return "ON HOLD";
-  if (/\bUNDER\s+NEGO(?:TIATION)?\b/.test(upper)) return "UNDER NEGO";
-  if (/\bDELISTED\b/.test(upper)) return "DELISTED";
-  if (/\bSOLD\b/.test(upper)) return "SOLD";
-  return "";
-};
-
-const isTelegramUpdateMessage = (text: string): boolean => {
-  const upper = text.toUpperCase();
-  return /\b(?:LISTING\s+)?UPDATE\b/.test(upper) ||
-    /\bUPDATED\s+FORMAT\b/.test(upper) ||
-    Boolean(getTelegramUpdateStatus(upper));
-};
 
 const BLANK_LISTING_OWNERSHIP_VALUE = " ";
 const MANUAL_LISTING_OWNERSHIP_VALUE = "__manual_listing_ownership__";
@@ -739,29 +727,6 @@ export default function AddListingPage() {
       setManualPasteOpen(true);
       setError(null);
     }
-  };
-
-  const applyStatusReplacement = (text: string, status: string) => {
-    if (!status) return text;
-
-    const todayFormatted = new Intl.DateTimeFormat("en-US", {
-      timeZone: "Asia/Manila",
-      month: "long",
-      year: "numeric",
-    }).format(new Date()).toUpperCase();
-    const regex = /^.*?\b(FOR\s+(SALE|LEASE|SALE\s*(AND|\/|&)\s*LEASE|SALE\/LEASE)|AVAILABLE|SOLD|LEASED OUT|OFF THE MARKET|ON HOLD|UNDER NEGO|DELISTED)\b.*$/im;
-
-    return regex.test(text)
-      ? text.replace(regex, `*${status} - ${todayFormatted}*`)
-      : `*${status} - ${todayFormatted}*\n${text}`;
-  };
-
-  const prepareRawTextForCheck = (text: string, status: string) => {
-    const lines = text.split("\n");
-    const updateRegex = /^(?:(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}|\d{1,2}\/\d{1,2}\/\d{4})\s+update/i;
-    const updateIndex = lines.findIndex((line) => updateRegex.test(line.trim()));
-    const withoutTrailingUpdate = updateIndex === -1 ? text : lines.slice(0, updateIndex).join("\n").trim();
-    return applyStatusReplacement(withoutTrailingUpdate, status);
   };
 
   const handleExtractData = async (overrideText?: unknown, extractAndUpdate = false) => {

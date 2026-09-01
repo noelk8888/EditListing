@@ -234,12 +234,34 @@ async function findQueueRow(pairId: string) {
   return { ...queue, rowNumber: index < 0 ? null : index + 2, row: index < 0 ? null : response.data.values?.[index] || [] };
 }
 
-export async function claimTelegramBatchRow(pairId: string) {
+export async function getTelegramBatchRow(pairId: string): Promise<TelegramBatchRow | null> {
+  const queue = await getQueueSheet();
+  const response = await queue.sheets.spreadsheets.values.get({
+    spreadsheetId: queue.spreadsheetId,
+    range: `${queue.tabName}!A2:G`,
+  });
+  const index = (response.data.values || []).findIndex((row) => String(row?.[3] || "") === pairId);
+  if (index < 0) return null;
+  const row = response.data.values?.[index] || [];
+  return {
+    rowNumber: index + 2,
+    message1: String(row[0] || ""),
+    message2: String(row[1] || ""),
+    status: String(row[2] || "").trim().toUpperCase() as TelegramBatchStatus,
+    pairId: String(row[3] || ""),
+    queuedAt: String(row[4] || ""),
+    geoId: String(row[5] || ""),
+    processingStartedAt: String(row[6] || ""),
+  };
+}
+
+export async function claimTelegramBatchRow(pairId: string, options?: { resumeProcessing?: boolean }) {
   const found = await findQueueRow(pairId);
   if (!found.rowNumber || !found.row) throw new Error("Queue row was not found");
   const status = String(found.row[0] || "").trim().toUpperCase();
   const processingStartedAt = String(found.row[4] || "");
-  if (status && !(status === "PROCESSING" && processingExpired(processingStartedAt))) {
+  const canResume = status === "PROCESSING" && options?.resumeProcessing === true;
+  if (status && !canResume && !(status === "PROCESSING" && processingExpired(processingStartedAt))) {
     throw new Error(`Queue row is already ${status}`);
   }
   const now = new Date().toISOString();

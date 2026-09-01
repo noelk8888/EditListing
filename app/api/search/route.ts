@@ -4,6 +4,7 @@ import { getRowByGeoId, getRowByRowNumber, findRowByColAText, generateNextGeoId,
 import { auth } from "@/lib/auth";
 import { getUserPermissions } from "@/lib/permissions";
 import { resolveSaleOrLease } from "@/lib/listing-sale-or-lease";
+import { isTrustedInternalRequest } from "@/lib/internal-request-auth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -441,12 +442,13 @@ function applySpecificGSheetFallback(
 
 export async function POST(request: Request) {
   try {
-    const session = await auth();
+    const trustedInternal = isTrustedInternalRequest(request);
+    const session = trustedInternal ? null : await auth();
     const userEmail = session?.user?.email;
     const userRole = (session?.user as any)?.role || "EDITOR";
     const permissions = userEmail ? await getUserPermissions(userEmail, userRole) : null;
-    const isSuperAdmin = permissions?.sheet2 === true;
-    const canPromote = permissions?.promote_to_sheet1 === true;
+    const isSuperAdmin = trustedInternal || permissions?.sheet2 === true;
+    const canPromote = trustedInternal || permissions?.promote_to_sheet1 === true;
 
     const { photoLink, listingId, previewText, rowNumber, isDuplicateTagging } = await request.json();
 

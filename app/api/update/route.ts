@@ -6,6 +6,7 @@ import { sendTelegramNotification } from "@/lib/telegram";
 import { auth } from "@/lib/auth";
 import { ensureSingleLeadingGeoId, stripLeadingGeoIds } from "@/lib/listing-geo-id";
 import { resolveSaleOrLease } from "@/lib/listing-sale-or-lease";
+import { isTrustedInternalRequest } from "@/lib/internal-request-auth";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -22,8 +23,11 @@ function formatDisplayDate(dateStr: string): string {
 }
 
 export async function POST(request: Request) {
-  const session = await auth();
-  const updatedBy = session?.user?.email || session?.user?.name || "";
+  const trustedInternal = isTrustedInternalRequest(request);
+  const session = trustedInternal ? null : await auth();
+  const updatedBy = trustedInternal
+    ? "automatic-batch@system"
+    : session?.user?.email || session?.user?.name || "";
 
   // Fetch fb_group from luxe_listing_users (for BC stamp — internal use only)
   let userGroup = updatedBy;
@@ -239,7 +243,7 @@ export async function POST(request: Request) {
     }
 
     // Superadmin custom GEO ID override
-    const isSuperAdmin = session?.user?.role === "SUPERADMIN";
+    const isSuperAdmin = trustedInternal || session?.user?.role === "SUPERADMIN";
     if (newGeoId && newGeoId !== id) {
       if (!isSuperAdmin) {
         return NextResponse.json({ error: "Only Superadmins can change the GEO ID" }, { status: 403 });
