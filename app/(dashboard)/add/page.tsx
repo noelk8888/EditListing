@@ -4000,7 +4000,16 @@ Google Map: https://www.google.com/maps/search/?api=1&query=14.6099435,121.04725
                       <FormattedNumberInput
                         value={saleOrLease === "Lease" ? editLeasePrice : editPrice}
                         onChange={handleInputChange(saleOrLease === "Lease" ? setEditLeasePrice : setEditPrice)}
-                        className="h-8 text-sm"
+                        className="h-8 min-w-0 flex-1 text-sm"
+                      />
+                      <Label className={`text-xs shrink-0 ${searchResult && isDifferent(
+                        saleOrLease === "Lease" ? leasePricePerSqm : salePricePerSqm,
+                        saleOrLease === "Lease" ? searchResult.lease_price_per_sqm : searchResult.sale_price_per_sqm
+                      ) ? "text-red-600 font-bold" : "text-muted-foreground"}`}>Price/Sqm</Label>
+                      <FormattedNumberInput
+                        value={saleOrLease === "Lease" ? leasePricePerSqm : salePricePerSqm}
+                        onChange={handleInputChange(saleOrLease === "Lease" ? setLeasePricePerSqm : setSalePricePerSqm)}
+                        className="h-8 w-28 shrink-0 text-sm"
                       />
                     </div>
                   )}

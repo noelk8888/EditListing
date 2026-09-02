@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ParsedListing, PropertyType, PROPERTY_TYPES } from "@/types/listing";
 import { generateId } from "./utils";
+import { extractDeterministicPrices } from "./existing-listing-optimizer";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -126,6 +127,7 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
     }
 
     const parsed = JSON.parse(jsonMatch[0]);
+    const labeledPrices = extractDeterministicPrices(text);
 
     // Validate and clean the parsed data
     const listing: ParsedListing = {
@@ -144,13 +146,13 @@ export async function parseListingText(text: string): Promise<ParsedListing> {
       floorArea: String(parsed.floorArea || ""),
       status: (normalizeStatus(parsed.status) || "AVAILABLE") as any,
       type: PROPERTY_TYPES.includes(parsed.type) ? parsed.type : "",
-      salePrice: String(parsed.salePrice || "").replace(/[^0-9.-]/g, ""),
-      salePricePerSqm: String(parsed.salePricePerSqm || "").replace(
+      salePrice: String(labeledPrices.salePrice || parsed.salePrice || "").replace(/[^0-9.-]/g, ""),
+      salePricePerSqm: String(labeledPrices.salePricePerSqm || parsed.salePricePerSqm || "").replace(
         /[^0-9.-]/g,
         ""
       ),
-      leasePrice: String(parsed.leasePrice || "").replace(/[^0-9.-]/g, ""),
-      leasePricePerSqm: String(parsed.leasePricePerSqm || "").replace(
+      leasePrice: String(labeledPrices.leasePrice || parsed.leasePrice || "").replace(/[^0-9.-]/g, ""),
+      leasePricePerSqm: String(labeledPrices.leasePricePerSqm || parsed.leasePricePerSqm || "").replace(
         /[^0-9.-]/g,
         ""
       ),

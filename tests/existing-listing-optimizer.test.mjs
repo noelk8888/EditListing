@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { optimizeExistingListingParse } from "../lib/existing-listing-optimizer.ts";
+import {
+  extractDeterministicPrices,
+  optimizeExistingListingParse,
+} from "../lib/existing-listing-optimizer.ts";
 
 const existing = `G03681
 *FOR SALE*
@@ -86,6 +89,17 @@ test("backfills total and per-sqm sale prices without AI", () => {
   assert.equal(decision.mode, "deterministic");
   assert.equal(decision.patch.salePrice, "95000000");
   assert.equal(decision.patch.salePricePerSqm, "217890");
+});
+
+test("extracts labeled prices independently for the AI fallback path", () => {
+  const prices = extractDeterministicPrices(
+    "Price: P110,000,000 (P234,542/sqm)",
+  );
+
+  assert.deepEqual(prices, {
+    salePrice: "110000000",
+    salePricePerSqm: "234542",
+  });
 });
 
 test("backfills lease rate and per-sqm lease price without AI", () => {

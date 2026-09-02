@@ -272,6 +272,10 @@ function collectPricePatch(lines: ClassifiedLine[]): ExistingListingDeterministi
   return patch;
 }
 
+export function extractDeterministicPrices(text: string): ExistingListingDeterministicPatch {
+  return collectPricePatch(collectLines(text));
+}
+
 export function optimizeExistingListingParse(input: {
   text: string;
   existingSummary: string;
@@ -286,7 +290,7 @@ export function optimizeExistingListingParse(input: {
   const added = subtractLines(nextLines, previousLines).filter((line) => line.kind !== "ignored");
   const removed = subtractLines(previousLines, nextLines).filter((line) => line.kind !== "ignored");
   const explicitStatus = input.explicitStatus?.trim().toUpperCase() || "";
-  const pricePatch = collectPricePatch(nextLines);
+  const pricePatch = extractDeterministicPrices(input.text);
 
   if (added.length === 0 && removed.length === 0) {
     const patch: ExistingListingDeterministicPatch = {
