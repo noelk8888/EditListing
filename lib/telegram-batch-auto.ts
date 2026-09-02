@@ -3,6 +3,10 @@ import { ensureSingleLeadingGeoId, isGeoIdLine } from "@/lib/listing-geo-id";
 import { resolveSaleOrLease } from "@/lib/listing-sale-or-lease";
 import { getPHLDate } from "@/lib/utils";
 import {
+  getAutomaticBatchRetryRetentionSeconds,
+  hasAutomaticBatchDeadlinePassed,
+} from "@/lib/telegram-batch-schedule";
+import {
   claimTelegramBatchRow,
   claimTelegramBatchRun,
   getTelegramBatchRow,
@@ -19,10 +23,18 @@ import {
 } from "@/lib/telegram-batch-message";
 
 export const AUTO_BATCH_TOPIC = "telegram-batch-update-row";
+export const AUTO_BATCH_START_TOPIC = "telegram-batch-update-start";
 const AUTOMATIC_ACTOR = "automatic-nightly@system";
 
 type JsonObject = Record<string, any>;
-export type AutoBatchPayload = { pairId: string; lockToken: string };
+export type AutoBatchPayload = { pairId: string; lockToken: string; deadlineAt?: string };
+export type AutoBatchStartPayload = { scheduledAt: string; deadlineAt: string };
+
+export function isAutomaticBatchLockConflict(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.startsWith("A Batch Update is already running") ||
+    message.startsWith("Another Batch Update started at the same time");
+}
 
 function getAppOrigin() {
   const configured = process.env.APP_URL || process.env.NEXTAUTH_URL;
@@ -172,21 +184,37 @@ async function queueRow(payload: AutoBatchPayload) {
   });
 }
 
-export async function queueNextAutomaticTelegramBatchRow(lockToken: string) {
+export async function queueAutomaticTelegramBatchStartRetry(deadlineAt: string) {
+  const scheduledAt = new Date().toISOString();
+  await send<AutoBatchStartPayload>(AUTO_BATCH_START_TOPIC, { scheduledAt, deadlineAt }, {
+    retentionSeconds: getAutomaticBatchRetryRetentionSeconds(deadlineAt),
+    idempotencyKey: `telegram-batch-auto-start:${scheduledAt.slice(0, 10)}`,
+  });
+  return { scheduledAt, deadlineAt };
+}
+
+export async function queueNextAutomaticTelegramBatchRow(lockToken: string, deadlineAt?: string) {
   await refreshTelegramBatchRun(lockToken);
+  if (hasAutomaticBatchDeadlinePassed(deadlineAt)) {
+    await releaseTelegramBatchRun(lockToken);
+    return { finished: true, deadlineReached: true };
+  }
   const rows = await listTelegramBatchRows();
   if (!rows.length) {
     await releaseTelegramBatchRun(lockToken);
     return { finished: true };
   }
-  await queueRow({ pairId: rows[0].pairId, lockToken });
+  await queueRow({ pairId: rows[0].pairId, lockToken, deadlineAt });
   return { finished: false, pairId: rows[0].pairId };
 }
 
-export async function startAutomaticTelegramBatchRun() {
+export async function startAutomaticTelegramBatchRun(options?: { deadlineAt?: string }) {
+  if (hasAutomaticBatchDeadlinePassed(options?.deadlineAt)) {
+    return { started: false, finished: true, deadlineReached: true };
+  }
   const lock = await claimTelegramBatchRun(AUTOMATIC_ACTOR);
   try {
-    const next = await queueNextAutomaticTelegramBatchRow(lock.token);
+    const next = await queueNextAutomaticTelegramBatchRow(lock.token, options?.deadlineAt);
     return { started: !next.finished, lockToken: next.finished ? undefined : lock.token, ...next };
   } catch (error) {
     await releaseTelegramBatchRun(lock.token).catch(() => undefined);
@@ -195,49 +223,68 @@ export async function startAutomaticTelegramBatchRun() {
 }
 
 export async function processAutomaticTelegramBatchRow(payload: AutoBatchPayload) {
+  if (hasAutomaticBatchDeadlinePassed(payload.deadlineAt)) {
+    await releaseTelegramBatchRun(payload.lockToken).catch(() => undefined);
+    return { finished: true, deadlineReached: true };
+  }
   await refreshTelegramBatchRun(payload.lockToken);
   const row = await getTelegramBatchRow(payload.pairId);
   if (!row) throw new Error("Automatic Batch Lite row was not found");
 
   if (row.status === "UPDATED" || row.status === "FOR MANUAL CHECKING") {
-    return queueNextAutomaticTelegramBatchRow(payload.lockToken);
+    return queueNextAutomaticTelegramBatchRow(payload.lockToken, payload.deadlineAt);
   }
 
-  await claimTelegramBatchRow(payload.pairId, { resumeProcessing: true });
-  if (!isTelegramUpdateMessage(row.message2)) {
+  try {
+    await claimTelegramBatchRow(payload.pairId, { resumeProcessing: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/already\s+(?:UPDATED|FOR MANUAL CHECKING)/i.test(message)) {
+      return queueNextAutomaticTelegramBatchRow(payload.lockToken, payload.deadlineAt);
+    }
+    throw error;
+  }
+  try {
+    if (!isTelegramUpdateMessage(row.message2)) {
+      throw new Error("Message 2 is not a supported listing update");
+    }
+
+    const explicitStatus = getTelegramUpdateStatus(row.message2);
+    const preparedText = prepareTelegramListingForUpdate(row.message1, explicitStatus);
+    const search = await postInternal("/api/search", extractTelegramSearchCriteria(preparedText));
+    if (!search.result || search.matchedBy === "restricted" || !isGeoIdLine(String(search.result.id || ""))) {
+      throw new Error("No eligible existing listing match was found");
+    }
+
+    const parsed = await postInternal("/api/parse", {
+      text: preparedText,
+      optimization: {
+        mode: "existing-listing",
+        existingSummary: search.result.summary || "",
+        explicitStatus,
+      },
+    });
+    const update = await postInternal(
+      "/api/update",
+      buildUpdateBody(search.result, parsed, preparedText, explicitStatus, search.sourceTab || "Sheet1")
+    );
+    if (!update.geoId) throw new Error("Automatic Batch Lite update returned no GEO ID");
+
+    await setTelegramBatchRowStatus(payload.pairId, "UPDATED", String(update.geoId));
+  } catch (error) {
+    console.warn(
+      `Automatic Batch Lite row ${payload.pairId} moved to FOR MANUAL CHECKING:`,
+      error
+    );
     await setTelegramBatchRowStatus(payload.pairId, "FOR MANUAL CHECKING");
-    return queueNextAutomaticTelegramBatchRow(payload.lockToken);
   }
 
-  const explicitStatus = getTelegramUpdateStatus(row.message2);
-  const preparedText = prepareTelegramListingForUpdate(row.message1, explicitStatus);
-  const search = await postInternal("/api/search", extractTelegramSearchCriteria(preparedText));
-  if (!search.result || search.matchedBy === "restricted" || !isGeoIdLine(String(search.result.id || ""))) {
-    await setTelegramBatchRowStatus(payload.pairId, "FOR MANUAL CHECKING");
-    return queueNextAutomaticTelegramBatchRow(payload.lockToken);
-  }
-
-  const parsed = await postInternal("/api/parse", {
-    text: preparedText,
-    optimization: {
-      mode: "existing-listing",
-      existingSummary: search.result.summary || "",
-      explicitStatus,
-    },
-  });
-  const update = await postInternal(
-    "/api/update",
-    buildUpdateBody(search.result, parsed, preparedText, explicitStatus, search.sourceTab || "Sheet1")
-  );
-  if (!update.geoId) throw new Error("Automatic Batch Lite update returned no GEO ID");
-
-  await setTelegramBatchRowStatus(payload.pairId, "UPDATED", String(update.geoId));
-  return queueNextAutomaticTelegramBatchRow(payload.lockToken);
+  return queueNextAutomaticTelegramBatchRow(payload.lockToken, payload.deadlineAt);
 }
 
 export async function failAutomaticTelegramBatchRow(payload: AutoBatchPayload, error: unknown) {
   console.error(`Automatic Batch Lite row ${payload.pairId} exhausted retries:`, error);
   await refreshTelegramBatchRun(payload.lockToken);
   await setTelegramBatchRowStatus(payload.pairId, "FOR MANUAL CHECKING");
-  return queueNextAutomaticTelegramBatchRow(payload.lockToken);
+  return queueNextAutomaticTelegramBatchRow(payload.lockToken, payload.deadlineAt);
 }

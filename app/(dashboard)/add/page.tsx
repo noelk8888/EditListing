@@ -1571,7 +1571,19 @@ export default function AddListingPage() {
         setTodayToggle(true);
       })
       .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Could not claim Telegram queue row");
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Could not claim Telegram queue row";
+        if (/already\s+(?:UPDATED|FOR MANUAL CHECKING)/i.test(message)) {
+          // The row may have been resolved by the nightly runner or another
+          // request after this browser loaded its immutable queue snapshot.
+          // Treat that terminal status as handled and continue to the next row.
+          tgBatchHandledRef.current = row.pairId;
+          setTgBatchCurrentPairId(null);
+          setBatchIndex((current) => current + 1);
+          setError(null);
+          return;
+        }
+        setError(message);
       });
 
     return () => { cancelled = true; };

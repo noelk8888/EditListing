@@ -20,6 +20,7 @@
       ]
     },
     "app/api/queues/run-telegram-batch-update/route.ts": {
+      "maxDuration": 60,
       "experimentalTriggers": [
         {
           "type": "queue/v2beta",
@@ -27,6 +28,19 @@
           "retryAfterSeconds": 60
         }
       ]
+    },
+    "app/api/queues/start-telegram-batch-update/route.ts": {
+      "maxDuration": 60,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "telegram-batch-update-start",
+          "retryAfterSeconds": 300
+        }
+      ]
+    },
+    "app/api/cron/run-telegram-batch-update/route.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -40,7 +54,7 @@
     },
     {
       "path": "/api/cron/run-telegram-batch-update",
-      "schedule": "59 15 * * *"
+      "schedule": "0 14 * * *"
     }
   ]
 }
