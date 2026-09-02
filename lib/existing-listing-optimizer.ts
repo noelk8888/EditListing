@@ -1,6 +1,10 @@
 export type ExistingListingDeterministicPatch = {
   status?: string;
   saleOrLease?: "Sale" | "Lease" | "Sale/Lease";
+  salePrice?: string;
+  salePricePerSqm?: string;
+  leasePrice?: string;
+  leasePricePerSqm?: string;
   bedrooms?: string;
   toilets?: string;
   garage?: string;
@@ -25,8 +29,27 @@ export type ExistingListingOptimizationDecision =
 
 type ClassifiedLine =
   | { kind: "ignored"; normalized: string }
-  | { kind: "field"; field: keyof ExistingListingDeterministicPatch | "saleOrLease"; value: string; normalized: string }
+  | {
+      kind: "field";
+      field: keyof ExistingListingDeterministicPatch;
+      value: string;
+      additionalFields?: Array<{ field: keyof ExistingListingDeterministicPatch; value: string }>;
+      normalized: string;
+    }
   | { kind: "content"; normalized: string };
+
+type ExtractedField = {
+  field: keyof ExistingListingDeterministicPatch;
+  value: string;
+  normalized: string;
+};
+
+const PRICE_FIELDS = new Set<keyof ExistingListingDeterministicPatch>([
+  "salePrice",
+  "salePricePerSqm",
+  "leasePrice",
+  "leasePricePerSqm",
+]);
 
 const AVAILABILITY_STATUSES = [
   "AVAILABLE",
@@ -55,6 +78,34 @@ function normalizeContent(value: string): string {
 
 function cleanUrl(value: string): string {
   return value.trim().replace(/[)>.,;]+$/g, "");
+}
+
+function normalizeMoney(value: string): string {
+  const compact = value.replace(/\s+/g, "").replace(/,/g, "").toUpperCase();
+  const match = compact.match(/^(\d+(?:\.\d+)?)([KMB])?$/);
+  if (!match) return "";
+
+  const multiplier = match[2] === "K"
+    ? 1_000
+    : match[2] === "M"
+      ? 1_000_000
+      : match[2] === "B"
+        ? 1_000_000_000
+        : 1;
+  const amount = Number(match[1]) * multiplier;
+  return Number.isFinite(amount) ? String(amount) : "";
+}
+
+function extractMoney(value: string): string {
+  const match = value.match(/(?:PHP|PHP\.|P|₱)?\s*(\d[\d,]*(?:\.\d+)?\s*[KMB]?)/i);
+  return match ? normalizeMoney(match[1]) : "";
+}
+
+function extractPerSqm(value: string): string {
+  const match = value.match(
+    /(?:PHP|PHP\.|P|₱)?\s*(\d[\d,]*(?:\.\d+)?\s*[KMB]?)\s*(?:\/|per\s+)(?:sq\.?\s*m|sqm|m²|m2)\b/i
+  );
+  return match ? normalizeMoney(match[1]) : "";
 }
 
 function parseStatus(line: string): string | null {
@@ -94,7 +145,57 @@ function classifyLine(rawLine: string): ClassifiedLine | null {
     return { kind: "field", field: "saleOrLease", value: "Lease", normalized };
   }
 
-  let match = plain.match(/^(?:bedrooms?|br)\s*:\s*(\d+)$/i) || plain.match(/^(\d+)\s+(?:bedrooms?|br)$/i);
+  let match = plain.match(/^(?:selling\s+price|sale\s+price|price)\s*:\s*(.+)$/i);
+  if (match) {
+    const salePrice = extractMoney(match[1]);
+    if (salePrice) {
+      const salePricePerSqm = extractPerSqm(match[1]);
+      return {
+        kind: "field",
+        field: "salePrice",
+        value: salePrice,
+        additionalFields: salePricePerSqm
+          ? [{ field: "salePricePerSqm", value: salePricePerSqm }]
+          : undefined,
+        normalized,
+      };
+    }
+  }
+
+  match = plain.match(/^(?:sale\s+)?price\s*(?:\/|per\s+)(?:sq\.?\s*m|sqm|m²|m2)\s*:\s*(.+)$/i);
+  if (match) {
+    const salePricePerSqm = extractMoney(match[1]);
+    if (salePricePerSqm) {
+      return { kind: "field", field: "salePricePerSqm", value: salePricePerSqm, normalized };
+    }
+  }
+
+  match = plain.match(/^(?:lease\s+(?:rate|price)|rental\s+rate|monthly\s+rent|rent)\s*:\s*(.+)$/i);
+  if (match) {
+    const leasePrice = extractMoney(match[1]);
+    if (leasePrice) {
+      const leasePricePerSqm = extractPerSqm(match[1]);
+      return {
+        kind: "field",
+        field: "leasePrice",
+        value: leasePrice,
+        additionalFields: leasePricePerSqm
+          ? [{ field: "leasePricePerSqm", value: leasePricePerSqm }]
+          : undefined,
+        normalized,
+      };
+    }
+  }
+
+  match = plain.match(/^lease\s+(?:rate|price)\s*(?:\/|per\s+)(?:sq\.?\s*m|sqm|m²|m2)\s*:\s*(.+)$/i);
+  if (match) {
+    const leasePricePerSqm = extractMoney(match[1]);
+    if (leasePricePerSqm) {
+      return { kind: "field", field: "leasePricePerSqm", value: leasePricePerSqm, normalized };
+    }
+  }
+
+  match = plain.match(/^(?:bedrooms?|br)\s*:\s*(\d+)$/i) || plain.match(/^(\d+)\s+(?:bedrooms?|br)$/i);
   if (match) return { kind: "field", field: "bedrooms", value: match[1], normalized };
 
   match = plain.match(/^(?:toilets?|bathrooms?|baths?|t\s*&\s*b)\s*:\s*(\d+)$/i) ||
@@ -148,6 +249,29 @@ function subtractLines(source: ClassifiedLine[], other: ClassifiedLine[]): Class
   });
 }
 
+function expandFields(lines: ClassifiedLine[]): ExtractedField[] {
+  return lines.flatMap((line) => {
+    if (line.kind !== "field") return [];
+    return [
+      { field: line.field, value: line.value, normalized: line.normalized },
+      ...(line.additionalFields || []).map((additional) => ({
+        ...additional,
+        normalized: line.normalized,
+      })),
+    ];
+  });
+}
+
+function collectPricePatch(lines: ClassifiedLine[]): ExistingListingDeterministicPatch {
+  const patch: ExistingListingDeterministicPatch = {};
+  for (const extracted of expandFields(lines)) {
+    if (PRICE_FIELDS.has(extracted.field)) {
+      (patch as Record<string, string>)[extracted.field] = extracted.value;
+    }
+  }
+  return patch;
+}
+
 export function optimizeExistingListingParse(input: {
   text: string;
   existingSummary: string;
@@ -162,13 +286,18 @@ export function optimizeExistingListingParse(input: {
   const added = subtractLines(nextLines, previousLines).filter((line) => line.kind !== "ignored");
   const removed = subtractLines(previousLines, nextLines).filter((line) => line.kind !== "ignored");
   const explicitStatus = input.explicitStatus?.trim().toUpperCase() || "";
+  const pricePatch = collectPricePatch(nextLines);
 
   if (added.length === 0 && removed.length === 0) {
+    const patch: ExistingListingDeterministicPatch = {
+      ...pricePatch,
+      ...(explicitStatus ? { status: explicitStatus } : {}),
+    };
     return {
       mode: "deterministic",
       reason: explicitStatus ? "status-only" : "unchanged",
-      patch: explicitStatus ? { status: explicitStatus } : {},
-      changedFields: explicitStatus ? ["status"] : [],
+      patch,
+      changedFields: Object.keys(patch),
     };
   }
 
@@ -176,8 +305,8 @@ export function optimizeExistingListingParse(input: {
     return { mode: "ai", reason: "Unstructured listing content changed" };
   }
 
-  const addedFields = added.filter((line): line is Extract<ClassifiedLine, { kind: "field" }> => line.kind === "field");
-  const removedFields = removed.filter((line): line is Extract<ClassifiedLine, { kind: "field" }> => line.kind === "field");
+  const addedFields = expandFields(added);
+  const removedFields = expandFields(removed);
   const addedByField = new Map(addedFields.map((line) => [line.field, line]));
   const removedByField = new Map(removedFields.map((line) => [line.field, line]));
 
@@ -197,7 +326,7 @@ export function optimizeExistingListingParse(input: {
     return { mode: "ai", reason: "Sale/lease classification changed" };
   }
 
-  const patch: ExistingListingDeterministicPatch = {};
+  const patch: ExistingListingDeterministicPatch = { ...pricePatch };
   for (const [field, line] of Array.from(addedByField.entries())) {
     if (field === "saleOrLease") continue;
     (patch as Record<string, string>)[field] = line.value;
@@ -208,9 +337,11 @@ export function optimizeExistingListingParse(input: {
   }
 
   const changedFields = Object.keys(patch);
+  const isStatusOnlyChange = Boolean(explicitStatus || addedByField.has("status")) &&
+    Array.from(addedByField.keys()).every((field) => field === "status");
   return {
     mode: "deterministic",
-    reason: changedFields.length === 1 && changedFields[0] === "status" ? "status-only" : "safe-labeled-fields",
+    reason: isStatusOnlyChange ? "status-only" : "safe-labeled-fields",
     patch,
     changedFields,
   };

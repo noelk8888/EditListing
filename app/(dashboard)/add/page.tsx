@@ -775,12 +775,16 @@ export default function AddListingPage() {
             : textToExtract);
         }
         if (typeof data.status === "string" && data.status) setEditStatus(normalizeStatus(data.status));
+        if (typeof data.salePrice === "string" && data.salePrice) setEditPrice(data.salePrice);
+        if (typeof data.salePricePerSqm === "string" && data.salePricePerSqm) setSalePricePerSqm(data.salePricePerSqm);
+        if (typeof data.leasePrice === "string" && data.leasePrice) setEditLeasePrice(data.leasePrice);
+        if (typeof data.leasePricePerSqm === "string" && data.leasePricePerSqm) setLeasePricePerSqm(data.leasePricePerSqm);
         const deterministicSaleOrLease = resolveSaleOrLease({
           savedValue: data.saleOrLease,
           text: textToExtract,
           status: data.status || statusReplacement,
-          salePrice: editPrice,
-          leasePrice: editLeasePrice,
+          salePrice: data.salePrice || editPrice,
+          leasePrice: data.leasePrice || editLeasePrice,
         });
         if (deterministicSaleOrLease) setSaleOrLease(deterministicSaleOrLease);
         if (typeof data.bedrooms === "string") setBedrooms(data.bedrooms);

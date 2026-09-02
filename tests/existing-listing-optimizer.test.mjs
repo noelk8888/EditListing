@@ -20,7 +20,7 @@ test("uses zero AI tokens for an explicit status-only update", () => {
 
   assert.equal(decision.mode, "deterministic");
   assert.equal(decision.reason, "status-only");
-  assert.deepEqual(decision.patch, { status: "SOLD" });
+  assert.deepEqual(decision.patch, { salePrice: "22000000", status: "SOLD" });
 });
 
 test("preserves Lease when FOR LEASE becomes LEASED OUT", () => {
@@ -34,7 +34,11 @@ test("preserves Lease when FOR LEASE becomes LEASED OUT", () => {
   });
 
   assert.equal(decision.mode, "deterministic");
-  assert.deepEqual(decision.patch, { status: "LEASED OUT", saleOrLease: "Lease" });
+  assert.deepEqual(decision.patch, {
+    leasePrice: "70000",
+    status: "LEASED OUT",
+    saleOrLease: "Lease",
+  });
 });
 
 test("uses zero AI tokens when the meaningful listing is unchanged", () => {
@@ -45,6 +49,7 @@ test("uses zero AI tokens when the meaningful listing is unchanged", () => {
 
   assert.equal(decision.mode, "deterministic");
   assert.equal(decision.reason, "unchanged");
+  assert.equal(decision.patch.salePrice, "22000000");
 });
 
 test("applies an unambiguous labeled field change without AI", () => {
@@ -58,13 +63,55 @@ test("applies an unambiguous labeled field change without AI", () => {
   assert.equal(decision.patch.bedrooms, "5");
 });
 
-test("falls back to AI for price changes", () => {
+test("applies a clearly labeled price change without AI", () => {
   const decision = optimizeExistingListingParse({
     existingSummary: existing,
     text: existing.replace("P22,000,000", "P23,000,000"),
   });
 
-  assert.equal(decision.mode, "ai");
+  assert.equal(decision.mode, "deterministic");
+  assert.equal(decision.patch.salePrice, "23000000");
+});
+
+test("backfills total and per-sqm sale prices without AI", () => {
+  const listing = existing.replace(
+    "Price: P22,000,000",
+    "Price: P95,000,000 (P217,890/sqm) gross",
+  );
+  const decision = optimizeExistingListingParse({
+    existingSummary: listing,
+    text: listing,
+  });
+
+  assert.equal(decision.mode, "deterministic");
+  assert.equal(decision.patch.salePrice, "95000000");
+  assert.equal(decision.patch.salePricePerSqm, "217890");
+});
+
+test("backfills lease rate and per-sqm lease price without AI", () => {
+  const listing = existing
+    .replace("*FOR SALE*", "*FOR LEASE*")
+    .replace("Price: P22,000,000", "Lease Rate: Php250,000/month (P610/sqm)");
+  const decision = optimizeExistingListingParse({
+    existingSummary: listing,
+    text: listing,
+  });
+
+  assert.equal(decision.mode, "deterministic");
+  assert.equal(decision.patch.leasePrice, "250000");
+  assert.equal(decision.patch.leasePricePerSqm, "610");
+});
+
+test("does not treat rental income as a lease price", () => {
+  const listing = `${existing}\nRental Income: P300,000/month`;
+  const decision = optimizeExistingListingParse({
+    existingSummary: listing,
+    text: listing,
+  });
+
+  assert.equal(decision.mode, "deterministic");
+  assert.equal(decision.patch.salePrice, "22000000");
+  assert.equal(decision.patch.leasePrice, undefined);
 });
 
 test("falls back to AI for location or descriptive changes", () => {
