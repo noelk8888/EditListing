@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Trash2, 
   Plus, 
@@ -18,7 +25,8 @@ import {
   X,
   RefreshCw,
   Hash,
-  ArrowUp
+  ArrowUp,
+  CircleHelp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -42,6 +50,7 @@ export default function TelegramGroupsPage() {
   const [editForm, setEditForm] = useState<EditFormState>({});
   const [saving, setSaving] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showChatIdHelp, setShowChatIdHelp] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -151,7 +160,11 @@ export default function TelegramGroupsPage() {
           </h1>
           <p className="text-muted-foreground italic">Manage your 135+ notification channels and smart keywords</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowChatIdHelp(true)}>
+            <CircleHelp className="h-4 w-4 mr-2" />
+            GET CHAT ID
+          </Button>
            <Button variant="outline" size="sm" onClick={fetchGroups} disabled={loading}>
             <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
             Refresh
@@ -162,6 +175,34 @@ export default function TelegramGroupsPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={showChatIdHelp} onOpenChange={setShowChatIdHelp}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Get a Telegram Chat ID</DialogTitle>
+            <DialogDescription>
+              Follow these steps for OLD LISTINGS OF LUXE REALTY.
+            </DialogDescription>
+          </DialogHeader>
+          <ol className="list-decimal space-y-3 pl-5 text-sm text-slate-700">
+            <li>Open any post in OLD LISTINGS OF LUXE REALTY.</li>
+            <li>Right-click the post and select <strong>Copy Post Link</strong>.</li>
+            <li>
+              The link should resemble:
+              <code className="mt-1 block rounded bg-slate-100 px-3 py-2 font-mono text-slate-900">
+                https://t.me/c/1234567890/45
+              </code>
+            </li>
+            <li>
+              Take the number after <code>/c/</code> and add <code>-100</code> before it:
+              <code className="mt-1 block rounded bg-slate-100 px-3 py-2 font-mono text-slate-900">
+                -1001234567890
+              </code>
+            </li>
+            <li>Paste that into <strong>Chat ID</strong>.</li>
+          </ol>
+        </DialogContent>
+      </Dialog>
 
       <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-lg border">
         <div className="relative flex-1">
