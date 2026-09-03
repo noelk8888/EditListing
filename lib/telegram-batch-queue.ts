@@ -31,6 +31,23 @@ type RunLock = {
   token: string;
   started_at: string;
   started_by: string;
+  automatic_progress?: TelegramBatchRunProgress;
+};
+
+export type TelegramBatchRunOutcome = "UPDATED" | "FOR MANUAL CHECKING";
+
+export type TelegramBatchRunProgress = {
+  processed: number;
+  updated: number;
+  manualChecking: number;
+  outcomes: Record<string, TelegramBatchRunOutcome>;
+};
+
+const EMPTY_RUN_PROGRESS: TelegramBatchRunProgress = {
+  processed: 0,
+  updated: 0,
+  manualChecking: 0,
+  outcomes: {},
 };
 
 function getSupabase() {
@@ -412,4 +429,58 @@ export async function refreshTelegramBatchRun(token: string) {
     .select("key")
     .maybeSingle();
   if (refreshError || !refreshed) throw new Error("This Batch Update lock has expired or was replaced");
+}
+
+export async function recordTelegramBatchRunOutcome(
+  token: string,
+  pairId: string,
+  outcome: TelegramBatchRunOutcome
+) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", RUN_LOCK_KEY)
+    .contains("value", { token })
+    .maybeSingle();
+  if (error) throw new Error(`Could not read Batch Update progress: ${error.message}`);
+  if (!data) throw new Error("This Batch Update lock has expired or was replaced");
+
+  const current = data.value as RunLock;
+  const progress = current.automatic_progress || EMPTY_RUN_PROGRESS;
+  if (progress.outcomes[pairId]) return progress;
+
+  const nextProgress: TelegramBatchRunProgress = {
+    processed: progress.processed + 1,
+    updated: progress.updated + (outcome === "UPDATED" ? 1 : 0),
+    manualChecking: progress.manualChecking + (outcome === "FOR MANUAL CHECKING" ? 1 : 0),
+    outcomes: { ...progress.outcomes, [pairId]: outcome },
+  };
+  const next: RunLock = {
+    ...current,
+    started_at: new Date().toISOString(),
+    automatic_progress: nextProgress,
+  };
+  const { data: updated, error: updateError } = await supabase
+    .from("app_settings")
+    .update({ value: next })
+    .eq("key", RUN_LOCK_KEY)
+    .contains("value", { token })
+    .select("key")
+    .maybeSingle();
+  if (updateError || !updated) throw new Error("Could not save Batch Update progress");
+  return nextProgress;
+}
+
+export async function getTelegramBatchRunProgress(token: string) {
+  const { data, error } = await getSupabase()
+    .from("app_settings")
+    .select("value")
+    .eq("key", RUN_LOCK_KEY)
+    .contains("value", { token })
+    .maybeSingle();
+  if (error) throw new Error(`Could not read Batch Update progress: ${error.message}`);
+  if (!data) throw new Error("This Batch Update lock has expired or was replaced");
+  const lock = data.value as RunLock;
+  return lock.automatic_progress || EMPTY_RUN_PROGRESS;
 }

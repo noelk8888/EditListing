@@ -17,6 +17,7 @@ test("registers retry and row consumers with the full Hobby duration", () => {
   const expectations = [
     ["app/api/queues/start-telegram-batch-update/route.ts", "telegram-batch-update-start"],
     ["app/api/queues/run-telegram-batch-update/route.ts", "telegram-batch-update-row"],
+    ["app/api/queues/send-telegram-batch-summary/route.ts", "telegram-batch-update-summary"],
   ];
 
   for (const [route, topic] of expectations) {

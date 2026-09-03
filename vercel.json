@@ -39,6 +39,16 @@
         }
       ]
     },
+    "app/api/queues/send-telegram-batch-summary/route.ts": {
+      "maxDuration": 60,
+      "experimentalTriggers": [
+        {
+          "type": "queue/v2beta",
+          "topic": "telegram-batch-update-summary",
+          "retryAfterSeconds": 300
+        }
+      ]
+    },
     "app/api/cron/run-telegram-batch-update/route.ts": {
       "maxDuration": 60
     }
