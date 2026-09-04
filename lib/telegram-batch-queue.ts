@@ -7,6 +7,9 @@ const CAPTURE_SETTING_KEY = "telegram-batch-capture";
 const RUN_LOCK_KEY = "telegram-batch-run-lock";
 const PROCESSING_LEASE_MS = 30 * 60 * 1000;
 const RUN_LEASE_MS = 60 * 60 * 1000;
+const MANUAL_CHECKING_BACKGROUND = { red: 1, green: 0.85, blue: 0 };
+const BLACK_TEXT = { red: 0, green: 0, blue: 0 };
+let manualCheckingFormatPromise: Promise<void> | null = null;
 
 export type TelegramBatchStatus = "" | "PROCESSING" | "UPDATED" | "FOR MANUAL CHECKING";
 
@@ -73,6 +76,88 @@ async function getQueueSheet() {
   return { spreadsheetId, gid, tabName, sheets: getSheets() };
 }
 
+async function ensureManualCheckingStatusFormat(queue: Awaited<ReturnType<typeof getQueueSheet>>) {
+  if (manualCheckingFormatPromise) return manualCheckingFormatPromise;
+
+  manualCheckingFormatPromise = (async () => {
+    const metadata = await queue.sheets.spreadsheets.get({
+      spreadsheetId: queue.spreadsheetId,
+      fields: "sheets(properties(sheetId),conditionalFormats)",
+    });
+    const sheet = metadata.data.sheets?.find((item) => item.properties?.sheetId === queue.gid);
+    const rules = sheet?.conditionalFormats || [];
+    const existingIndex = rules.findIndex((rule) => {
+      const condition = rule.booleanRule?.condition;
+      return condition?.type === "TEXT_EQ" &&
+        condition.values?.[0]?.userEnteredValue === "FOR MANUAL CHECKING" &&
+        rule.ranges?.some((range) =>
+          range.sheetId === queue.gid &&
+          range.startColumnIndex === 2 &&
+          range.endColumnIndex === 3
+        );
+    });
+    const rule = {
+      ranges: [{
+        sheetId: queue.gid,
+        startRowIndex: 1,
+        startColumnIndex: 2,
+        endColumnIndex: 3,
+      }],
+      booleanRule: {
+        condition: {
+          type: "TEXT_EQ",
+          values: [{ userEnteredValue: "FOR MANUAL CHECKING" }],
+        },
+        format: {
+          backgroundColor: MANUAL_CHECKING_BACKGROUND,
+          textFormat: { foregroundColor: BLACK_TEXT, bold: true },
+        },
+      },
+    };
+
+    if (existingIndex >= 0) {
+      const currentFormat = rules[existingIndex].booleanRule?.format;
+      const currentBackground = currentFormat?.backgroundColor;
+      const currentText = currentFormat?.textFormat?.foregroundColor;
+      const alreadyCorrect =
+        currentBackground?.red === MANUAL_CHECKING_BACKGROUND.red &&
+        currentBackground?.green === MANUAL_CHECKING_BACKGROUND.green &&
+        currentBackground?.blue === MANUAL_CHECKING_BACKGROUND.blue &&
+        currentText?.red === BLACK_TEXT.red &&
+        currentText?.green === BLACK_TEXT.green &&
+        currentText?.blue === BLACK_TEXT.blue &&
+        currentFormat?.textFormat?.bold === true;
+      if (alreadyCorrect) return;
+
+      await queue.sheets.spreadsheets.batchUpdate({
+        spreadsheetId: queue.spreadsheetId,
+        requestBody: {
+          requests: [{
+            updateConditionalFormatRule: {
+              sheetId: queue.gid,
+              index: existingIndex,
+              rule,
+            },
+          }],
+        },
+      });
+      return;
+    }
+
+    await queue.sheets.spreadsheets.batchUpdate({
+      spreadsheetId: queue.spreadsheetId,
+      requestBody: {
+        requests: [{ addConditionalFormatRule: { rule, index: rules.length } }],
+      },
+    });
+  })().catch((error) => {
+    manualCheckingFormatPromise = null;
+    throw error;
+  });
+
+  return manualCheckingFormatPromise;
+}
+
 function processingExpired(value: string) {
   const startedAt = new Date(value).getTime();
   return !Number.isFinite(startedAt) || Date.now() - startedAt >= PROCESSING_LEASE_MS;
@@ -124,6 +209,7 @@ async function ensureHeaders() {
       },
     });
   }
+  await ensureManualCheckingStatusFormat(queue);
   return queue;
 }
 
@@ -304,6 +390,7 @@ export async function setTelegramBatchRowStatus(
   if (!found.rowNumber) throw new Error("Queue row was not found");
 
   const isUpdated = status === "UPDATED";
+  const isManualChecking = status === "FOR MANUAL CHECKING";
   const normalizedGeoId = normalizeGeoId(geoId || "");
   if (isUpdated && !isGeoIdLine(normalizedGeoId)) {
     throw new Error("A valid GEO ID is required before marking a queue row UPDATED");
@@ -327,12 +414,14 @@ export async function setTelegramBatchRowStatus(
                 userEnteredFormat: {
                   backgroundColor: isUpdated
                     ? { red: 0.8, green: 0, blue: 0 }
-                    : { red: 1, green: 1, blue: 1 },
+                    : isManualChecking
+                      ? MANUAL_CHECKING_BACKGROUND
+                      : { red: 1, green: 1, blue: 1 },
                   textFormat: {
                     foregroundColor: isUpdated
                       ? { red: 1, green: 1, blue: 1 }
-                      : { red: 0, green: 0, blue: 0 },
-                    bold: isUpdated,
+                      : BLACK_TEXT,
+                    bold: isUpdated || isManualChecking,
                   },
                 },
               }],
